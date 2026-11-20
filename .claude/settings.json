@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(bash tools/unity-compile.sh)",
+      "Bash(bash tools/unity-compile.sh *)",
+      "Bash(tools/unity-compile.sh *)",
+      "Bash(orca orchestration *)",
+      "Bash(orca skills get *)",
+      "Bash(orca status *)",
+      "Bash(ls *)",
+      "Bash(grep *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(find *)",
+      "Bash(wc *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ],
+    "deny": [
+      "Bash(git reset *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git clean *)",
+      "Bash(git rebase *)"
+    ]
+  }
+}
