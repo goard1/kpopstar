@@ -141,6 +141,7 @@ namespace Munbanggu.Visual
                 for (int dx = -Border; dx <= Border; dx++)
                     if (dx * dx + dy * dy <= Border * Border && (dx != 0 || dy != 0)) offsets.Add(new Vector2Int(dx, dy));
 
+            // 가장자리 픽셀(옆에 빈 칸이 있는 불투명 픽셀)에만 원을 찍는다 → 전체를 훑는 것보다 수십 배 빠름
             var outPx = new Color32[n];
             var white = new Color32(255, 253, 246, 255);
             for (int y = 0; y < Size; y++)
@@ -148,21 +149,20 @@ namespace Munbanggu.Visual
                 for (int x = 0; x < Size; x++)
                 {
                     int i = y * Size + x;
-                    if (alpha[i] != 0)
-                    {
-                        var c = px[i];
-                        c.a = 255;
-                        outPx[i] = c;
-                        continue;
-                    }
-                    bool near = false;
+                    if (alpha[i] == 0) continue;
+                    var c = px[i];
+                    c.a = 255;
+                    outPx[i] = c;
+                    bool edge = x == 0 || y == 0 || x == Size - 1 || y == Size - 1
+                        || alpha[i - 1] == 0 || alpha[i + 1] == 0 || alpha[i - Size] == 0 || alpha[i + Size] == 0;
+                    if (!edge) continue;
                     foreach (var o in offsets)
                     {
                         int sx = x + o.x, sy = y + o.y;
                         if (sx < 0 || sy < 0 || sx >= Size || sy >= Size) continue;
-                        if (alpha[sy * Size + sx] != 0) { near = true; break; }
+                        int j = sy * Size + sx;
+                        if (alpha[j] == 0) outPx[j] = white;
                     }
-                    outPx[i] = near ? white : new Color32(0, 0, 0, 0);
                 }
             }
 
