@@ -12,7 +12,7 @@ namespace Munbanggu.UI
         /// <summary>지금 탭해서 계산할 수 있는 상태인지 (튜토리얼 화살표용).</summary>
         public bool CanTap => interactable && gameObject.activeInHierarchy;
 
-        const float MinWidth = 150f, MaxWidth = 560f, TextPadding = 52f;
+        const float MinWidth = 150f, MaxWidth = 560f, TextPadding = 52f, IconPad = 74f;
         const float PopDuration = 0.28f;
 
         Image bg;
@@ -21,6 +21,7 @@ namespace Munbanggu.UI
         GameObject fillRoot;
         Button button;
         Image tail;
+        Image icon;
         GameObject tapBadge;
         RectTransform root;
         string lastText;
@@ -46,6 +47,31 @@ namespace Munbanggu.UI
         {
             tail = tailFill;
             tapBadge = tapSticker;
+        }
+
+        /// <summary>말풍선 왼쪽 상품 아이콘 자리 연결 (HUD가 만든 이미지).</summary>
+        public void SetIconImage(Image image)
+        {
+            icon = image;
+            if (icon != null) icon.enabled = false;
+        }
+
+        /// <summary>말풍선에 보여줄 상품 아이콘 (null이면 숨김). 글자는 아이콘만큼 오른쪽으로 밀린다.</summary>
+        public void SetIcon(Sprite sprite)
+        {
+            if (icon == null || (icon.sprite == sprite && icon.enabled == (sprite != null))) return;
+            icon.sprite = sprite;
+            icon.enabled = sprite != null;
+            var lrt = label.rectTransform;
+            lrt.offsetMin = new Vector2(sprite != null ? 14f + IconPad : 14f, lrt.offsetMin.y);
+            if (lastText != null) Resize();
+        }
+
+        void Resize()
+        {
+            float pad = TextPadding + (icon != null && icon.enabled ? IconPad : 0f);
+            float w = Mathf.Clamp(label.preferredWidth + pad, MinWidth, MaxWidth + IconPad);
+            if (root != null && Mathf.Abs(root.sizeDelta.x - w) > 0.5f) root.sizeDelta = new Vector2(w, root.sizeDelta.y);
         }
 
         /// <summary>계속 보여줌 (매 프레임 호출해도 됨). fill01이 0보다 작으면 인내심 바 숨김.</summary>
@@ -80,8 +106,7 @@ namespace Munbanggu.UI
                 if (lastText != null && appear >= 1f) appear = 0.55f; // 내용이 바뀌면 살짝 다시 튐
                 label.text = text;
                 lastText = text;
-                float w = Mathf.Clamp(label.preferredWidth + TextPadding, MinWidth, MaxWidth);
-                if (root != null && Mathf.Abs(root.sizeDelta.x - w) > 0.5f) root.sizeDelta = new Vector2(w, root.sizeDelta.y);
+                Resize();
             }
             if (bg.color != color)
             {

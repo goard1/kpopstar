@@ -100,6 +100,9 @@ namespace Munbanggu.Core
             trends = new TrendSystem(trendConfig, catalog);
             Materials = new MaterialCache(baseMaterial);
             Layout = ShopBuilder.Build(transform, Materials);
+            // 상품 아이콘: 조명이 생긴 뒤, HUD가 쓰기 전에 한 번에 찍어 둔다
+            Visual.ProductIcons.Init(Materials.VertexColor);
+            Visual.ProductIcons.Prewarm(catalog.products);
             Hud = HUD.Build(this);
             Dialogue = DialoguePanel.Build(transform);
             gameObject.AddComponent<TapInput>().Init(this);

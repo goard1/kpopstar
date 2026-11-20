@@ -89,10 +89,13 @@ namespace Munbanggu.EditorTools
                 if (slots.Count > 2)
                 {
                     var a = hud.CreateBubble(slots[1].transform);
+                    a.SetIcon(Munbanggu.Visual.ProductIcons.Get(catalog.Find("ddakji")));
                     a.Show("딱지 200원", UIKit.BubbleReady, true, 0.65f);
                     var b = hud.CreateBubble(slots[2].transform);
+                    b.SetIcon(Munbanggu.Visual.ProductIcons.Get(catalog.Find("apollo")));
                     b.Show("빨리요~", UIKit.BubbleUrgent, false, 0.2f);
                     var c = hud.CreateBubble(slots[0].transform);
+                    c.SetIcon(Munbanggu.Visual.ProductIcons.Get(catalog.Find("jjondeugi")));
                     c.Flash("쫀드기 있어요?", UIKit.BubbleNormal, 1.4f);
                     hud.Fx.CoinBurst(slots[1].transform.position + Vector3.up * 1.5f, 300);
                     hud.Fx.Tick(0.3f);

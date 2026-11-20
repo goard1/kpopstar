@@ -5,6 +5,7 @@ using Munbanggu.Core;
 using Munbanggu.Customers;
 using Munbanggu.Data;
 using Munbanggu.Shop;
+using Munbanggu.Visual;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -62,6 +63,7 @@ namespace Munbanggu.UI
         {
             public Image bg;
             public Text text;
+            public Image icon;
             public UIJuice juice;
             public ProductData product;
             public int count = -1;
@@ -86,6 +88,7 @@ namespace Munbanggu.UI
         // 상단
         Text dayText, phaseText, moneyText, trendText;
         RectTransform trendTag, timeFill, timeKnob;
+        Image trendIcon;
         UIJuice moneyJuice, coinJuice, dayJuice, phaseJuice, timeJuice;
         float shownMoney;
         int shownMoneyInt = int.MinValue;
@@ -263,6 +266,8 @@ namespace Munbanggu.UI
             trendText = UIKit.Label("Text", tag.transform, "", 27, Color.white, TextAnchor.MiddleCenter);
             UIKit.Stretch(trendText.rectTransform, 14, 2, 14, 0);
             trendText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            trendIcon = Icon(tag.transform, null, new Vector2(0, 0.5f), new Vector2(18, 2), 54);
+            trendIcon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
             // 시간 띠 (러시 구간은 노란 사선)
             var timeBg = UIKit.Panel("Time", bar.transform, new Color(0.36f, 0.24f, 0.13f, 0.38f), false);
@@ -384,11 +389,11 @@ namespace Munbanggu.UI
             var ring = UIKit.Ring(btn.transform, UIKit.Red, 28, 3);
             ring.gameObject.SetActive(false);
 
-            var swatch = UIKit.Panel("Swatch", btn.transform, p.color, false);
+            var swatch = UIKit.Panel("Swatch", btn.transform, Tint(p.color), false);
             UIKit.Round(swatch, 18);
-            UIKit.AddShadow(swatch, UIKit.ShadowColor, 4);
             UIKit.Ring(swatch.transform, new Color(1, 1, 1, 0.95f), 18);
-            UIKit.Place(swatch.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -14), new Vector2(84, 62));
+            UIKit.Place(swatch.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -16), new Vector2(84, 58));
+            Icon(btn.transform, p, new Vector2(0.5f, 1), new Vector2(0, -2), 86);
 
             nameLabel.text = p.displayName;
             nameLabel.alignment = TextAnchor.MiddleCenter;
@@ -416,6 +421,24 @@ namespace Munbanggu.UI
                 juice = btn.GetComponent<UIJuice>()
             };
         }
+
+        /// <summary>상품 아이콘 이미지 (스티커처럼 흰 테두리, 위쪽 기준 배치). 아이콘이 없으면 숨김.</summary>
+        static Image Icon(Transform parent, ProductData p, Vector2 anchor, Vector2 pos, float size)
+        {
+            var img = UIKit.Rect("Icon", parent).gameObject.AddComponent<Image>();
+            img.preserveAspect = true;
+            img.raycastTarget = false;
+            img.sprite = ProductIcons.Get(p);
+            img.enabled = img.sprite != null;
+            UIKit.Place(img.rectTransform, anchor, new Vector2(0.5f, anchor.y), pos, new Vector2(size, size));
+            var sh = img.gameObject.AddComponent<Shadow>();
+            sh.effectColor = UIKit.WithAlpha(UIKit.ShadowColor, 0.5f);
+            sh.effectDistance = new Vector2(0, -3);
+            return img;
+        }
+
+        /// <summary>아이콘 뒤 받침: 상품 색을 연하게.</summary>
+        static Color Tint(Color c) => Color.Lerp(c, Color.white, 0.62f);
 
         /// <summary>작은 기울어진 스티커 ("유행", "NEW" 등).</summary>
         static GameObject Sticker(Transform parent, string text, Color color, Vector2 anchor, Vector2 pos, float angle)
@@ -448,7 +471,9 @@ namespace Munbanggu.UI
                 var label = UIKit.Label("Text", bg.transform, "", 26, UIKit.Ink, TextAnchor.MiddleCenter);
                 UIKit.Stretch(label.rectTransform, 4, 2, 4, 0);
                 label.horizontalOverflow = HorizontalWrapMode.Overflow;
-                slotLabels[slot] = new SlotLabel { bg = bg, text = label, juice = bg.gameObject.AddComponent<UIJuice>() };
+                var icon = Icon(bg.transform, null, new Vector2(0, 0.5f), new Vector2(20, 2), 58);
+                icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                slotLabels[slot] = new SlotLabel { bg = bg, text = label, icon = icon, juice = bg.gameObject.AddComponent<UIJuice>() };
             }
         }
 
@@ -483,7 +508,13 @@ namespace Munbanggu.UI
                 l.text.color = UIKit.Ink;
                 l.bg.color = UIKit.Cream;
             }
-            float w = Mathf.Clamp(l.text.preferredWidth + 30f, 120f, 320f);
+            // 아이콘은 이름표 왼쪽 끝에 걸쳐 붙고, 글자는 그만큼 오른쪽으로
+            var sprite = ProductIcons.Get(slot.Product);
+            l.icon.sprite = sprite;
+            l.icon.enabled = sprite != null;
+            float iconPad = sprite != null ? 40f : 0f;
+            l.text.rectTransform.offsetMin = new Vector2(4f + iconPad, l.text.rectTransform.offsetMin.y);
+            float w = Mathf.Clamp(l.text.preferredWidth + 30f + iconPad, 120f, 360f);
             l.bg.rectTransform.sizeDelta = new Vector2(w, 46f);
         }
 
@@ -520,6 +551,9 @@ namespace Munbanggu.UI
             UIKit.Stretch(label.rectTransform, 14, 20, 14, 2);
             label.horizontalOverflow = HorizontalWrapMode.Overflow;
 
+            var icon = Icon(body.transform, null, new Vector2(0, 0.5f), new Vector2(46, 8), 76);
+            icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+
             var fillBg = UIKit.Panel("Patience", body.transform, new Color(0, 0, 0, 0.13f), false);
             UIKit.Round(fillBg, 6);
             UIKit.Bottom(fillBg.rectTransform, 11, 12, 24);
@@ -548,6 +582,7 @@ namespace Munbanggu.UI
             var bubble = root.gameObject.AddComponent<CustomerBubble>();
             bubble.Setup(body, label, fillBg.gameObject, fill.rectTransform, btn);
             bubble.SetDecor(tailFill, tap.gameObject);
+            bubble.SetIconImage(icon);
 
             bubbles.RemoveAll(IsDead);
             bubbles.Add(bubble);
@@ -652,11 +687,12 @@ namespace Munbanggu.UI
             var row = UIKit.CardPanel(p.id, list, UIKit.Card, 24, true, 6);
             UIKit.Layout(row, -1, 118);
 
-            var sw = UIKit.Panel("Swatch", row.transform, p.color, false);
+            var sw = UIKit.Panel("Swatch", row.transform, Tint(p.color), false);
             UIKit.Round(sw, 20);
-            UIKit.AddShadow(sw, UIKit.ShadowColor, 4);
             UIKit.Ring(sw.transform, new Color(1, 1, 1, 0.95f), 20);
-            UIKit.Place(sw.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(22, 0), new Vector2(74, 74));
+            UIKit.Place(sw.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(22, 0), new Vector2(78, 78));
+            var icon = Icon(row.transform, p, new Vector2(0, 0.5f), new Vector2(61, 2), 96);
+            icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
             var name = UIKit.Label("Name", row.transform, p.displayName, 36, UIKit.Ink, TextAnchor.UpperLeft);
             UIKit.Stretch(name.rectTransform, 116, 0, 250, 16);
@@ -1072,7 +1108,13 @@ namespace Munbanggu.UI
             if (text == lastTrendText) return;
             lastTrendText = text;
             trendText.text = text;
-            float w = Mathf.Clamp(trendText.preferredWidth + 34f, 200f, 1000f);
+            // 지금 유행(없으면 소문난) 상품 아이콘을 이름표 왼쪽에
+            var sprite = ProductIcons.Get(gm.Trend != null ? gm.Trend : gm.TrendRumor);
+            trendIcon.sprite = sprite;
+            trendIcon.enabled = sprite != null;
+            float iconPad = sprite != null ? 36f : 0f;
+            trendText.rectTransform.offsetMin = new Vector2(14f + iconPad, trendText.rectTransform.offsetMin.y);
+            float w = Mathf.Clamp(trendText.preferredWidth + 34f + iconPad, 200f, 1000f);
             trendTag.sizeDelta = new Vector2(w, trendTag.sizeDelta.y);
         }
 

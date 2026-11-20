@@ -68,6 +68,7 @@ namespace Munbanggu.Customers
                 : $"{wanted.displayName} 있어요?";
             if (regular != null) ask = $"{regular.name}: {ask}";
             askText = ask;
+            bubble.SetIcon(ProductIcons.Get(wanted));
             bubble.Flash(ask, UIKit.BubbleNormal, regular != null ? 2f : 1.4f);
             PickTarget();
         }
@@ -125,6 +126,7 @@ namespace Munbanggu.Customers
                 {
                     target = alt;
                     state = State.ToShelf;
+                    bubble.SetIcon(ProductIcons.Get(alt.Product));
                     bubble.Flash($"{wanted.displayName} 없네… 이거라도 살래", UIKit.BubbleNormal, 1.8f);
                     return;
                 }
@@ -179,6 +181,7 @@ namespace Munbanggu.Customers
             if (product != null && target.TakeOne())
             {
                 Carried = product;
+                bubble.SetIcon(ProductIcons.Get(product));
                 GameEvents.RaiseItemPicked(this, target);
                 state = State.Queued;
                 patience = maxPatience;
@@ -231,6 +234,7 @@ namespace Munbanggu.Customers
             int tip = gm.Checkout(this);
             gm.Layout.Queue.Leave(this);
             Carried = null;
+            bubble.SetIcon(null);
             GameEvents.RaiseCheckedOut(this, price);
             string msg = $"+{UIKit.Won(price + tip)}";
             if (Regular != null && !string.IsNullOrEmpty(Regular.happyLine)) msg = $"{Regular.happyLine}\n{msg}";
