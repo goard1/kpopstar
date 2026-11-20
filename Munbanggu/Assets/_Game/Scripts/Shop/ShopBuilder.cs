@@ -11,7 +11,16 @@ namespace Munbanggu.Shop
         public CounterQueue Queue;
         public Vector3 EntrancePoint;
         public Vector3 ExitPoint;
+        // 문 경유점. ShopDecor.Door(): 문틀 x 0.6~2.6, z -4.0, 미닫이 두 짝이 x≈1.83~2.56에 겹쳐 열림
+        // → 실제로 뚫린 곳은 x≈0.65~1.8 (가운데 1.22). 손님은 가운데 ± DoorSpread 안에서 흩어져 지난다.
+        public const float DoorX = 1.22f;       // 열린 폭 가운데
+        public const float DoorSpread = 0.2f;   // 손님마다 ±이만큼 (0.65~1.8 안에 충분히 들어감)
+        public const float DoorZ = -4.0f;       // 문 선
+        public const float DoorOutsideZ = -5.0f; // 문 앞 바깥 (EntrancePoint와 같은 z)
+        public const float DoorInsideZ = -3.3f;  // 문 안쪽 한 걸음 (계산 줄 z=-3.45 바로 안쪽, 문지방 0.7 안)
         public Camera Camera;
+        /// <summary>가게 앞 번호 뽑기판 (Slots에도 들어 있음).</summary>
+        public ShelfSlot Board;
     }
 
     /// <summary>
@@ -49,14 +58,18 @@ namespace Munbanggu.Shop
             foreach (float z in new[] { 1.9f, 0.6f, -0.7f })
                 layout.Slots.Add(CreateSlot(shop, index++, new Vector3(3.35f, 0f, z), -90f, mats, kit, blob));
 
+            // 가게 앞 번호 뽑기판 (뽑기 기계 오른쪽, 길 쪽을 봄). 번호 뽑기만 걸 수 있고 아이들이 거기서 뽑는다.
+            layout.Board = CreateBoard(shop, index++, new Vector3(-1.95f, 0f, -4.55f), 180f, mats);
+            layout.Slots.Add(layout.Board);
+
             kit.Build("Decor", shop, mats.VertexColor);
             if (mats.Glass != null) glass.Build("Glass", shop, mats.Glass);
             if (mats.Blob != null) blob.Build("Shadows", shop, mats.Blob);
 
             layout.Queue = new CounterQueue(new List<Vector3>(QueueSpots), Vector3.left);
 
-            layout.EntrancePoint = new Vector3(1.6f, 0f, -5.0f);
-            layout.ExitPoint = new Vector3(1.6f, 0f, -5.5f);
+            layout.EntrancePoint = new Vector3(ShopLayout.DoorX, 0f, ShopLayout.DoorOutsideZ);
+            layout.ExitPoint = new Vector3(ShopLayout.DoorX, 0f, -5.6f);
 
             // 조명: 따뜻한 형광등 느낌. 왼벽(+Z)은 밝게, 오른벽(+X)은 그늘 톤 (툰 2단)
             var light = new GameObject("Sun").AddComponent<Light>();
@@ -78,8 +91,9 @@ namespace Munbanggu.Shop
             cam.backgroundColor = VisualAssets.Background;
             camGo.transform.rotation = Quaternion.Euler(35f, 45f, 0f);
             var shopCam = camGo.AddComponent<ShopCamera>();
-            // 바닥(-0.4) ~ 간판 꼭대기(3.9). 가로로 꽉 차게 맞춰지고, 세로는 가운데 정렬 기준.
-            shopCam.focus = new Bounds(new Vector3(0f, 1.5f, -0.6f), new Vector3(8.4f, 3.8f, 9.6f));
+            // 핵심 영역(매대·계산대·문)만 감싼 범위. 바닥(-0.4) ~ 간판 꼭대기(3.9). 문 밖 보도 끝은 잘려도 된다.
+            // 보이는 영역(상·하단 UI 제외)에 이 범위가 다 들어오도록 ShopCamera가 크기/위치를 정한다.
+            shopCam.focus = new Bounds(new Vector3(-0.3f, 1.5f, -0.3f), new Vector3(8.2f, 3.8f, 8.6f));
             shopCam.Fit();
             layout.Camera = cam;
 
@@ -117,6 +131,30 @@ namespace Munbanggu.Shop
 
             var slot = go.AddComponent<ShelfSlot>();
             slot.Init(index, items, mats);
+            return slot;
+        }
+
+        static ShelfSlot CreateBoard(Transform parent, int index, Vector3 pos, float yaw, MaterialCache mats)
+        {
+            var go = new GameObject($"Ppopgi Board {index}");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+
+            // 종이 30장 자리 (모양은 ShelfSlot.BuildBoard가 그림, 여기선 개수만)
+            var tabs = new GameObject[ShelfSlot.BoardCols * ShelfSlot.BoardRows];
+            for (int i = 0; i < tabs.Length; i++)
+            {
+                tabs[i] = new GameObject($"Tab {i}");
+                tabs[i].transform.SetParent(go.transform, false);
+            }
+
+            var col = go.AddComponent<BoxCollider>();
+            col.center = new Vector3(0f, 0.9f, 0.1f);
+            col.size = new Vector3(1.3f, 1.8f, 0.8f);
+
+            var slot = go.AddComponent<ShelfSlot>();
+            slot.Init(index, tabs, mats, isBoard: true);
             return slot;
         }
 

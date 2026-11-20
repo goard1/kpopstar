@@ -28,6 +28,9 @@ namespace Munbanggu.Core
         // ── v2 ── (v1 세이브엔 없음 → JsonUtility가 아래 기본값을 남김)
         public TrendState trend = new TrendState();
         public List<RegularState> regulars = new List<RegularState>();
+        // ── 돌발 사건 ── (예전 세이브엔 없음 → 빈 목록)
+        public List<CreditEntry> credits = new List<CreditEntry>();
+        public List<string> seenEvents = new List<string>();
     }
 
     /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>

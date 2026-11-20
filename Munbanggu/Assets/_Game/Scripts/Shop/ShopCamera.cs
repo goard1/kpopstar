@@ -11,11 +11,13 @@ namespace Munbanggu.Shop
     public class ShopCamera : MonoBehaviour
     {
         public Bounds focus;
-        public float margin = 1.06f;
-        [Tooltip("아래쪽 UI가 더 두꺼워서 가게를 화면 위쪽으로 살짝 올림 (화면 높이 비율)")]
-        public float lift = 0.06f;
+        public float margin = 1.02f;
 
-        public const float MaxZoom = 2.6f;
+        // HUD가 가리는 비율 (1920 높이 기준 상단 ~200px, 하단 창고 바+버튼 ~430px). 화면 비율이 달라도 비율로 계산.
+        const float TopUiFrac = 0.105f;
+        const float BottomUiFrac = 0.225f;
+
+        public const float MaxZoom = 2.2f;
 
         Camera cam;
         int lastW, lastH;
@@ -50,11 +52,18 @@ namespace Munbanggu.Shop
                 minY = Mathf.Min(minY, p.y); maxY = Mathf.Max(maxY, p.y);
             }
 
+            // 상단 바/하단 UI를 뺀 "보이는 영역"의 높이 비율 (화면 높이 기준). 핵심 영역(focus)이 여기에 다 들어오도록 맞춘다.
+            float visible = Mathf.Clamp(1f - TopUiFrac - BottomUiFrac, 0.3f, 1f);
             float aspect = Mathf.Max(0.01f, cam.aspect);
-            baseSize = Mathf.Max((maxY - minY) * 0.5f, (maxX - minX) * 0.5f / aspect) * margin;
+            // 세로 전체 크기(2*size)의 visible 비율이 focus 높이, 가로는 화면 폭 전체
+            float sizeByH = (maxY - minY) * 0.5f / visible;
+            float sizeByW = (maxX - minX) * 0.5f / aspect;
+            baseSize = Mathf.Max(sizeByH, sizeByW) * margin;
 
+            // 보이는 영역의 중심은 화면 중심보다 (BottomUiFrac - TopUiFrac)/2 만큼 위. 가게 중심을 거기에 놓는다.
+            float shift = (BottomUiFrac - TopUiFrac) * 0.5f;
             Vector3 centerOffset = transform.rotation * new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, 0f);
-            basePos = c + centerOffset - transform.forward * 30f - transform.up * (baseSize * 2f * lift);
+            basePos = c + centerOffset - transform.forward * 30f - transform.up * (baseSize * 2f * shift);
             Apply();
         }
 

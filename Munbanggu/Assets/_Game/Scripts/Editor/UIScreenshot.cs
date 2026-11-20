@@ -43,8 +43,7 @@ namespace Munbanggu.EditorTools
                 if (catalog == null) { Debug.LogError("[UIScreenshot] 상품 목록이 없습니다"); return; }
 
                 root = new GameObject("Game");
-                var gm = root.AddComponent<GameManager>();
-                gm.Init(catalog, mat);
+                var gm = root.AddComponent<GameManager>();                gm.Init(catalog, mat);
                 var hud = gm.Hud;
                 if (gm.Dialogue != null) gm.Dialogue.Clear();
 
@@ -67,6 +66,11 @@ namespace Munbanggu.EditorTools
 
                 // 1) 아침: 도매상 창
                 Shot(hud, cam, rt, outDir, "1_morning_wholesale");
+
+                // 1b) 아침 도매상 위에 설정 창 (톱니는 모달 위에 보임)
+                hud.OpenSettings();
+                Shot(hud, cam, rt, outDir, "1b_settings_over_wholesale");
+                hud.CloseSettings();
 
                 // 2) 도매상 닫고 창고 (상품 2개 구매)
                 int bought = 0;
@@ -102,6 +106,26 @@ namespace Munbanggu.EditorTools
                 }
                 hud.Toast("매대가 꽉 찼어요");
                 Shot(hud, cam, rt, outDir, "5_open_bubbles");
+
+                // 4b) 영업 중 설정 창 + 소리 끈 상태
+                hud.OpenSettings();
+                Shot(hud, cam, rt, outDir, "5b_settings_open_shop");
+                var audio = Munbanggu.Audio.AudioManager.Instance;
+                bool wasMuted = audio != null && audio.IsMuted; // PlayerPrefs에 쓰므로 끝나면 원래 값으로
+                if (audio != null) // 배치 모드엔 AudioManager가 없을 수 있음
+                {
+                    audio.SetMuted(true); hud.CloseSettings(); hud.OpenSettings();
+                    Shot(hud, cam, rt, outDir, "5c_settings_muted");
+                    audio.SetMuted(wasMuted);
+                }
+                hud.CloseSettings();
+
+                // 4c) 돌발 사건: 외상 선택 창
+                hud.ShowChoice("외상 장부",
+                    "꼬마 손님이 미니카를 외상으로 달래요. (1,000원)\n\n해 주면 내일 갚으러 올지도 몰라요. (고맙다고 덤까지?)\n안 해 주면 그냥 살 수도, 삐져서 갈 수도 있어요.",
+                    "외상 해 줄게", "안 돼", _ => { });
+                Shot(hud, cam, rt, outDir, "5d_credit_choice");
+                hud.CloseChoice();
 
                 // 5) 정산 (장부)
                 hud.ShowSettlement();

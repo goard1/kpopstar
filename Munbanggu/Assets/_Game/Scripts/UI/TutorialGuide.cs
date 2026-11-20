@@ -277,6 +277,7 @@ namespace Munbanggu.UI
             ShelfSlot empty = null;
             foreach (var s in gm.Layout.Slots)
             {
+                if (s.IsBoard != Core.GameManager.IsBoardProduct(sel)) continue; // 뽑기판엔 번호 뽑기만
                 if (s.Product == sel && s.Count < s.Capacity) return s;
                 if (empty == null && s.Product == null) empty = s;
             }

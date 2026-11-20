@@ -117,8 +117,81 @@ namespace Munbanggu.EditorTools
                 File.WriteAllBytes(Path.Combine(dir, "shot-shop-zoom2.png"), zoom2.EncodeToPNG());
                 Object.DestroyImmediate(zoom2);
 
+                // 확대 샷 4: 가게 앞 번호 뽑기판
+                cam.orthographicSize = size * 0.32f;
+                cam.transform.position = new Vector3(-1.95f, 0.9f, -4.7f) - cam.transform.forward * 30f;
+                var zoom4 = RenderTo(cam, rt);
+                File.WriteAllBytes(Path.Combine(dir, "shot-shop-board.png"), zoom4.EncodeToPNG());
+                Object.DestroyImmediate(zoom4);
+
+                // 확대 샷 3: 문 앞 보도 (보도블록·줄눈 깜빡임/깨짐 확인용)
+                cam.orthographicSize = size * 0.3f;
+                cam.transform.position = new Vector3(0.6f, 0.1f, -5.0f) - cam.transform.forward * 30f;
+                var zoom3 = RenderTo(cam, rt);
+                File.WriteAllBytes(Path.Combine(dir, "shot-shop-zoom3.png"), zoom3.EncodeToPNG());
+                Object.DestroyImmediate(zoom3);
+
                 cam.targetTexture = null;
                 Debug.Log("[문방구] 스크린샷 저장: " + dir);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                if (rt != null) { rt.Release(); Object.DestroyImmediate(rt); }
+                ShaderUtil.allowAsyncCompilation = prevAsync;
+            }
+        }
+
+        /// <summary>손님 얼굴 확인용 클로즈업: 일반 9명 + 단골 3명을 게임 카메라 각도로 확대해 shot-customers*.png 저장.</summary>
+        [MenuItem("문방구/손님 클로즈업")]
+        public static void CaptureCustomers()
+        {
+            EnsureAssets();
+            bool prevAsync = ShaderUtil.allowAsyncCompilation;
+            ShaderUtil.allowAsyncCompilation = false;
+            var root = new GameObject("CustomerShot (임시)");
+            RenderTexture rt = null;
+            try
+            {
+                var mats = new MaterialCache(AssetDatabase.LoadAssetAtPath<Material>(MaterialPath));
+                var layout = ShopBuilder.Build(root.transform, mats);
+                var cam = layout.Camera;
+                rt = new RenderTexture(1920, 1080, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { antiAliasing = 4 };
+                cam.targetTexture = rt;
+                cam.GetComponent<ShopCamera>().Fit();
+                cam.clearFlags = CameraClearFlags.SolidColor;
+                cam.backgroundColor = new Color(0.82f, 0.9f, 0.95f);
+
+                string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs"));
+                Directory.CreateDirectory(dir);
+                string[] regs = { "cheolsu", "younghee", "minsu" };
+                Vector3 camRight = cam.transform.right;
+                Vector3 camFwd = cam.transform.forward;
+                Vector3 camDir = -new Vector3(camFwd.x, 0f, camFwd.z).normalized; // 카메라 쪽
+                // 두 장: 줄 방향(왼쪽)을 보는 모습 / 카메라를 정면으로 보는 모습
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    var holder = new GameObject("Row").transform;
+                    holder.SetParent(root.transform, false);
+                    Vector3 face = pass == 0 ? Vector3.left : camDir;
+                    Vector3 origin = new Vector3(0f, 40f, 0f);
+                    for (int i = 0; i < 12; i++)
+                    {
+                        int col = i % 6, row = i / 6;
+                        Vector3 pos = origin + camRight * ((col - 2.5f) * 0.75f) + Vector3.up * (-row * 1.3f);
+                        var look = i < 9 ? new CustomerLook { seed = (i + 1) * 7919 }
+                                         : new CustomerLook { seed = 0, isRegular = true, regularId = regs[i - 9] };
+                        Spawn(holder, mats, pos, pos + face, look);
+                    }
+                    cam.orthographicSize = 1.6f;
+                    cam.transform.position = origin + new Vector3(0f, -0.75f, 0f) - camFwd * 30f;
+                    var tex = RenderTo(cam, rt);
+                    File.WriteAllBytes(Path.Combine(dir, pass == 0 ? "shot-customers.png" : "shot-customers-front.png"), tex.EncodeToPNG());
+                    Object.DestroyImmediate(tex);
+                    Object.DestroyImmediate(holder.gameObject);
+                }
+                cam.targetTexture = null;
+                Debug.Log("[문방구] 손님 클로즈업 저장: " + dir);
             }
             finally
             {
@@ -179,6 +252,7 @@ namespace Munbanggu.EditorTools
             for (int i = 0; i < layout.Slots.Count; i++)
             {
                 var p = catalog.products[(i * 3 + i / 3) % n]; // 여러 종류가 섞여 보이게
+                if (layout.Slots[i].IsBoard) { layout.Slots[i].Load(catalog.Find("ppopgi"), 22); continue; }
                 var slot = layout.Slots[i];
                 if (counts[i % counts.Length] == 0)
                 {

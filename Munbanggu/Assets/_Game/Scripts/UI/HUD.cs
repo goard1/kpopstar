@@ -110,6 +110,8 @@ namespace Munbanggu.UI
         int shownSpeed = -1;
 
         // 모달
+        SettingsPanel settings;
+        Button gearButton;
         GameObject wholesaleModal, settlementModal;
         UIJuice wholesaleCardJuice, settlementCardJuice;
         Text wholesaleMoney, wholesaleFooter;
@@ -193,6 +195,10 @@ namespace Munbanggu.UI
             overlaySafe.gameObject.AddComponent<SafeArea>();
             BuildToast(overlaySafe);
 
+            // 설정: 톱니 버튼은 모달 위(overlay)에, 설정 창은 그 위에 (아침 도매상 창·정산 중에도 열 수 있게)
+            BuildSettings();
+            BuildChoice();
+
             fxLayer = UIKit.Rect("FX Layer", transform);
             UIKit.Stretch(fxLayer);
             fx = gameObject.AddComponent<HudFx>();
@@ -245,13 +251,13 @@ namespace Munbanggu.UI
             dayJuice = day.gameObject.AddComponent<UIJuice>();
 
             phaseText = UIKit.Label("Phase", bar.transform, "", 30, UIKit.Ink, TextAnchor.MiddleLeft);
-            UIKit.Place(phaseText.rectTransform, new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(240, -60), new Vector2(360, 80));
+            UIKit.Place(phaseText.rectTransform, new Vector2(0, 1), new Vector2(0, 0.5f), new Vector2(240, -60), new Vector2(300, 80));
             phaseText.lineSpacing = 0.95f;
             phaseJuice = phaseText.gameObject.AddComponent<UIJuice>();
 
             // 돈: 크림색 지갑 띠 + 동전
             var pill = UIKit.CardPanel("Money", bar.transform, UIKit.Cream, 40, false, 6);
-            UIKit.Place(pill.rectTransform, new Vector2(1, 1), new Vector2(1, 0.5f), new Vector2(-22, -60), new Vector2(410, 80));
+            UIKit.Place(pill.rectTransform, new Vector2(1, 1), new Vector2(1, 0.5f), new Vector2(-22, -60), new Vector2(360, 80));
             UIKit.Ring(pill.transform, UIKit.WithAlpha(UIKit.KraftDark, 0.6f), 40);
             moneyJuice = pill.gameObject.AddComponent<UIJuice>();
             var coin = UIKit.Coin(pill.transform, 58);
@@ -476,7 +482,7 @@ namespace Munbanggu.UI
                 bg.rectTransform.sizeDelta = new Vector2(170, 46);
                 var follower = bg.gameObject.AddComponent<WorldFollower>();
                 follower.target = slot.transform;
-                follower.worldOffset = new Vector3(0, 1.25f, 0);
+                follower.worldOffset = new Vector3(0, slot.IsBoard ? 1.9f : 1.25f, 0); // 뽑기판은 키가 커서 더 위
                 follower.cam = cam;
                 var label = UIKit.Label("Text", bg.transform, "", 26, UIKit.Ink, TextAnchor.MiddleCenter);
                 UIKit.Stretch(label.rectTransform, 4, 2, 4, 0);
@@ -497,6 +503,8 @@ namespace Munbanggu.UI
             l.morning = morning;
             // 빈 매대 표시는 진열하는 아침에만 (영업 중엔 가게가 덜 복잡하게)
             bool visible = slot.Product != null || morning;
+            // 뽑기판은 번호 뽑기가 해금되기 전엔 이름표를 숨김 ("빈 매대"로 헷갈리지 않게)
+            if (slot.IsBoard && !gm.IsUnlocked(gm.Catalog.Find(GameManager.BoardProductId))) visible = false;
             if (l.bg.gameObject.activeSelf != visible) l.bg.gameObject.SetActive(visible);
             if (!visible) return;
             l.text.fontSize = slot.Product == null ? 22 : 26;
@@ -777,6 +785,14 @@ namespace Munbanggu.UI
             });
         }
 
+        void BuildSettings()
+        {
+            // 위치: 상단 바 안, 단계 글자와 돈 띠 사이 (돈 띠 왼쪽). 속도 버튼(오른쪽 아래)과 겹치지 않음
+            gearButton = SettingsPanel.BuildGearButton(overlaySafe, new Vector2(-456, -72), 88, () => settings.Toggle());
+            var modal = Modal("Settings Modal", out var card, 900, out var juice);
+            settings = SettingsPanel.Build(modal, card, juice);
+        }
+
         void BuildToast(Transform parent)
         {
             toastBg = UIKit.CardPanel("Toast", parent, ToastColor, 40, false, 8);
@@ -814,6 +830,71 @@ namespace Munbanggu.UI
             if (wholesaleScroll != null) wholesaleScroll.verticalNormalizedPosition = 1f;
             OpenModal(wholesaleModal, wholesaleCardJuice);
         }
+
+        public bool IsSettingsOpen => settings != null && settings.IsOpen;
+
+        // ───────────── 두 갈래 선택 창 (외상 등 돌발 사건) ─────────────
+
+        GameObject choiceModal;
+        UIJuice choiceJuice;
+        Text choiceTitle, choiceBody, choiceYesLabel, choiceNoLabel;
+        Action<bool> choiceCallback;
+
+        /// <summary>선택 창이 열려 있으면 게임 시간이 멈춘다 (GameManager.ApplySpeed).</summary>
+        public bool IsChoiceOpen => choiceModal != null && choiceModal.activeSelf;
+
+        void BuildChoice()
+        {
+            choiceModal = Modal("Choice Modal", out var card, 620, out choiceJuice);
+            card.sizeDelta = new Vector2(920, 620);
+
+            choiceTitle = UIKit.Label("Title", card, "", 56, UIKit.Ink, TextAnchor.MiddleLeft);
+            UIKit.Top(choiceTitle.rectTransform, 84, 44, 56);
+
+            choiceBody = UIKit.Label("Body", card, "", 34, UIKit.Ink, TextAnchor.UpperLeft);
+            UIKit.Stretch(choiceBody.rectTransform, 56, 190, 56, 150);
+            choiceBody.lineSpacing = 1.15f;
+
+            var no = UIKit.Button("No", card, "", 40, UIKit.Red, Color.white, out choiceNoLabel);
+            var noRt = (RectTransform)no.transform;
+            noRt.anchorMin = new Vector2(0, 0); noRt.anchorMax = new Vector2(0.4f, 0);
+            noRt.pivot = new Vector2(0.5f, 0);
+            noRt.offsetMin = new Vector2(48, 48); noRt.offsetMax = new Vector2(-12, 160);
+            no.onClick.AddListener(() => PickChoice(false));
+
+            var yes = UIKit.Button("Yes", card, "", 40, UIKit.Green, Color.white, out choiceYesLabel);
+            var yesRt = (RectTransform)yes.transform;
+            yesRt.anchorMin = new Vector2(0.4f, 0); yesRt.anchorMax = new Vector2(1, 0);
+            yesRt.pivot = new Vector2(0.5f, 0);
+            yesRt.offsetMin = new Vector2(12, 48); yesRt.offsetMax = new Vector2(-48, 160);
+            yes.onClick.AddListener(() => PickChoice(true));
+        }
+
+        /// <summary>두 갈래 선택 창을 띄운다. 고르면 onPick(true=yes) 후 닫힘. 열린 동안 게임 시간 정지.</summary>
+        public void ShowChoice(string title, string body, string yesLabel, string noLabel, Action<bool> onPick)
+        {
+            // 이미 열린 선택이 있으면 그건 '아니오'로 정리하고 새로 연다
+            if (IsChoiceOpen) PickChoice(false);
+            choiceTitle.text = title;
+            choiceBody.text = body;
+            choiceYesLabel.text = yesLabel;
+            choiceNoLabel.text = noLabel;
+            choiceCallback = onPick;
+            OpenModal(choiceModal, choiceJuice);
+        }
+
+        /// <summary>열린 선택 창을 '아니오'로 닫는다 (스크린샷 도구 등).</summary>
+        public void CloseChoice() { if (IsChoiceOpen) PickChoice(false); }
+
+        void PickChoice(bool yes)
+        {
+            var cb = choiceCallback;
+            choiceCallback = null;
+            choiceModal.SetActive(false);
+            cb?.Invoke(yes);
+        }
+        public void OpenSettings() => settings.Open();
+        public void CloseSettings() => settings.Close();
 
         public void CloseModals()
         {

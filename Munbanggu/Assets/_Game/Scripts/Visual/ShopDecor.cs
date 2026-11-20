@@ -598,7 +598,8 @@ namespace Munbanggu.Visual
                 for (int z = 0; z < 4; z++)
                 {
                     Color c = (x + z * 2) % 3 == 0 ? PaveB : Pave;
-                    k.FloorQuad(new Vector3(-4.2f + t * 0.5f + x * t * (8.4f / 8.5f), 0.001f, -6f + t * 0.5f + z * t), new Vector2(t * 0.96f, t * 0.96f), c);
+                    // 블록은 줄눈판(윗면 y 0.001)보다 확실히 위에 둔다. 같은 높이면 확대했을 때 줄무늬로 깨진다(z-fighting).
+                    k.FloorQuad(new Vector3(-4.2f + t * 0.5f + x * t * (8.4f / 8.5f), 0.006f, -6f + t * 0.5f + z * t), new Vector2(t * 0.96f, t * 0.96f), c);
                 }
             k.FlatBox(new Vector3(0f, 0.0005f, -5f), new Vector3(8.4f, 0.001f, 2f), new Color(0.62f, 0.58f, 0.54f)); // 줄눈
             k.Box(new Vector3(0f, 0.04f, -5.95f), new Vector3(8.4f, 0.08f, 0.12f), new Color(0.85f, 0.83f, 0.80f)); // 연석

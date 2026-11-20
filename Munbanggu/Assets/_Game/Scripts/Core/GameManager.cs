@@ -28,6 +28,15 @@ namespace Munbanggu.Core
         public int regularsVisited; // 단골 방문
         public int trendSold;      // 붐 상품 판매 개수
         public int tips;           // 단골이 얹어 준 돈 (revenue에 포함)
+        // 돌발 사건
+        public int stolen;         // 몰래 들고 나간 개수
+        public int stolenValue;    // 그 판매가 합
+        public int caught;         // 잡은 횟수
+        public int credits;        // 해 준 외상 건수
+        public int creditValue;    // 외상 금액 합
+        public int comforted;      // 달래 준 우는 아이
+        public int pulls;          // 번호 뽑기 판수
+        public int jackpots;       // 1등 나온 횟수
         public int Profit => revenue - cost;
     }
 
@@ -81,7 +90,9 @@ namespace Munbanggu.Core
 
         void ApplySpeed()
         {
-            float scale = SpeedActive ? Speed : 1f;
+            // 설정·선택 창이 열려 있으면 게임 시간 정지 (UI 연출은 unscaled 시간이라 계속 움직임)
+            bool paused = Hud != null && (Hud.IsSettingsOpen || Hud.IsChoiceOpen);
+            float scale = paused ? 0f : SpeedActive ? Speed : 1f;
             if (!Mathf.Approximately(Time.timeScale, scale)) Time.timeScale = scale;
         }
         /// <summary>지금 붐인 상품 (없는 날은 null).</summary>
@@ -116,6 +127,12 @@ namespace Munbanggu.Core
         float spawnAcc;
         bool rushAnnounced;
         bool initialized;
+        readonly DayEvents events = new DayEvents();
+        readonly CreditLedger ledger = new CreditLedger();
+        readonly List<string> creditNews = new List<string>();
+        readonly HashSet<string> seenEvents = new HashSet<string>();
+        int friendsPending;
+        float friendsTimer;
 
         public void Init(ProductCatalog catalog, Material baseMaterial)
         {
@@ -149,6 +166,20 @@ namespace Munbanggu.Core
             if (gm != this) return;
             if (Stats.regularsVisited > 0) lines.Add(SettlementLine.Count("단골 방문", Stats.regularsVisited));
             if (Stats.tips > 0) lines.Add(SettlementLine.Money("그중 단골 팁", Stats.tips));
+            if (Stats.caught > 0) lines.Add(SettlementLine.Count("몰래 나가던 아이 잡음", Stats.caught));
+            if (Stats.stolen > 0) lines.Add(SettlementLine.Money($"슬쩍 당함 ({Stats.stolen}개)", Stats.stolenValue, true));
+            if (Stats.credits > 0) lines.Add(SettlementLine.Money($"외상 해 줌 ({Stats.credits}건, 내일 받을 돈)", Stats.creditValue));
+            if (Stats.comforted > 0) lines.Add(SettlementLine.Count("달래 준 아이", Stats.comforted));
+            if (Stats.pulls > 0) lines.Add(SettlementLine.Count("번호 뽑기", Stats.pulls, "판"));
+            if (Stats.jackpots > 0) lines.Add(SettlementLine.Count("1등 당첨!", Stats.jackpots, "번"));
+            var board = Layout.Board;
+            if (board != null && IsUnlocked(Catalog.Find(BoardProductId)))
+            {
+                if (board.Count == 0)
+                    lines.Add(SettlementLine.Tip("뽑기판이 비었어요. 도매상에서 번호 뽑기를 사서 새 판을 걸어요!"));
+                else if (!board.GrandPrizeLeft)
+                    lines.Add(SettlementLine.Tip("뽑기판 1등이 이미 나가서 아이들이 시들해요. 남은 걸 다 뽑히면 새 판을!"));
+            }
             if (Trend != null)
                 lines.Add(SettlementLine.Count($"붐 상품({Trend.displayName}) 판매", Stats.trendSold, "개"));
             if (TrendStage == TrendStage.Falling)
@@ -234,6 +265,17 @@ namespace Munbanggu.Core
                 Fail($"창고에 {Selected.displayName} 재고가 없어요");
                 return;
             }
+            // 번호 뽑기는 가게 앞 뽑기판에만, 뽑기판엔 번호 뽑기만
+            if (slot.IsBoard && !IsBoardProduct(Selected))
+            {
+                Fail("가게 앞 뽑기판엔 번호 뽑기만 걸 수 있어요");
+                return;
+            }
+            if (!slot.IsBoard && IsBoardProduct(Selected))
+            {
+                Fail("번호 뽑기는 가게 앞 뽑기판에 걸어요");
+                return;
+            }
             if (slot.Product != null && slot.Product != Selected)
             {
                 // 다른 상품이 있던 매대 → 남은 물건은 창고로 돌려보내고 교체
@@ -259,6 +301,8 @@ namespace Munbanggu.Core
             openTimer = 0f;
             spawnAcc = 0.8f; // 문 열자마자 첫 손님
             rushAnnounced = false;
+            events.Plan(Day);
+            friendsPending = 0;
             Hud.CloseModals();
             Save();
             GameEvents.RaisePhaseChanged(Phase);
@@ -280,6 +324,10 @@ namespace Munbanggu.Core
             Stats = new DayStats();
             trends.Advance(Day, (p, d) => p.unlockDay <= d);
             regulars.PlanDay(Day, UnlockedFavorite);
+            // 외상 정리는 저장 전에 (다시 켜도 두 번 받지 않게)
+            creditNews.Clear();
+            int repaid = ledger.Settle(Day, creditNews);
+            if (repaid > 0) Money += repaid;
             Save();
             GameEvents.RaisePhaseChanged(Phase);
             Notify();
@@ -290,6 +338,9 @@ namespace Munbanggu.Core
         void ShowMorningNews()
         {
             Dialogue.Clear();
+            foreach (var line in creditNews) Dialogue.Show("외상 장부", line, UIKit.Accent, "외");
+            if (IsNew(Catalog.Find(BoardProductId)))
+                Dialogue.Show("도매상", "번호 뽑기가 들어왔어요! 사서 가게 앞 뽑기판에 걸어 두면 아이들이 와서 한 판씩 뽑아요. 1등이 나오면 동네에 소문이 나요!", UIKit.Blue);
             if (Day > 1)
             {
                 var fresh = new List<string>();
@@ -354,6 +405,26 @@ namespace Munbanggu.Core
             var regular = regulars.TakeDue(OpenProgress);
             if (regular != null) { SpawnCustomer(regular); return; }
 
+            // 돌발 사건 손님 (몰래 들고 가는 아이, 외상, 우는 아이)
+            if (Phase == DayPhase.Open)
+            {
+                var kind = events.TakeDue(OpenProgress);
+                if (kind != CustomerKind.Normal) { SpawnCustomer(null, kind); return; }
+            }
+
+            // 달래 준 아이가 데려온 친구들
+            if (friendsPending > 0)
+            {
+                friendsTimer -= Time.deltaTime;
+                if (friendsTimer <= 0f)
+                {
+                    friendsPending--;
+                    friendsTimer = 0.9f;
+                    SpawnCustomer(null);
+                    return;
+                }
+            }
+
             float rate = IsRush ? rushSpawnPerSec : baseSpawnPerSec;
             rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth);
             spawnAcc += rate * Time.deltaTime;
@@ -362,7 +433,7 @@ namespace Munbanggu.Core
             SpawnCustomer(null);
         }
 
-        void SpawnCustomer(RegularProfile regular)
+        void SpawnCustomer(RegularProfile regular, CustomerKind kind = CustomerKind.Normal)
         {
             ProductData wanted = null;
             if (regular != null && UnityEngine.Random.value < regular.favoriteChance)
@@ -381,7 +452,84 @@ namespace Munbanggu.Core
                 string intro = regulars.OnEnter(regular, Day);
                 if (intro != null) Dialogue.Show($"{regular.name} · {regular.title}", intro, regular.color);
             }
-            c.Init(this, wanted, Hud.CreateBubble(go.transform), regular);
+            c.Init(this, wanted, Hud.CreateBubble(go.transform), regular, kind);
+        }
+
+        // ───────────── 돌발 사건 ─────────────
+
+        /// <summary>처음 보는 사건이면 한 번만 설명을 띄운다 (세이브에 기록).</summary>
+        public void ShowEventTip(CustomerKind kind)
+        {
+            string key = kind.ToString();
+            if (seenEvents.Contains(key)) return;
+            seenEvents.Add(key);
+            string text = kind switch
+            {
+                CustomerKind.Sneaky => "앗, 저 아이가 계산 안 하고 나가려 해요! 문을 나가기 전에 보라색 말풍선을 탭해서 잡아요.",
+                CustomerKind.Credit => "외상을 해 달래요. 해 주면 내일 갚을 수도(덤까지!), 떼먹을 수도 있어요.",
+                CustomerKind.Crying => "돈을 잃어버린 아이가 울고 있어요. 말풍선을 탭하면 제일 싼 물건 하나를 주고 달래요. 고마워서 친구들을 데려올지도?",
+                _ => null
+            };
+            if (text != null) Dialogue.Show("가게 일지", text, UIKit.Accent, "!");
+        }
+
+        /// <summary>몰래 들고 나가 버렸다.</summary>
+        public void OnStolen(ProductData p)
+        {
+            if (p == null) return;
+            Stats.stolen++;
+            Stats.stolenValue += p.retailPrice;
+            Hud.Toast($"{p.displayName} 하나를 슬쩍 당했어요!");
+            GameEvents.RaiseInvalidAction();
+            Notify();
+        }
+
+        /// <summary>몰래 나가던 아이를 잡음 → 제값 받기.</summary>
+        public int CatchThief(Customer c)
+        {
+            Stats.caught++;
+            return Checkout(c);
+        }
+
+        /// <summary>외상 해 주기: 돈은 내일 이후에.</summary>
+        public void GiveCredit(Customer c)
+        {
+            if (c.Carried == null) return;
+            int price = c.Carried.retailPrice;
+            ledger.Add(price, Day + 1);
+            Stats.credits++;
+            Stats.creditValue += price;
+            Stats.served++;
+            Notify();
+        }
+
+        /// <summary>안 사고 간 물건을 창고로 (인내심 손님 통계 없이).</summary>
+        public void ReturnItem(ProductData p)
+        {
+            AddStock(p, 1);
+            Notify();
+        }
+
+        /// <summary>우는 아이에게 줄 제일 싼 물건을 매대에서 하나 꺼낸다 (없으면 null).</summary>
+        public ProductData GiveFreebie()
+        {
+            ShelfSlot cheapest = null;
+            foreach (var s in Layout.Slots)
+                if (s.Product != null && s.Count > 0 && (cheapest == null || s.Product.retailPrice < cheapest.Product.retailPrice))
+                    cheapest = s;
+            if (cheapest == null) return null;
+            var p = cheapest.Product;
+            cheapest.TakeOne();
+            Stats.comforted++;
+            Notify();
+            return p;
+        }
+
+        /// <summary>달래 준 아이가 친구들을 데려온다 (잠시 뒤 차례로 입장).</summary>
+        public void ScheduleFriends(int count)
+        {
+            friendsPending += count;
+            friendsTimer = 2.5f;
         }
 
         // ───────────── 손님이 부르는 함수 ─────────────
@@ -397,7 +545,7 @@ namespace Munbanggu.Core
 
         public ShelfSlot RandomStockedSlot()
         {
-            var candidates = Layout.Slots.FindAll(s => s.Product != null && s.Count > 0);
+            var candidates = Layout.Slots.FindAll(s => s.Product != null && s.Count > 0 && !s.IsBoard);
             return candidates.Count == 0 ? null : candidates[UnityEngine.Random.Range(0, candidates.Count)];
         }
 
@@ -478,7 +626,39 @@ namespace Munbanggu.Core
 
         ProductData ActiveTrend() => IsUnlocked(Trend) ? Trend : null;
 
-        float BaseWeight(ProductData p) => p.popularity * trends.PopularityMultiplier(p) * regulars.FavoriteBoost(p);
+        float BaseWeight(ProductData p) => p.popularity * trends.PopularityMultiplier(p) * regulars.FavoriteBoost(p) * BoardAppeal(p);
+
+        // ───────────── 번호 뽑기판 ─────────────
+
+        public const string BoardProductId = "ppopgi";
+        public static bool IsBoardProduct(ProductData p) => p != null && p.id == BoardProductId;
+
+        /// <summary>1등이 걸린 판은 인기, 1등이 빠진 판은 시들 (새 판을 들일 타이밍 고민거리).</summary>
+        float BoardAppeal(ProductData p)
+        {
+            if (!IsBoardProduct(p) || Layout?.Board == null || Layout.Board.Count == 0) return 1f;
+            return Layout.Board.GrandPrizeLeft ? 1.25f : 0.35f;
+        }
+
+        /// <summary>뽑기 한 판: 100원 받고 결과 등수(0 꽝, 1~4등). 1등이면 소문나서 아이들이 몰려온다.</summary>
+        public int PullTicket(Customer c, ShelfSlot board)
+        {
+            int price = c.Carried != null ? c.Carried.retailPrice : 0;
+            Money += price;
+            Stats.revenue += price;
+            Stats.served++;
+            Stats.pulls++;
+            int tier = board.RollPrize();
+            if (tier == 1)
+            {
+                Stats.jackpots++;
+                Hud.Toast("1등 당첨!! 소문 듣고 아이들이 몰려와요");
+                Hud.Fx.CoinBurst(board.transform.position + Vector3.up * 1.6f, 1000);
+                ScheduleFriends(3);
+            }
+            Notify();
+            return tier;
+        }
 
         /// <summary>붐 상품 가중치. others = 붐 상품을 뺀 해금 상품 가중치 합.</summary>
         float TrendWeight(ProductData trend, out float others)
@@ -509,6 +689,9 @@ namespace Munbanggu.Core
                 Layout.Slots[i].Load(Catalog.Find(data.shelves[i].productId), data.shelves[i].count);
             trends.Load(data.trend);
             regulars.Load(data.regulars);
+            ledger.Load(data.credits);
+            seenEvents.Clear();
+            if (data.seenEvents != null) foreach (var s in data.seenEvents) seenEvents.Add(s);
         }
 
         public void Save()
@@ -520,7 +703,11 @@ namespace Munbanggu.Core
                 if (c != null && c.Carried != null)
                     stock[c.Carried] = (stock.TryGetValue(c.Carried, out var n) ? n : 0) + 1;
 
-            var data = new SaveData { day = Day, money = Money, trend = trends.State, regulars = regulars.Save() };
+            var data = new SaveData
+            {
+                day = Day, money = Money, trend = trends.State, regulars = regulars.Save(),
+                credits = ledger.Save(), seenEvents = new List<string>(seenEvents)
+            };
             foreach (var kv in stock)
                 if (kv.Value > 0) data.backroom.Add(new StockEntry { productId = kv.Key.id, count = kv.Value });
             foreach (var s in Layout.Slots)

@@ -171,11 +171,11 @@ namespace Munbanggu.Visual
         {
             k.Sphere(c, new Vector3(0.2f, 0.19f, 0.19f), 10, 7, skin);
             // 눈·볼·입 (외곽선 없음)
-            k.FlatBox(c + new Vector3(-0.07f, -0.005f, 0.172f), new Vector3(0.035f, 0.055f, 0.03f), Ink);
-            k.FlatBox(c + new Vector3(0.07f, -0.005f, 0.172f), new Vector3(0.035f, 0.055f, 0.03f), Ink);
-            k.FlatBox(c + new Vector3(-0.115f, -0.06f, 0.145f), new Vector3(0.05f, 0.028f, 0.03f), Cheek);
-            k.FlatBox(c + new Vector3(0.115f, -0.06f, 0.145f), new Vector3(0.05f, 0.028f, 0.03f), Cheek);
-            k.FlatBox(c + new Vector3(0f, -0.075f, 0.168f), new Vector3(0.045f, 0.014f, 0.025f), Mouth);
+            k.FlatBox(c + new Vector3(-0.07f, -0.025f, 0.172f), new Vector3(0.035f, 0.055f, 0.03f), Ink);
+            k.FlatBox(c + new Vector3(0.07f, -0.025f, 0.172f), new Vector3(0.035f, 0.055f, 0.03f), Ink);
+            k.FlatBox(c + new Vector3(-0.115f, -0.075f, 0.145f), new Vector3(0.05f, 0.028f, 0.03f), Cheek);
+            k.FlatBox(c + new Vector3(0.115f, -0.075f, 0.145f), new Vector3(0.05f, 0.028f, 0.03f), Cheek);
+            k.FlatBox(c + new Vector3(0f, -0.09f, 0.168f), new Vector3(0.045f, 0.014f, 0.025f), Mouth);
         }
 
         static void Hair(MeshKit k, int style, Color hair, System.Random rng, bool regular)
@@ -216,18 +216,22 @@ namespace Munbanggu.Visual
                     k.Sphere(head + new Vector3(0f, 0.04f, -0.035f), new Vector3(0.205f, 0.17f, 0.195f), 10, 6, hair);
                     if (!regular)
                     {
-                        k.Sphere(head + new Vector3(0f, 0.1f, -0.01f), new Vector3(0.215f, 0.13f, 0.215f), 10, 4, accent);
-                        k.Box(head + new Vector3(0f, 0.1f, 0.21f), new Vector3(0.24f, 0.025f, 0.16f), accent, accent);
+                        // 거꾸로 쓴 야구 모자: 챙이 뒤로 가서 이마·눈이 보인다
+                        k.Sphere(head + new Vector3(0f, 0.125f, -0.045f), new Vector3(0.21f, 0.125f, 0.21f), 10, 4, accent);
+                        k.Box(head + new Vector3(0f, 0.12f, -0.2f), new Vector3(0.22f, 0.025f, 0.13f), accent, accent);
                     }
                     break;
             }
 
             if (regular) // 단골: 노란 학교 모자 + 빨간 별
             {
-                k.Sphere(head + new Vector3(0f, 0.11f, -0.01f), new Vector3(0.222f, 0.14f, 0.222f), 10, 4, SafetyYellow);
-                k.Cylinder(head + new Vector3(0f, 0.095f, 0f), 0.27f, 0.025f, 12, SafetyYellow, SafetyYellow);
-                k.Push(head + new Vector3(0f, 0.2f, 0.17f), Quaternion.Euler(-50f, 0f, 0f));
-                k.Cylinder(Vector3.zero, 0.045f, 0.02f, 5, new Color(0.9f, 0.2f, 0.2f), new Color(0.9f, 0.2f, 0.2f));
+                // 모자는 머리 위·뒤로 올리고 챙을 작게 앞쪽만 살짝 들어 올려 얼굴이 보이게 한다
+                k.Sphere(head + new Vector3(0f, 0.15f, -0.05f), new Vector3(0.215f, 0.12f, 0.215f), 10, 4, SafetyYellow);
+                k.Push(head + new Vector3(0f, 0.125f, -0.04f), Quaternion.Euler(-14f, 0f, 0f));
+                k.Cylinder(Vector3.zero, 0.235f, 0.022f, 12, SafetyYellow, SafetyYellow);
+                k.Pop();
+                k.Push(head + new Vector3(0f, 0.245f, 0.09f), Quaternion.Euler(45f, 0f, 0f));
+                k.Cylinder(Vector3.zero, 0.05f, 0.02f, 5, new Color(0.9f, 0.2f, 0.2f), new Color(0.9f, 0.2f, 0.2f));
                 k.Pop();
             }
         }

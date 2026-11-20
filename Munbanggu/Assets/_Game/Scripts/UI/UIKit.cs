@@ -28,6 +28,7 @@ namespace Munbanggu.UI
         public static readonly Color BubbleUrgent = new Color(1f, 0.58f, 0.48f, 1f);
         public static readonly Color BubbleSad = new Color(0.80f, 0.84f, 0.93f, 0.97f);
         public static readonly Color BubbleMoney = new Color(0.60f, 0.90f, 0.58f, 1f);
+        public static readonly Color BubbleSneak = new Color(0.78f, 0.62f, 0.95f, 1f); // 몰래 나가는 아이 (탭해서 잡기)
 
         // 추가 색
         public static readonly Color Red = Accent;
@@ -53,6 +54,7 @@ namespace Munbanggu.UI
         /// <summary>
         /// 한글 폰트. 내장 Jua(OFL) → 없으면 OS 한글 폰트 → 없으면 Unity 기본 폰트.
         /// Jua에 없는 기호(▶ × · … 등)는 OS 폰트로 대체되므로 UI 문구엔 되도록 쓰지 않는다.
+        /// (써도 <see cref="Glyphs.Safe"/>가 Label 텍스트에서 자동으로 바꿔 준다.)
         /// </summary>
         public static Font Font
         {
@@ -157,7 +159,7 @@ namespace Munbanggu.UI
             TextAnchor align = TextAnchor.MiddleLeft, FontStyle style = FontStyle.Normal)
         {
             var rt = Rect(name, parent);
-            var t = rt.gameObject.AddComponent<Text>();
+            var t = rt.gameObject.AddComponent<SafeText>();
             t.font = Font;
             t.text = text;
             t.fontSize = size;
@@ -338,7 +340,21 @@ namespace Munbanggu.UI
         const int LinesTexHeight = 64;
         const int StripeTexSize = 32;
 
-        static Sprite rounded, ring, triangle, arrow, dash, lines, stripes;
+        static Sprite rounded, ring, triangle, arrow, dash, lines, stripes, gear;
+
+        /// <summary>톱니바퀴 (설정 버튼). 흰색, Image.color로 색을 입힌다.</summary>
+        public static Sprite GearSprite => gear != null ? gear : gear = MakeShape(128, 128, GearCoverage, "UI Gear");
+
+        // 톱니 8개 + 가운데 구멍
+        static float GearCoverage(float x, float y, float w, float h)
+        {
+            float dx = x - w * 0.5f, dy = y - h * 0.5f;
+            float r = Mathf.Sqrt(dx * dx + dy * dy);
+            if (r < w * 0.15f) return 0f;                       // 구멍
+            float frac = Mathf.Repeat(Mathf.Atan2(dy, dx) / (Mathf.PI * 2f) * 8f, 1f);
+            bool tooth = frac > 0.18f && frac < 0.82f;          // 톱니 폭
+            return r <= w * (tooth ? 0.47f : 0.35f) ? 1f : 0f;
+        }
 
         /// <summary>흰색 둥근 사각형 (9-slice). Image.color로 색을 입힌다.</summary>
         public static Sprite RoundedSprite => rounded != null ? rounded : rounded = MakeRounded(false);
@@ -472,6 +488,55 @@ namespace Munbanggu.UI
                 px[y * s + x] = new Color32(255, 255, 255, (byte)(a * 255f));
             }
             return Finish(tex, px, Vector4.zero);
+        }
+    }
+
+    /// <summary>
+    /// Jua-Regular.ttf에 없는 기호를 있는 문자로 바꾼다 (TTF cmap 직접 확인).
+    /// 없음: · … × ▶ → ↔ — – ± ≈ ≤ ─ ♪ ✓ ✕ ⚠ / 있음: ★ ☆ ♥ ♡ 와 ASCII, 한글 음절.
+    /// </summary>
+    public static class Glyphs
+    {
+        /// <summary>바꿀 게 없으면 같은 문자열을 그대로 돌려준다 (할당 없음).</summary>
+        public static string Safe(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            int i = 0;
+            for (; i < s.Length; i++) if (Replacement(s[i]) != null) break;
+            if (i == s.Length) return s;
+            var sb = new System.Text.StringBuilder(s.Length + 8);
+            sb.Append(s, 0, i);
+            for (; i < s.Length; i++)
+            {
+                string r = Replacement(s[i]);
+                if (r == null) sb.Append(s[i]); else sb.Append(r);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>Jua에 없는 문자의 대체 (없으면 null = 그대로 둠).</summary>
+        static string Replacement(char c)
+        {
+            if (c < 0xA0 || (c >= 0xAC00 && c <= 0xD7A3)) return null; // ASCII·한글은 항상 OK
+            switch (c)
+            {
+                case '…': return "...";   // …
+                case '×': return "x";     // ×
+                case '·': return "-";     // ·  (이름 · 직함 → 이름 - 직함)
+                case '▶': return ">";     // ▶
+                case '→': return "->";    // →
+                case '↔': return "<->";   // ↔
+                case '—': case '–': case '─': return "-"; // — – ─
+                case '±': return "+-";    // ±
+                case '≈': return "~";     // ≈
+                case '≤': return "<=";    // ≤
+                case '♪': case '♫': case '♬': return "";  // ♪ ♫ ♬
+                case '✓': case '✔': return "v";                // ✓ ✔
+                case '✕': case '✖': return "x";                // ✕ ✖
+                case '⚠': return "!";     // ⚠
+                case '️': return "";      // 이모지 선택자
+                default: return null;
+            }
         }
     }
 }

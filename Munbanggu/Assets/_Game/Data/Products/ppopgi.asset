@@ -20,7 +20,7 @@ MonoBehaviour:
   popularity: 1.3
   category: 3
   korean: 1
-  unlockDay: 5
+  unlockDay: 3
   blurb: "\uD310\uC5D0\uC11C \uC885\uC774\uB97C \uB72F\uC5B4 \uBC88\uD638\uB97C \uD655\uC778!
     1\uB4F1\uC740 \uCEE4\uB2E4\uB780 \uC120\uBB3C."
   color: {r: 0.95, g: 0.3, b: 0.3, a: 1}
