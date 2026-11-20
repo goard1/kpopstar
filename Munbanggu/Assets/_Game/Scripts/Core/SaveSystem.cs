@@ -31,6 +31,8 @@ namespace Munbanggu.Core
         // ── 돌발 사건 ── (예전 세이브엔 없음 → 빈 목록)
         public List<CreditEntry> credits = new List<CreditEntry>();
         public List<string> seenEvents = new List<string>();
+        // ── 가게 업그레이드 ──
+        public List<UpgradeLevel> upgrades = new List<UpgradeLevel>();
     }
 
     /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>

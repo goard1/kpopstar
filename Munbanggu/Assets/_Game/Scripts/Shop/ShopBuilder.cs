@@ -21,6 +21,10 @@ namespace Munbanggu.Shop
         public Camera Camera;
         /// <summary>가게 앞 번호 뽑기판 (Slots에도 들어 있음).</summary>
         public ShelfSlot Board;
+        /// <summary>가게 오브젝트들의 부모 (업그레이드로 나중에 붙는 것들도 여기에).</summary>
+        public Transform Root;
+        /// <summary>진열대 추가 업그레이드로 2칸이 붙었는지.</summary>
+        public bool ExtraShelves;
     }
 
     /// <summary>
@@ -30,8 +34,6 @@ namespace Munbanggu.Shop
     /// </summary>
     public static class ShopBuilder
     {
-        // 매대 상품 윗면 높이 (앞줄 → 뒷줄, ShopDecor.ShelfCabinet 계단과 맞춤)
-        static readonly float[] TierTop = { 0.68f, 0.80f, 0.92f };
 
         /// <summary>계산 줄 자리: 계산대 앞에서 입구 쪽(-Z)으로 가다가, 가게 앞쪽 안에서 오른쪽(+X)으로 꺾임.</summary>
         public static readonly Vector3[] QueueSpots =
@@ -44,6 +46,7 @@ namespace Munbanggu.Shop
         {
             var layout = new ShopLayout();
             var shop = new GameObject("Shop").transform;
+            layout.Root = shop;
             shop.SetParent(root, false);
 
             var kit = new MeshKit();
@@ -111,18 +114,7 @@ namespace Munbanggu.Shop
             ShopDecor.ShelfCabinet(kit, blob, pos, yaw, index);
 
             // 상품 12개 자리 (4 x 3, 앞줄이 낮은 계단식). 실제 모양은 ShelfSlot이 메시 하나로 그림.
-            var items = new GameObject[12];
-            var rng = new System.Random(index * 97 + 13);
-            for (int i = 0; i < items.Length; i++)
-            {
-                int col = i % 4, row = i / 4;
-                var item = new GameObject($"Item {i}");
-                item.transform.SetParent(go.transform, false);
-                item.transform.localPosition = new Vector3(-0.39f + col * 0.26f + ((float)rng.NextDouble() - 0.5f) * 0.02f,
-                                                           TierTop[row], 0.2f - row * 0.2f);
-                item.transform.localRotation = Quaternion.Euler(0f, ((float)rng.NextDouble() - 0.5f) * 18f, 0f);
-                items[i] = item;
-            }
+            var items = ShelfSlot.CreateAnchors(go.transform, 12, index);
 
             // 탭 판정용 넉넉한 콜라이더
             var col3d = go.AddComponent<BoxCollider>();
@@ -132,6 +124,31 @@ namespace Munbanggu.Shop
             var slot = go.AddComponent<ShelfSlot>();
             slot.Init(index, items, mats);
             return slot;
+        }
+
+        /// <summary>진열대 추가 업그레이드: 창가(오른벽 창문 아래) 1칸 + 왼쪽 가장자리 1칸. 손님 동선을 막지 않는 자리.</summary>
+        public static readonly (Vector3 pos, float yaw)[] ExtraShelfSpots =
+        {
+            (new Vector3(3.35f, 0f, -2.55f), -90f), // 창가, 가게 안(-X)을 봄
+            (new Vector3(-3.35f, 0f, 1.3f), 90f),   // 왼쪽 가장자리, 가게 안(+X)을 봄
+        };
+
+        /// <summary>추가 진열대를 만들어 Slots 뒤에 붙인다 (이미 있으면 건너뜀). 매대 칸 수도 맞춘다.</summary>
+        public static void AddExtraShelves(ShopLayout layout, MaterialCache mats, int capacity)
+        {
+            if (layout.ExtraShelves) return;
+            layout.ExtraShelves = true;
+            var kit = new MeshKit();
+            var blob = new MeshKit();
+            int index = layout.Slots.Count;
+            foreach (var (pos, yaw) in ExtraShelfSpots)
+            {
+                var slot = CreateSlot(layout.Root, index++, pos, yaw, mats, kit, blob);
+                slot.SetCapacity(capacity);
+                layout.Slots.Add(slot);
+            }
+            kit.Build("Extra Shelves", layout.Root, mats.VertexColor);
+            if (mats.Blob != null) blob.Build("Extra Shadows", layout.Root, mats.Blob);
         }
 
         static ShelfSlot CreateBoard(Transform parent, int index, Vector3 pos, float yaw, MaterialCache mats)

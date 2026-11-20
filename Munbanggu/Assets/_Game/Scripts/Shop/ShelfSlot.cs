@@ -29,6 +29,51 @@ namespace Munbanggu.Shop
         static readonly Color Ink = new Color(0.25f, 0.2f, 0.2f);
         static readonly MeshKit kit = new MeshKit();
         static readonly Vector3 ItemScale = Vector3.one * 1.15f; // 숏폼 화면에서 잘 보이게 살짝 크게
+        // 매대 상품 윗면 높이 (앞줄 → 뒷줄, ShopDecor.ShelfCabinet 계단과 맞춤)
+        static readonly float[] TierTop = { 0.68f, 0.80f, 0.92f };
+
+        /// <summary>
+        /// 상품 자리(앵커)를 capacity개로 다시 깐다: 3줄 계단 × (capacity/3)칸. 칸이 많을수록 촘촘·작게.
+        /// 이미 올려 둔 개수는 그대로 (줄어들면 잘림). 매대 넓히기 업그레이드용.
+        /// </summary>
+        public void SetCapacity(int capacity)
+        {
+            if (IsBoard || items == null || capacity == items.Length) return;
+            foreach (var it in items) if (it != null) DestroySafe(it);
+            items = CreateAnchors(transform, capacity, Index);
+            Count = Mathf.Min(Count, Capacity);
+            Refresh();
+        }
+
+        /// <summary>매대 상품 자리 만들기 (ShopBuilder와 SetCapacity가 같이 씀).</summary>
+        public static GameObject[] CreateAnchors(Transform parent, int capacity, int seed)
+        {
+            int cols = Mathf.Max(1, capacity / 3);
+            float span = 0.78f;
+            float step = cols > 1 ? span / (cols - 1) : 0f;
+            var items = new GameObject[cols * 3];
+            var rng = new System.Random(seed * 97 + 13);
+            for (int i = 0; i < items.Length; i++)
+            {
+                int col = i % cols, row = i / cols;
+                var item = new GameObject($"Item {i}");
+                item.transform.SetParent(parent, false);
+                item.transform.localPosition = new Vector3(-span * 0.5f + col * step + ((float)rng.NextDouble() - 0.5f) * 0.02f,
+                                                           TierTop[row], 0.2f - row * 0.2f);
+                item.transform.localRotation = Quaternion.Euler(0f, ((float)rng.NextDouble() - 0.5f) * 18f, 0f);
+                items[i] = item;
+            }
+            return items;
+        }
+
+        /// <summary>칸이 많아지면 상품을 조금 작게 (4칸 1.15 → 6칸 0.9).</summary>
+        Vector3 CurrentItemScale => items == null || items.Length <= 12 ? ItemScale : Vector3.one * (items.Length <= 15 ? 1.0f : 0.9f);
+
+        static void DestroySafe(Object o)
+        {
+            if (Application.isPlaying) Destroy(o);
+            else DestroyImmediate(o);
+        }
 
         GameObject[] items;
         MaterialCache mats;
@@ -135,7 +180,7 @@ namespace Munbanggu.Shop
                 items[i].SetActive(on);
                 if (!on || data == null) continue;
                 var t = items[i].transform;
-                kit.Push(t.localPosition, t.localRotation, ItemScale);
+                kit.Push(t.localPosition, t.localRotation, CurrentItemScale);
                 kit.Append(data);
                 kit.Pop();
             }

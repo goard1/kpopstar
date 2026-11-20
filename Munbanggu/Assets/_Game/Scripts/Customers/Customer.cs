@@ -79,7 +79,7 @@ namespace Munbanggu.Customers
             Look = regular != null
                 ? new CustomerLook { seed = regular.Seed, isRegular = true, regularId = regular.id }
                 : new CustomerLook { seed = Random.Range(0, int.MaxValue) };
-            maxPatience = gm.queuePatience * (regular != null ? regular.patienceMultiplier : 1f);
+            maxPatience = gm.QueuePatience * (regular != null ? regular.patienceMultiplier : 1f);
             visual = CustomerVisual.Build(transform, gm.Materials, Look);
 
             // 문 열린 폭 안에서 x를 살짝 흩어 겹치지 않게. 들어올 때: 바깥 → 문 → 문 안쪽 → (기존 목적지)
@@ -325,6 +325,22 @@ namespace Munbanggu.Customers
             PayAndLeave(null);
         }
 
+        /// <summary>
+        /// 알바생 자동 계산: 줄 맨 앞에 도착해 기다리는 보통 손님만 (외상 손님은 주인이 직접 판단).
+        /// 계산했으면 true.
+        /// </summary>
+        public bool TryAutoCheckout()
+        {
+            if (state != State.Queued || Carried == null || Kind == CustomerKind.Credit) return false;
+            var queue = gm.Layout.Queue;
+            if (queue.Front != this) return false;
+            Vector3 d = queue.SpotFor(this) - transform.position;
+            d.y = 0f;
+            if (d.sqrMagnitude > 0.05f) return false; // 아직 걸어오는 중
+            PayAndLeave("알바생이 계산해 줬어요");
+            return true;
+        }
+
         /// <summary>계산하고 나간다. extraLine이 있으면 말풍선 첫 줄에.</summary>
         void PayAndLeave(string extraLine)
         {
@@ -390,7 +406,7 @@ namespace Munbanggu.Customers
         void BeginSneak()
         {
             state = State.Sneaking;
-            speedMul = SneakSpeedMul;
+            speedMul = SneakSpeedMul * gm.SneakSpeed;
             route = ExitRoute();
             routeIdx = 0;
             bubble.Show("쉿… 몰래 나가야지", UIKit.BubbleSneak, true);

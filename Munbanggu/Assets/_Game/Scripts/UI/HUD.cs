@@ -54,6 +54,7 @@ namespace Munbanggu.UI
         class WholesaleRow
         {
             public Button buy;
+            public Text buyLabel;
             public Text info;
             public GameObject trendTag, newTag;
             public UIJuice juice;
@@ -105,7 +106,8 @@ namespace Munbanggu.UI
         readonly Dictionary<ProductData, InvItem> invByProduct = new Dictionary<ProductData, InvItem>();
         readonly List<InvItem> invOrder = new List<InvItem>();
         GameObject actionRow;
-        Button wholesaleButton, openButton, speedButton;
+        Button wholesaleButton, openButton, speedButton, upgradeButton;
+        UpgradePanel upgradePanel;
         Text speedLabel;
         int shownSpeed = -1;
 
@@ -187,6 +189,7 @@ namespace Munbanggu.UI
             BuildBottom(safe);
             BuildSlotLabels();
             BuildWholesaleModal();
+            { var m = Modal("Upgrade Modal", out var upCard, 1640, out var upJuice); upgradePanel = UpgradePanel.Build(gm, m, upCard, upJuice); }
             BuildSettlementModal();
 
             // 모달 위에 뜨는 것들: 토스트·배너·튜토리얼·동전
@@ -320,13 +323,20 @@ namespace Munbanggu.UI
             wholesaleButton = UIKit.Button("Wholesale", row, "도매상", 44, UIKit.Blue, Color.white, out _);
             wholesaleButton.onClick.AddListener(() => OpenModal(wholesaleModal, wholesaleCardJuice));
             var shopRt = (RectTransform)wholesaleButton.transform;
-            shopRt.anchorMin = new Vector2(0, 0); shopRt.anchorMax = new Vector2(0.38f, 1);
+            shopRt.anchorMin = new Vector2(0, 0); shopRt.anchorMax = new Vector2(0.3f, 1);
             shopRt.offsetMin = new Vector2(0, 8); shopRt.offsetMax = new Vector2(-10, 0);
+
+            // 가게 꾸미기 (업그레이드 상점)
+            upgradeButton = UIKit.Button("Upgrade", row, "가게 꾸미기", 38, UIKit.Yellow, UIKit.Ink, out _);
+            upgradeButton.onClick.AddListener(() => upgradePanel.Open());
+            var upRt = (RectTransform)upgradeButton.transform;
+            upRt.anchorMin = new Vector2(0.3f, 0); upRt.anchorMax = new Vector2(0.58f, 1);
+            upRt.offsetMin = new Vector2(10, 8); upRt.offsetMax = new Vector2(-10, 0);
 
             openButton = UIKit.Button("Open", row, "가게 문 열기!", 46, UIKit.Red, Color.white, out _);
             openButton.onClick.AddListener(gm.OpenShop);
             var openRt = (RectTransform)openButton.transform;
-            openRt.anchorMin = new Vector2(0.38f, 0); openRt.anchorMax = new Vector2(1, 1);
+            openRt.anchorMin = new Vector2(0.58f, 0); openRt.anchorMax = new Vector2(1, 1);
             openRt.offsetMin = new Vector2(10, 8); openRt.offsetMax = Vector2.zero;
             UIKit.TapeStrip(openButton.transform, new Vector2(1, 1), new Vector2(-46, -6), -18, 96);
 
@@ -476,6 +486,16 @@ namespace Munbanggu.UI
         {
             foreach (var slot in gm.Layout.Slots)
             {
+                if (slotLabels.ContainsKey(slot)) continue; // 업그레이드로 새로 생긴 매대만 추가
+                MakeSlotLabel(slot);
+            }
+        }
+
+        /// <summary>업그레이드로 매대가 늘었을 때 이름표 추가.</summary>
+        public void RebuildSlotLabels() => BuildSlotLabels();
+
+        void MakeSlotLabel(ShelfSlot slot)
+            {
                 var bg = UIKit.Panel($"Slot Label {slot.Index}", worldLayer, UIKit.Cream, false);
                 UIKit.Round(bg, 16);
                 UIKit.AddShadow(bg, UIKit.ShadowColor, 4);
@@ -491,7 +511,6 @@ namespace Munbanggu.UI
                 icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
                 slotLabels[slot] = new SlotLabel { bg = bg, text = label, icon = icon, juice = bg.gameObject.AddComponent<UIJuice>() };
             }
-        }
 
         void UpdateSlotLabel(ShelfSlot slot, SlotLabel l)
         {
@@ -720,14 +739,14 @@ namespace Munbanggu.UI
             var trendTag = Sticker(row.transform, "유행", UIKit.Red, new Vector2(0, 1), new Vector2(34, -12), -14);
             var newTag = Sticker(row.transform, "NEW", UIKit.Green, new Vector2(0, 0), new Vector2(34, 14), 10);
 
-            var buy = UIKit.Button("Buy", row.transform, UIKit.Won(p.BoxCost), 32, UIKit.Green, Color.white, out _);
+            var buy = UIKit.Button("Buy", row.transform, UIKit.Won(gm.BoxCost(p)), 32, UIKit.Green, Color.white, out var buyLabel);
             var brt = (RectTransform)buy.transform;
             brt.anchorMin = new Vector2(1, 0); brt.anchorMax = new Vector2(1, 1);
             brt.pivot = new Vector2(1, 0.5f);
             brt.offsetMin = new Vector2(-226, 20); brt.offsetMax = new Vector2(-16, -14);
             buy.onClick.AddListener(() => gm.BuyBox(product));
 
-            return new WholesaleRow { buy = buy, info = info, trendTag = trendTag, newTag = newTag, juice = buy.GetComponent<UIJuice>() };
+            return new WholesaleRow { buy = buy, buyLabel = buyLabel, info = info, trendTag = trendTag, newTag = newTag, juice = buy.GetComponent<UIJuice>() };
         }
 
         void BuildSettlementModal()
@@ -896,9 +915,12 @@ namespace Munbanggu.UI
         public void OpenSettings() => settings.Open();
         public void CloseSettings() => settings.Close();
 
+        public void OpenUpgrades() => upgradePanel.Open();
+
         public void CloseModals()
         {
             wholesaleModal.SetActive(false);
+            upgradePanel.Close();
             StopSettlementAnim();
             settlementModal.SetActive(false);
         }
@@ -1140,6 +1162,7 @@ namespace Munbanggu.UI
         void Refresh()
         {
             dayText.text = $"{gm.Day}일차";
+            if (upgradePanel.IsOpen) upgradePanel.Refresh();
             RefreshTrend();
             actionRow.SetActive(gm.Phase == DayPhase.Morning);
 
@@ -1177,7 +1200,9 @@ namespace Munbanggu.UI
                 if (rowGo.activeSelf != unlocked) rowGo.SetActive(unlocked);
                 if (!unlocked) continue;
                 row.info.text = $"{p.boxSize}개 들이, 개당 {UIKit.Won(p.retailPrice)}에 판매  |  창고 {gm.Stock(p)}";
-                row.buy.interactable = gm.Money >= p.BoxCost;
+                row.buy.interactable = gm.Money >= gm.BoxCost(p);
+                string cost = UIKit.Won(gm.BoxCost(p));
+                if (row.buyLabel.text != cost) row.buyLabel.text = cost; // 도매상 단골 할인
                 SetActive(row.trendTag, gm.Trend == p);
                 SetActive(row.newTag, gm.IsNew(p));
             }
@@ -1314,7 +1339,7 @@ namespace Munbanggu.UI
         internal RectTransform FirstAffordableBuyButton()
         {
             foreach (var p in gm.Catalog.products)
-                if (p != null && wholesale.TryGetValue(p, out var row) && gm.IsUnlocked(p) && gm.Money >= p.BoxCost)
+                if (p != null && wholesale.TryGetValue(p, out var row) && gm.IsUnlocked(p) && gm.Money >= gm.BoxCost(p))
                     return (RectTransform)row.buy.transform;
             return null;
         }

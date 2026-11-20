@@ -60,7 +60,6 @@ namespace Munbanggu.Core
     /// <summary>외상 장부. 해준 외상은 다음 날 아침에 갚거나(이자 덤) 떼먹는다.</summary>
     public class CreditLedger
     {
-        public const float RepayChance = 0.6f;
         public const float RepayBonus = 0.3f; // "엄마가 고맙다고 더 주래요"
 
         readonly List<CreditEntry> entries = new List<CreditEntry>();
@@ -70,7 +69,7 @@ namespace Munbanggu.Core
         public void Add(int amount, int dueDay) => entries.Add(new CreditEntry { amount = amount, dueDay = dueDay });
 
         /// <summary>오늘까지 갚을 외상을 정리. 돌려받은 돈 합계와 아침 소식 문장들.</summary>
-        public int Settle(int day, List<string> news)
+        public int Settle(int day, List<string> news, float repayChance)
         {
             int received = 0, repaid = 0, defaulted = 0, lost = 0;
             for (int i = entries.Count - 1; i >= 0; i--)
@@ -78,7 +77,7 @@ namespace Munbanggu.Core
                 var e = entries[i];
                 if (e.dueDay > day) continue;
                 entries.RemoveAt(i);
-                if (UnityEngine.Random.value < RepayChance)
+                if (UnityEngine.Random.value < repayChance)
                 {
                     int pay = Mathf.RoundToInt(e.amount * (1f + RepayBonus) / 10f) * 10;
                     received += pay;

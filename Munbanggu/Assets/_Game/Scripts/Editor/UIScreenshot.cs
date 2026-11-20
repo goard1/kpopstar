@@ -75,7 +75,7 @@ namespace Munbanggu.EditorTools
                 // 2) 도매상 닫고 창고 (상품 2개 구매)
                 int bought = 0;
                 foreach (var p in catalog.products)
-                    if (p != null && gm.IsUnlocked(p) && bought < 3 && gm.Money >= p.BoxCost && gm.BuyBox(p)) bought++;
+                    if (p != null && gm.IsUnlocked(p) && bought < 3 && gm.Money >= gm.BoxCost(p) && gm.BuyBox(p)) bought++;
                 Shot(hud, cam, rt, outDir, "2_wholesale_bought");
                 hud.CloseModals();
                 if (tutorial != null) for (int i = 0; i < 160; i++) tutorial.Tick(0.016f); // 2단계(고른 상품 강조) 지나가기
@@ -130,6 +130,14 @@ namespace Munbanggu.EditorTools
                 // 5) 정산 (장부)
                 hud.ShowSettlement();
                 Shot(hud, cam, rt, outDir, "6_settlement");
+
+                // 6) 업그레이드: 상점 화면 + 전부 산 가게 모습
+                gm.DebugMorningForCapture();
+                hud.OpenUpgrades();
+                Shot(hud, cam, rt, outDir, "7_upgrades");
+                gm.DebugMaxUpgrades();
+                hud.CloseModals();
+                Shot(hud, cam, rt, outDir, "8_upgraded_shop");
 
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
             }

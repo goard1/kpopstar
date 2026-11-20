@@ -37,6 +37,8 @@ namespace Munbanggu.Core
         public int comforted;      // 달래 준 우는 아이
         public int pulls;          // 번호 뽑기 판수
         public int jackpots;       // 1등 나온 횟수
+        public int arcade;         // 오락기 수입 (revenue에 포함)
+        public int invested;       // 가게 업그레이드에 쓴 돈 (cost와 별도)
         public int Profit => revenue - cost;
     }
 
@@ -114,7 +116,7 @@ namespace Munbanggu.Core
         public ProductData Selected { get; private set; }
 
         public float OpenProgress => Phase == DayPhase.Morning ? 0f
-            : openDuration <= 0f ? 1f : Mathf.Clamp01(openTimer / openDuration);
+            : OpenDuration <= 0f ? 1f : Mathf.Clamp01(openTimer / OpenDuration);
         public bool IsRush => Phase == DayPhase.Open && OpenProgress >= RushStart && OpenProgress < RushEnd;
 
         public event Action Changed;
@@ -170,6 +172,8 @@ namespace Munbanggu.Core
             if (Stats.stolen > 0) lines.Add(SettlementLine.Money($"슬쩍 당함 ({Stats.stolen}개)", Stats.stolenValue, true));
             if (Stats.credits > 0) lines.Add(SettlementLine.Money($"외상 해 줌 ({Stats.credits}건, 내일 받을 돈)", Stats.creditValue));
             if (Stats.comforted > 0) lines.Add(SettlementLine.Count("달래 준 아이", Stats.comforted));
+            if (Stats.arcade > 0) lines.Add(SettlementLine.Money("그중 오락기 수입", Stats.arcade));
+            if (Stats.invested > 0) lines.Add(SettlementLine.Money("오늘 가게에 투자", Stats.invested, true));
             if (Stats.pulls > 0) lines.Add(SettlementLine.Count("번호 뽑기", Stats.pulls, "판"));
             if (Stats.jackpots > 0) lines.Add(SettlementLine.Count("1등 당첨!", Stats.jackpots, "번"));
             var board = Layout.Board;
@@ -235,7 +239,7 @@ namespace Munbanggu.Core
             if (p == null) return false;
             if (Phase != DayPhase.Morning) { Fail("도매상은 아침에만 열어요"); return false; }
             if (!IsUnlocked(p)) { Fail($"{Josa.Eun(p.displayName)} 아직 도매상에 안 들어왔어요 ({p.unlockDay}일차부터)"); return false; }
-            int cost = p.BoxCost;
+            int cost = BoxCost(p);
             if (Money < cost) { Fail("돈이 부족해요"); return false; }
             Money -= cost;
             Stats.cost += cost;
@@ -326,7 +330,7 @@ namespace Munbanggu.Core
             regulars.PlanDay(Day, UnlockedFavorite);
             // 외상 정리는 저장 전에 (다시 켜도 두 번 받지 않게)
             creditNews.Clear();
-            int repaid = ledger.Settle(Day, creditNews);
+            int repaid = ledger.Settle(Day, creditNews, UpgradeTable.CreditRepayChance(Upgrades.Level(UpgradeTable.Ledger)));
             if (repaid > 0) Money += repaid;
             Save();
             GameEvents.RaisePhaseChanged(Phase);
@@ -373,9 +377,11 @@ namespace Munbanggu.Core
         {
             if (!initialized) return;
             ApplySpeed();
+            if (Phase == DayPhase.Open || Phase == DayPhase.Closing) TickHelper();
             if (Phase == DayPhase.Open)
             {
                 openTimer += Time.deltaTime;
+                TickArcade();
                 if (IsRush && !rushAnnounced)
                 {
                     rushAnnounced = true;
@@ -383,7 +389,7 @@ namespace Munbanggu.Core
                     GameEvents.RaiseRushStarted();
                 }
                 SpawnTick();
-                if (openTimer >= openDuration)
+                if (openTimer >= OpenDuration)
                 {
                     Phase = DayPhase.Closing;
                     Hud.Toast("문 닫을 시간! 남은 손님만 계산해요");
@@ -426,7 +432,7 @@ namespace Munbanggu.Core
             }
 
             float rate = IsRush ? rushSpawnPerSec : baseSpawnPerSec;
-            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth);
+            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign));
             spawnAcc += rate * Time.deltaTime;
             if (spawnAcc < 1f) return;
             spawnAcc -= 1f;
@@ -453,6 +459,113 @@ namespace Munbanggu.Core
                 if (intro != null) Dialogue.Show($"{regular.name} · {regular.title}", intro, regular.color);
             }
             c.Init(this, wanted, Hud.CreateBubble(go.transform), regular, kind);
+        }
+
+        // ───────────── 가게 업그레이드 ─────────────
+
+        public Upgrades Upgrades { get; } = new Upgrades();
+        GameObject upgradeDecor;
+        float helperTimer;
+        float arcadeTimer;
+
+        /// <summary>상자 값 (도매상 단골 할인 반영, 10원 단위).</summary>
+        public int BoxCost(ProductData p) =>
+            p == null ? 0 : Mathf.RoundToInt(p.BoxCost * UpgradeTable.WholesaleMultiplier(Upgrades.Level(UpgradeTable.Wholesale)) / 10f) * 10;
+
+        /// <summary>영업 시간 (영업시간 연장 반영).</summary>
+        public float OpenDuration => openDuration + UpgradeTable.ExtraOpenSeconds(Upgrades.Level(UpgradeTable.Hours));
+
+        /// <summary>계산 줄 인내심 (선풍기·의자 반영).</summary>
+        public float QueuePatience => queuePatience * UpgradeTable.PatienceMultiplier(Upgrades.Level(UpgradeTable.Fan));
+
+        /// <summary>몰래 나가는 아이 속도 배율 (방범 거울 반영).</summary>
+        public float SneakSpeed => UpgradeTable.SneakSpeedMultiplier(Upgrades.Level(UpgradeTable.Mirror));
+
+        /// <summary>업그레이드 사기 (아침에만). 성공하면 바로 가게에 반영.</summary>
+        public bool BuyUpgrade(string id)
+        {
+            var def = UpgradeTable.Find(id);
+            if (def == null) return false;
+            if (Phase != DayPhase.Morning) { Fail("가게 꾸미기는 아침에만 할 수 있어요"); return false; }
+            if (Upgrades.IsMaxed(def)) { Fail("이미 최고 단계예요"); return false; }
+            int cost = Upgrades.NextCost(def);
+            if (Money < cost) { Fail("돈이 부족해요"); return false; }
+            Money -= cost;
+            Stats.invested += cost;
+            Upgrades.Raise(id);
+            ApplyUpgrades();
+            Hud.Toast($"{def.name} {Upgrades.Level(id)}단계 완료!");
+            Save();
+            Notify();
+            return true;
+        }
+
+#if UNITY_EDITOR
+        /// <summary>스크린샷 도구용: 모든 업그레이드 최고 단계로.</summary>
+        public void DebugMaxUpgrades()
+        {
+            foreach (var d in UpgradeTable.All)
+                while (!Upgrades.IsMaxed(d)) Upgrades.Raise(d.id);
+            ApplyUpgrades();
+            foreach (var s in Layout.Slots)
+                if (!s.IsBoard && s.Product == null && Catalog.products.Count > 0)
+                {
+                    var p = Catalog.products[(s.Index * 5) % Catalog.products.Count];
+                    if (!IsBoardProduct(p)) s.Load(p, s.Capacity);
+                }
+            Notify();
+        }
+
+        /// <summary>스크린샷 도구용: 다음 날 아침으로 (돈 넉넉히).</summary>
+        public void DebugMorningForCapture()
+        {
+            Money = Mathf.Max(Money, 30000);
+            Day++;
+            StartMorning();
+        }
+#endif
+
+        /// <summary>업그레이드 단계를 가게에 반영 (매대 칸 수, 추가 진열대, 장식). 여러 번 불러도 됨.</summary>
+        void ApplyUpgrades()
+        {
+            int cap = UpgradeTable.ShelfCapacity(Upgrades.Level(UpgradeTable.ShelfSize));
+            if (Upgrades.Level(UpgradeTable.Island) > 0 && !Layout.ExtraShelves)
+            {
+                ShopBuilder.AddExtraShelves(Layout, Materials, cap);
+                if (Hud != null) Hud.RebuildSlotLabels();
+            }
+            foreach (var s in Layout.Slots)
+                if (!s.IsBoard) s.SetCapacity(cap);
+            upgradeDecor = Visual.UpgradeVisuals.Rebuild(Layout.Root, Materials, Upgrades, upgradeDecor);
+        }
+
+        /// <summary>알바생: 일정 간격으로 계산 줄 맨 앞 손님을 대신 계산.</summary>
+        void TickHelper()
+        {
+            float interval = UpgradeTable.HelperInterval(Upgrades.Level(UpgradeTable.Helper));
+            if (interval <= 0f) return;
+            helperTimer += Time.deltaTime;
+            if (helperTimer < interval) return;
+            var front = Layout.Queue.Front;
+            if (front != null && front.TryAutoCheckout()) helperTimer = 0f;
+            else helperTimer = interval; // 손님이 오면 바로
+        }
+
+        /// <summary>오락기: 영업 중 대수만큼 일정 간격으로 동전 수입.</summary>
+        void TickArcade()
+        {
+            int machines = UpgradeTable.ArcadeMachines(Upgrades.Level(UpgradeTable.Arcade));
+            if (machines <= 0) return;
+            arcadeTimer += Time.deltaTime * machines;
+            if (arcadeTimer < UpgradeTable.ArcadePlayInterval) return;
+            arcadeTimer -= UpgradeTable.ArcadePlayInterval;
+            int coin = UpgradeTable.ArcadeCoin;
+            Money += coin;
+            Stats.revenue += coin;
+            Stats.arcade += coin;
+            int which = UnityEngine.Random.Range(0, machines);
+            Hud.Fx.CoinBurst(Layout.Root.TransformPoint(Visual.UpgradeVisuals.ArcadePosition(which)) + Vector3.up * 1.4f, coin);
+            Notify();
         }
 
         // ───────────── 돌발 사건 ─────────────
@@ -684,6 +797,9 @@ namespace Munbanggu.Core
             }
             Day = Mathf.Max(1, data.day);
             Money = data.money;
+            // 업그레이드 먼저 (매대 칸 수·추가 진열대가 있어야 저장된 진열을 그대로 올릴 수 있음)
+            Upgrades.Load(data.upgrades);
+            ApplyUpgrades();
             foreach (var e in data.backroom) AddStock(Catalog.Find(e.productId), e.count);
             for (int i = 0; i < Layout.Slots.Count && i < data.shelves.Count; i++)
                 Layout.Slots[i].Load(Catalog.Find(data.shelves[i].productId), data.shelves[i].count);
@@ -706,7 +822,8 @@ namespace Munbanggu.Core
             var data = new SaveData
             {
                 day = Day, money = Money, trend = trends.State, regulars = regulars.Save(),
-                credits = ledger.Save(), seenEvents = new List<string>(seenEvents)
+                credits = ledger.Save(), seenEvents = new List<string>(seenEvents),
+                upgrades = Upgrades.Save()
             };
             foreach (var kv in stock)
                 if (kv.Value > 0) data.backroom.Add(new StockEntry { productId = kv.Key.id, count = kv.Value });
