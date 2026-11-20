@@ -2,6 +2,7 @@ using Munbanggu.Core;
 using Munbanggu.Data;
 using Munbanggu.Shop;
 using Munbanggu.UI;
+using Munbanggu.Visual;
 using UnityEngine;
 
 namespace Munbanggu.Customers
@@ -32,6 +33,8 @@ namespace Munbanggu.Customers
         float bobSeed;
 
         public ProductData Carried { get; private set; }
+        public ProductData Wanted => wanted;
+        public CustomerLook Look { get; private set; }
 
         public void Init(GameManager gameManager, ProductData wantedProduct, CustomerBubble customerBubble)
         {
@@ -40,7 +43,9 @@ namespace Munbanggu.Customers
             bubble = customerBubble;
             bubble.onClick = OnBubbleClicked;
             bobSeed = Random.value * 10f;
-            BuildVisual();
+            Look = new CustomerLook { seed = Random.Range(0, int.MaxValue) };
+            visual = CustomerVisual.Build(transform, gm.Materials, Look);
+            GameEvents.RaiseCustomerEntered(this);
 
             bubble.Flash($"{wanted.displayName} 있어요?", UIKit.BubbleNormal, 1.4f);
             PickTarget();
@@ -55,7 +60,7 @@ namespace Munbanggu.Customers
             if (target != null) { state = State.ToShelf; return; }
 
             gm.RecordLostNoStock();
-            Leave($"{wanted.displayName} 없네…", UIKit.BubbleSad);
+            LeaveUnhappy($"{wanted.displayName} 없네…");
         }
 
         void Update()
@@ -98,6 +103,7 @@ namespace Munbanggu.Customers
             if (product != null && target.TakeOne())
             {
                 Carried = product;
+                GameEvents.RaiseItemPicked(this, target);
                 state = State.Queued;
                 patience = gm.queuePatience;
                 gm.Layout.Queue.Join(this);
@@ -112,7 +118,7 @@ namespace Munbanggu.Customers
                 return;
             }
             gm.RecordLostNoStock();
-            Leave("다 팔렸잖아…", UIKit.BubbleSad);
+            LeaveUnhappy("다 팔렸잖아…");
         }
 
         void UpdateQueue()
@@ -137,7 +143,7 @@ namespace Munbanggu.Customers
                 queue.Leave(this);
                 gm.ReturnUnpaid(Carried);
                 Carried = null;
-                Leave("너무 오래 걸려요!", UIKit.BubbleSad);
+                LeaveUnhappy("너무 오래 걸려요!");
             }
         }
 
@@ -148,7 +154,14 @@ namespace Munbanggu.Customers
             gm.Checkout(this);
             gm.Layout.Queue.Leave(this);
             Carried = null;
+            GameEvents.RaiseCheckedOut(this, price);
             Leave($"+{UIKit.Won(price)}", UIKit.BubbleMoney);
+        }
+
+        void LeaveUnhappy(string message)
+        {
+            Leave(message, UIKit.BubbleSad);
+            GameEvents.RaiseCustomerLeftUnhappy(this);
         }
 
         void Leave(string message, Color color)
@@ -187,21 +200,6 @@ namespace Munbanggu.Customers
         {
             float y = moving ? Mathf.Abs(Mathf.Sin(Time.time * 14f + bobSeed)) * 0.06f : 0f;
             visual.localPosition = new Vector3(0f, y, 0f);
-        }
-
-        void BuildVisual()
-        {
-            visual = new GameObject("Visual").transform;
-            visual.SetParent(transform, false);
-            var mats = gm.Materials;
-            Color shirt = Color.HSVToRGB(Random.value, 0.45f, 0.95f);
-            Color bag = Color.HSVToRGB(Random.value, 0.6f, 0.75f);
-
-            ShopBuilder.Part(PrimitiveType.Capsule, visual, new Vector3(0f, 0.42f, 0f), Vector3.one * 0.42f, shirt, mats);
-            ShopBuilder.Part(PrimitiveType.Sphere, visual, new Vector3(0f, 1.0f, 0f), Vector3.one * 0.36f, new Color(1f, 0.85f, 0.7f), mats);
-            ShopBuilder.Part(PrimitiveType.Cube, visual, new Vector3(0f, 0.5f, -0.2f), new Vector3(0.3f, 0.35f, 0.14f), bag, mats);
-            if (Random.value < 0.5f) // 모자
-                ShopBuilder.Part(PrimitiveType.Cube, visual, new Vector3(0f, 1.17f, 0.03f), new Vector3(0.34f, 0.08f, 0.4f), bag, mats);
         }
 
         void OnDestroy()

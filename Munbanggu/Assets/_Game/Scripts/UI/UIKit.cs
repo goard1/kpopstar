@@ -108,6 +108,7 @@ namespace Munbanggu.UI
             var img = Panel(name, parent, bg);
             var btn = img.gameObject.AddComponent<Button>();
             btn.targetGraphic = img;
+            btn.onClick.AddListener(Munbanggu.Core.GameEvents.RaiseUiClick);
             label = Label("Label", img.transform, text, size, fg, TextAnchor.MiddleCenter, FontStyle.Bold);
             Stretch(label.rectTransform, 8, 4, 8, 4);
             return btn;

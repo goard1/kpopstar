@@ -108,13 +108,14 @@ namespace Munbanggu.Core
 
         public bool BuyBox(ProductData p)
         {
-            if (Phase != DayPhase.Morning) { Hud.Toast("도매상은 아침에만 열어요"); return false; }
+            if (Phase != DayPhase.Morning) { Fail("도매상은 아침에만 열어요"); return false; }
             int cost = p.BoxCost;
-            if (Money < cost) { Hud.Toast("돈이 부족해요"); return false; }
+            if (Money < cost) { Fail("돈이 부족해요"); return false; }
             Money -= cost;
             Stats.cost += cost;
             AddStock(p, p.boxSize);
             if (Selected == null) Selected = p;
+            GameEvents.RaiseBoxBought(p);
             Notify();
             return true;
         }
@@ -130,12 +131,12 @@ namespace Munbanggu.Core
             if (Phase == DayPhase.Settlement) return;
             if (Selected == null)
             {
-                Hud.Toast("아래 창고에서 상품을 먼저 고르세요");
+                Fail("아래 창고에서 상품을 먼저 고르세요");
                 return;
             }
             if (Stock(Selected) <= 0)
             {
-                Hud.Toast($"창고에 {Selected.displayName} 재고가 없어요");
+                Fail($"창고에 {Selected.displayName} 재고가 없어요");
                 return;
             }
             if (slot.Product != null && slot.Product != Selected)
@@ -146,24 +147,26 @@ namespace Munbanggu.Core
             }
             if (slot.Count >= slot.Capacity)
             {
-                Hud.Toast("매대가 꽉 찼어요");
+                Fail("매대가 꽉 찼어요");
                 return;
             }
             int added = slot.Add(Selected, Stock(Selected));
             RemoveStock(Selected, added);
+            if (added > 0) GameEvents.RaiseItemsPlaced(slot, Selected, added);
             Notify();
         }
 
         public void OpenShop()
         {
             if (Phase != DayPhase.Morning) return;
-            if (TotalShelfStock() == 0) { Hud.Toast("매대에 물건을 먼저 진열하세요"); return; }
+            if (TotalShelfStock() == 0) { Fail("매대에 물건을 먼저 진열하세요"); return; }
             Phase = DayPhase.Open;
             openTimer = 0f;
             spawnAcc = 0.8f; // 문 열자마자 첫 손님
             rushAnnounced = false;
             Hud.CloseModals();
             Save();
+            GameEvents.RaisePhaseChanged(Phase);
             Notify();
         }
 
@@ -182,6 +185,7 @@ namespace Munbanggu.Core
             Stats = new DayStats();
             Trend = RollTrend();
             Save();
+            GameEvents.RaisePhaseChanged(Phase);
             Notify();
             Hud.ShowMorning();
         }
@@ -190,6 +194,7 @@ namespace Munbanggu.Core
         {
             Phase = DayPhase.Settlement;
             Save();
+            GameEvents.RaisePhaseChanged(Phase);
             Notify();
             Hud.ShowSettlement();
         }
@@ -204,12 +209,14 @@ namespace Munbanggu.Core
                 {
                     rushAnnounced = true;
                     Hud.Toast("하교 시간! 손님이 몰려와요");
+                    GameEvents.RaiseRushStarted();
                 }
                 SpawnTick();
                 if (openTimer >= openDuration)
                 {
                     Phase = DayPhase.Closing;
                     Hud.Toast("문 닫을 시간! 남은 손님만 계산해요");
+                    GameEvents.RaisePhaseChanged(Phase);
                     Notify();
                 }
             }
@@ -334,6 +341,12 @@ namespace Munbanggu.Core
         }
 
         void OnApplicationQuit() => Save();
+
+        void Fail(string message)
+        {
+            Hud.Toast(message);
+            GameEvents.RaiseInvalidAction();
+        }
 
         void Notify() => Changed?.Invoke();
     }
