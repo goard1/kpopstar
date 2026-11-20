@@ -61,6 +61,29 @@ namespace Munbanggu.Core
         public int Money { get; private set; }
         public DayPhase Phase { get; private set; }
         public DayStats Stats { get; private set; } = new DayStats();
+
+        // ───────────── 빨리감기 ─────────────
+
+        const string SpeedPref = "game_speed";
+        public const int MaxSpeed = 3;
+        /// <summary>장사 시간 배속 (1~3). 아침·정산은 항상 1배. 다음 실행 때도 기억.</summary>
+        public int Speed { get; private set; } = 1;
+        /// <summary>지금 배속이 실제로 걸리는 단계인지 (영업·마감 중).</summary>
+        public bool SpeedActive => Phase == DayPhase.Open || Phase == DayPhase.Closing;
+
+        public void CycleSpeed()
+        {
+            Speed = Speed % MaxSpeed + 1;
+            PlayerPrefs.SetInt(SpeedPref, Speed);
+            ApplySpeed();
+            Notify();
+        }
+
+        void ApplySpeed()
+        {
+            float scale = SpeedActive ? Speed : 1f;
+            if (!Mathf.Approximately(Time.timeScale, scale)) Time.timeScale = scale;
+        }
         /// <summary>지금 붐인 상품 (없는 날은 null).</summary>
         public ProductData Trend => trends?.Current;
         /// <summary>붐 단계 (상승/절정/하락).</summary>
@@ -109,11 +132,16 @@ namespace Munbanggu.Core
             HUD.CollectSettlementLines -= AddSettlementLines; // static 이벤트: 중복 구독 방지
             HUD.CollectSettlementLines += AddSettlementLines;
             LoadOrNew();
+            Speed = Mathf.Clamp(PlayerPrefs.GetInt(SpeedPref, 1), 1, MaxSpeed);
             initialized = true;
             StartMorning();
         }
 
-        void OnDestroy() => HUD.CollectSettlementLines -= AddSettlementLines;
+        void OnDestroy()
+        {
+            HUD.CollectSettlementLines -= AddSettlementLines;
+            Time.timeScale = 1f;
+        }
 
         /// <summary>정산 화면에 단골·유행 줄 추가.</summary>
         void AddSettlementLines(GameManager gm, List<SettlementLine> lines)
@@ -293,6 +321,7 @@ namespace Munbanggu.Core
         void Update()
         {
             if (!initialized) return;
+            ApplySpeed();
             if (Phase == DayPhase.Open)
             {
                 openTimer += Time.deltaTime;

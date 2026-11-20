@@ -105,7 +105,9 @@ namespace Munbanggu.UI
         readonly Dictionary<ProductData, InvItem> invByProduct = new Dictionary<ProductData, InvItem>();
         readonly List<InvItem> invOrder = new List<InvItem>();
         GameObject actionRow;
-        Button wholesaleButton, openButton;
+        Button wholesaleButton, openButton, speedButton;
+        Text speedLabel;
+        int shownSpeed = -1;
 
         // 모달
         GameObject wholesaleModal, settlementModal;
@@ -268,6 +270,14 @@ namespace Munbanggu.UI
             trendText.horizontalOverflow = HorizontalWrapMode.Overflow;
             trendIcon = Icon(tag.transform, null, new Vector2(0, 0.5f), new Vector2(18, 2), 54);
             trendIcon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+
+            // 빨리감기: 1 → 2 → 3배속 (영업 중에만 보임)
+            speedButton = UIKit.Button("Speed", bar.transform, "", 30, UIKit.Cream, UIKit.Ink, out speedLabel);
+            UIKit.Place((RectTransform)speedButton.transform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-24, -102), new Vector2(150, 44));
+            UIKit.Round((Image)speedButton.targetGraphic, 22f);
+            UIKit.Ring(speedButton.transform, UIKit.WithAlpha(UIKit.KraftDark, 0.6f), 22);
+            speedButton.onClick.AddListener(gm.CycleSpeed);
+            speedButton.gameObject.SetActive(false);
 
             // 시간 띠 (러시 구간은 노란 사선)
             var timeBg = UIKit.Panel("Time", bar.transform, new Color(0.36f, 0.24f, 0.13f, 0.38f), false);
@@ -1148,6 +1158,16 @@ namespace Munbanggu.UI
                 DayPhase.Closing => "마감 중\n남은 손님 계산",
                 _ => "정산"
             };
+
+            bool speedVisible = gm.SpeedActive;
+            if (speedButton.gameObject.activeSelf != speedVisible) speedButton.gameObject.SetActive(speedVisible);
+            if (speedVisible && shownSpeed != gm.Speed)
+            {
+                shownSpeed = gm.Speed;
+                speedLabel.text = gm.Speed == 1 ? "1배속" : $"<color={RedHex}>{gm.Speed}배속</color>";
+                var bg = (Image)speedButton.targetGraphic;
+                bg.color = gm.Speed == 1 ? UIKit.Cream : UIKit.Yellow;
+            }
 
             float progress = gm.OpenProgress;
             if (Mathf.Abs(progress - lastProgress) > 0.0015f)
