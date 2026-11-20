@@ -25,6 +25,9 @@ namespace Munbanggu.Core
         public int served;
         public int lostNoStock;    // 원하는 물건(대체품 포함)이 없어서 그냥 간 손님
         public int lostImpatient;  // 계산 기다리다 간 손님
+        public int regularsVisited; // 단골 방문
+        public int trendSold;      // 붐 상품 판매 개수
+        public int tips;           // 단골이 얹어 준 돈 (revenue에 포함)
         public int Profit => revenue - cost;
     }
 
@@ -32,14 +35,19 @@ namespace Munbanggu.Core
     public class GameManager : MonoBehaviour
     {
         [Header("밸런스 (나중에 Remote Config로 옮길 값)")]
-        public int startMoney = 5000;
+        public int startMoney = 6000;
         public float openDuration = 150f;
         public float queuePatience = 16f;
         public int maxCustomersInShop = 8;
         public float baseSpawnPerSec = 0.14f;
         public float rushSpawnPerSec = 0.5f;
-        public float trendMultiplier = 3f;
+        [Tooltip("하루 지날 때마다 손님 증가율")]
+        public float dailySpawnGrowth = 0.05f;
+        public float maxSpawnGrowth = 2f;
         [Range(0f, 1f)] public float alternativeChance = 0.5f;
+
+        [Header("유행 (붐)")]
+        public TrendConfig trendConfig = new TrendConfig();
 
         public const float RushStart = 0.35f;
         public const float RushEnd = 0.6f;
@@ -53,7 +61,22 @@ namespace Munbanggu.Core
         public int Money { get; private set; }
         public DayPhase Phase { get; private set; }
         public DayStats Stats { get; private set; } = new DayStats();
-        public ProductData Trend { get; private set; }
+        /// <summary>지금 붐인 상품 (없는 날은 null).</summary>
+        public ProductData Trend => trends?.Current;
+        /// <summary>붐 단계 (상승/절정/하락).</summary>
+        public TrendStage TrendStage => trends?.Stage ?? TrendStage.None;
+        /// <summary>"상승"/"절정"/"하락" 또는 "".</summary>
+        public string TrendStageLabel => trends?.StageLabel ?? "";
+        /// <summary>다음 붐 소문 상품 (소문이 안 났으면 null, 헛소문일 수 있음).</summary>
+        public ProductData TrendRumor => trends?.Rumor;
+        /// <summary>붐이 끝나 안 팔리는 상품 (없으면 null).</summary>
+        public ProductData TrendCrashed => trends?.Crashed;
+        /// <summary>상시 표시용 유행 한 줄 (현재 붐 상황, 없으면 소문). 없으면 "".</summary>
+        public string TrendHint => trends?.StatusLine() ?? trends?.RumorLine() ?? "";
+        public TrendSystem Trends => trends;
+        public RegularManager Regulars => regulars;
+        public DialoguePanel Dialogue { get; private set; }
+
         public ProductData Selected { get; private set; }
 
         public float OpenProgress => Phase == DayPhase.Morning ? 0f
@@ -64,6 +87,8 @@ namespace Munbanggu.Core
 
         readonly Dictionary<ProductData, int> backroom = new Dictionary<ProductData, int>();
         readonly List<Customer> customers = new List<Customer>();
+        TrendSystem trends;
+        readonly RegularManager regulars = new RegularManager();
         float openTimer;
         float spawnAcc;
         bool rushAnnounced;
@@ -72,13 +97,50 @@ namespace Munbanggu.Core
         public void Init(ProductCatalog catalog, Material baseMaterial)
         {
             Catalog = catalog;
+            trends = new TrendSystem(trendConfig, catalog);
             Materials = new MaterialCache(baseMaterial);
             Layout = ShopBuilder.Build(transform, Materials);
             Hud = HUD.Build(this);
+            Dialogue = DialoguePanel.Build(transform);
             gameObject.AddComponent<TapInput>().Init(this);
+            HUD.CollectSettlementLines -= AddSettlementLines; // static 이벤트: 중복 구독 방지
+            HUD.CollectSettlementLines += AddSettlementLines;
             LoadOrNew();
             initialized = true;
             StartMorning();
+        }
+
+        void OnDestroy() => HUD.CollectSettlementLines -= AddSettlementLines;
+
+        /// <summary>정산 화면에 단골·유행 줄 추가.</summary>
+        void AddSettlementLines(GameManager gm, List<SettlementLine> lines)
+        {
+            if (gm != this) return;
+            if (Stats.regularsVisited > 0) lines.Add(SettlementLine.Count("단골 방문", Stats.regularsVisited));
+            if (Stats.tips > 0) lines.Add(SettlementLine.Money("그중 단골 팁", Stats.tips));
+            if (Trend != null)
+                lines.Add(SettlementLine.Count($"붐 상품({Trend.displayName}) 판매", Stats.trendSold, "개"));
+            if (TrendStage == TrendStage.Falling)
+                lines.Add(SettlementLine.Tip($"{Trend.displayName} 붐이 식고 있어요. 남은 재고를 먼저 팔고 사재기는 조심!"));
+            else if (TrendRumor != null)
+                lines.Add(SettlementLine.Tip($"소문의 {TrendRumor.displayName}, 미리 조금 사 둘까요?"));
+        }
+
+        // ───────────── 해금 ─────────────
+
+        /// <summary>도매상에서 살 수 있는 상품인지 (unlockDay가 오늘 이하).</summary>
+        public bool IsUnlocked(ProductData p) => p != null && p.unlockDay <= Day;
+
+        /// <summary>오늘 새로 들어온 상품인지 ("NEW" 표시용).</summary>
+        public bool IsNew(ProductData p) => p != null && Day > 1 && p.unlockDay == Day;
+
+        /// <summary>다음에 해금되는 날 (모두 해금됐으면 0).</summary>
+        public int NextUnlockDay()
+        {
+            int next = 0;
+            foreach (var p in Catalog.products)
+                if (p != null && p.unlockDay > Day && (next == 0 || p.unlockDay < next)) next = p.unlockDay;
+            return next;
         }
 
         // ───────────── 재고 ─────────────
@@ -108,7 +170,9 @@ namespace Munbanggu.Core
 
         public bool BuyBox(ProductData p)
         {
+            if (p == null) return false;
             if (Phase != DayPhase.Morning) { Fail("도매상은 아침에만 열어요"); return false; }
+            if (!IsUnlocked(p)) { Fail($"{Josa.Eun(p.displayName)} 아직 도매상에 안 들어왔어요 ({p.unlockDay}일차부터)"); return false; }
             int cost = p.BoxCost;
             if (Money < cost) { Fail("돈이 부족해요"); return false; }
             Money -= cost;
@@ -183,11 +247,35 @@ namespace Munbanggu.Core
         {
             Phase = DayPhase.Morning;
             Stats = new DayStats();
-            Trend = RollTrend();
+            trends.Advance(Day, (p, d) => p.unlockDay <= d);
+            regulars.PlanDay(Day, UnlockedFavorite);
             Save();
             GameEvents.RaisePhaseChanged(Phase);
             Notify();
             Hud.ShowMorning();
+            ShowMorningNews();
+        }
+
+        void ShowMorningNews()
+        {
+            Dialogue.Clear();
+            if (Day > 1)
+            {
+                var fresh = new List<string>();
+                foreach (var p in Catalog.products)
+                    if (IsNew(p)) fresh.Add(p.displayName);
+                if (fresh.Count > 0)
+                    Dialogue.Show("도매상", $"새 물건이 들어왔어요: {string.Join(", ", fresh)}", UIKit.Blue);
+            }
+            var lines = trends.MorningLines();
+            if (lines.Count > 0)
+                Dialogue.Show("동네 소문", string.Join("\n", lines), UIKit.Accent, "소");
+        }
+
+        ProductData UnlockedFavorite(RegularProfile r)
+        {
+            var p = Catalog.Find(r.favoriteId);
+            return IsUnlocked(p) ? p : null;
         }
 
         void EnterSettlement()
@@ -229,19 +317,39 @@ namespace Munbanggu.Core
         void SpawnTick()
         {
             if (customers.Count >= maxCustomersInShop) return;
+
+            // 단골은 정해진 시각에 (가게가 꽉 차 있으면 자리가 날 때) 들어온다
+            var regular = regulars.TakeDue(OpenProgress);
+            if (regular != null) { SpawnCustomer(regular); return; }
+
             float rate = IsRush ? rushSpawnPerSec : baseSpawnPerSec;
-            rate *= Mathf.Min(2f, 1f + (Day - 1) * 0.05f);
+            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth);
             spawnAcc += rate * Time.deltaTime;
             if (spawnAcc < 1f) return;
             spawnAcc -= 1f;
+            SpawnCustomer(null);
+        }
 
-            var go = new GameObject("Customer");
+        void SpawnCustomer(RegularProfile regular)
+        {
+            ProductData wanted = null;
+            if (regular != null && UnityEngine.Random.value < regular.favoriteChance)
+                wanted = UnlockedFavorite(regular);
+            if (wanted == null) wanted = RollWanted();
+
+            var go = new GameObject(regular != null ? $"Regular {regular.id}" : "Customer");
             go.transform.SetParent(transform, false);
             go.transform.position = Layout.EntrancePoint;
             var c = go.AddComponent<Customer>();
             customers.Add(c);
             Stats.visitors++;
-            c.Init(this, RollWanted(), Hud.CreateBubble(go.transform));
+            if (regular != null)
+            {
+                Stats.regularsVisited++;
+                string intro = regulars.OnEnter(regular, Day);
+                if (intro != null) Dialogue.Show($"{regular.name} · {regular.title}", intro, regular.color);
+            }
+            c.Init(this, wanted, Hud.CreateBubble(go.transform), regular);
         }
 
         // ───────────── 손님이 부르는 함수 ─────────────
@@ -261,13 +369,36 @@ namespace Munbanggu.Core
             return candidates.Count == 0 ? null : candidates[UnityEngine.Random.Range(0, candidates.Count)];
         }
 
-        public void Checkout(Customer c)
+        /// <summary>계산. 단골이 얹어 준 돈(팁)을 돌려준다 (일반 손님은 0). 팁도 매출에 포함.</summary>
+        public int Checkout(Customer c)
         {
-            if (c.Carried == null) return;
-            Money += c.Carried.retailPrice;
-            Stats.revenue += c.Carried.retailPrice;
+            if (c.Carried == null) return 0;
+            int price = c.Carried.retailPrice;
+            int tip = 0;
+            if (c.Carried == Trend) Stats.trendSold++;
+
+            var r = c.Regular;
+            if (r != null)
+            {
+                tip = r.tip;
+                var (line, completed) = regulars.OnServed(r, c.Carried);
+                if (line != null) Dialogue.Show($"{r.name} · {r.title}", line, r.color);
+                if (completed && !string.IsNullOrEmpty(r.completeToast))
+                    Dialogue.Show("단골 이야기 완성!", r.completeToast, UIKit.Green, "★");
+            }
+
+            Money += price + tip;
+            Stats.revenue += price + tip;
+            Stats.tips += tip;
             Stats.served++;
             Notify();
+            return tip;
+        }
+
+        /// <summary>단골이 물건이 없거나 오래 기다려서 그냥 감 → 친밀도 감소.</summary>
+        public void OnRegularUnhappy(Customer c)
+        {
+            if (c != null && c.Regular != null) regulars.OnUnhappy(c.Regular);
         }
 
         public void ReturnUnpaid(ProductData p)
@@ -283,22 +414,50 @@ namespace Munbanggu.Core
 
         // ───────────── 랜덤 ─────────────
 
+        /// <summary>
+        /// 손님이 찾는 물건. 해금된 상품 중 인기 × (붐 종료 폭락) × (단골 완성 보너스) 가중치.
+        /// 붐 상품은 전체 손님 중 trends.Share 비율이 찾도록 가중치를 맞춘다.
+        /// </summary>
         ProductData RollWanted()
         {
-            float total = 0f;
-            foreach (var p in Catalog.products) total += Weight(p);
-            float r = UnityEngine.Random.value * total;
+            var trend = ActiveTrend();
+            float trendWeight = TrendWeight(trend, out float others);
+            float r = UnityEngine.Random.value * (others + trendWeight);
+            ProductData last = null;
             foreach (var p in Catalog.products)
             {
-                r -= Weight(p);
+                if (!IsUnlocked(p)) continue;
+                last = p;
+                r -= p == trend ? trendWeight : BaseWeight(p);
                 if (r <= 0f) return p;
             }
-            return Catalog.products[Catalog.products.Count - 1];
+            return last ?? Catalog.products[0];
         }
 
-        float Weight(ProductData p) => p.popularity * (p == Trend ? trendMultiplier : 1f);
+        /// <summary>그 상품을 찾는 손님 비율 추정 (0~1, 해금 안 됐으면 0). UI 힌트·디버그용.</summary>
+        public float DemandShare(ProductData p)
+        {
+            if (!IsUnlocked(p)) return 0f;
+            var trend = ActiveTrend();
+            float trendWeight = TrendWeight(trend, out float others);
+            float total = others + trendWeight;
+            return total <= 0f ? 0f : (p == trend ? trendWeight : BaseWeight(p)) / total;
+        }
 
-        ProductData RollTrend() => Catalog.products[UnityEngine.Random.Range(0, Catalog.products.Count)];
+        ProductData ActiveTrend() => IsUnlocked(Trend) ? Trend : null;
+
+        float BaseWeight(ProductData p) => p.popularity * trends.PopularityMultiplier(p) * regulars.FavoriteBoost(p);
+
+        /// <summary>붐 상품 가중치. others = 붐 상품을 뺀 해금 상품 가중치 합.</summary>
+        float TrendWeight(ProductData trend, out float others)
+        {
+            others = 0f;
+            foreach (var p in Catalog.products)
+                if (IsUnlocked(p) && p != trend) others += BaseWeight(p);
+            if (trend == null) return 0f;
+            float share = Mathf.Clamp(trends.Share, 0f, 0.9f);
+            return Mathf.Max(BaseWeight(trend), others * share / (1f - share));
+        }
 
         // ───────────── 저장 ─────────────
 
@@ -316,6 +475,8 @@ namespace Munbanggu.Core
             foreach (var e in data.backroom) AddStock(Catalog.Find(e.productId), e.count);
             for (int i = 0; i < Layout.Slots.Count && i < data.shelves.Count; i++)
                 Layout.Slots[i].Load(Catalog.Find(data.shelves[i].productId), data.shelves[i].count);
+            trends.Load(data.trend);
+            regulars.Load(data.regulars);
         }
 
         public void Save()
@@ -327,7 +488,7 @@ namespace Munbanggu.Core
                 if (c != null && c.Carried != null)
                     stock[c.Carried] = (stock.TryGetValue(c.Carried, out var n) ? n : 0) + 1;
 
-            var data = new SaveData { day = Day, money = Money };
+            var data = new SaveData { day = Day, money = Money, trend = trends.State, regulars = regulars.Save() };
             foreach (var kv in stock)
                 if (kv.Value > 0) data.backroom.Add(new StockEntry { productId = kv.Key.id, count = kv.Value });
             foreach (var s in Layout.Slots)

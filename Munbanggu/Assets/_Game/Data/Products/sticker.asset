@@ -17,5 +17,10 @@ MonoBehaviour:
   wholesalePrice: 100
   retailPrice: 200
   boxSize: 10
-  popularity: 1.1
+  popularity: 1
+  category: 3
+  korean: 0
+  unlockDay: 1
+  blurb: "\uB9CC\uD654 \uCE90\uB9AD\uD130 \uC2A4\uD2F0\uCEE4. \uD544\uD1B5\uACFC
+    \uCC45\uC0C1\uC774 \uC804\uBD80 \uC2A4\uD2F0\uCEE4 \uCC9C\uC9C0."
   color: {r: 0.65, g: 0.45, b: 0.85, a: 1}

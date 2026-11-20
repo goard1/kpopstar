@@ -22,6 +22,7 @@ namespace Munbanggu.Core
                 Debug.LogError("[문방구] 상품 목록이 비어 있습니다. 메뉴 '문방구 > 프로젝트 초기 설정'을 실행하세요.");
                 return;
             }
+            Munbanggu.Audio.AudioManager.Create(transform); // 사운드: GameEvents 구독이라 게임보다 먼저 생성
             gameObject.AddComponent<GameManager>().Init(catalog, baseMaterial);
         }
     }

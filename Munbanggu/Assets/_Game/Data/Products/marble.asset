@@ -14,8 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Munbanggu.Data.ProductData
   id: marble
   displayName: "\uAD6C\uC2AC"
-  wholesalePrice: 150
-  retailPrice: 300
+  wholesalePrice: 100
+  retailPrice: 200
   boxSize: 10
   popularity: 0.8
+  category: 3
+  korean: 0
+  unlockDay: 1
+  blurb: "\uC720\uB9AC\uAD6C\uC2AC \uD55C \uBD09\uC9C0. \uB545\uC5D0 \uAD6C\uBA4D
+    \uD30C\uACE0 \uD295\uACA8 \uB123\uB294 \uAD6C\uC2AC\uCE58\uAE30."
   color: {r: 0.35, g: 0.8, b: 0.85, a: 1}

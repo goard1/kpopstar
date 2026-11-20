@@ -14,8 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Munbanggu.Data.ProductData
   id: apollo
   displayName: "\uC544\uD3F4\uB85C"
-  wholesalePrice: 40
+  wholesalePrice: 50
   retailPrice: 100
   boxSize: 20
-  popularity: 1.2
+  popularity: 1.4
+  category: 0
+  korean: 1
+  unlockDay: 1
+  blurb: "\uBE68\uB300 \uBAA8\uC591 \uBE44\uB2D0\uC5D0 \uB4E0 \uC0C8\uCF64\uB2EC\uCF64
+    \uAC00\uB8E8 \uACFC\uC790. \uC774\uB85C \uCB49 \uC9DC \uBA39\uB294\uB2E4."
   color: {r: 0.95, g: 0.85, b: 0.3, a: 1}

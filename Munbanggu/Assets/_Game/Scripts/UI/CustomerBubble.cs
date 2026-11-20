@@ -9,14 +9,24 @@ namespace Munbanggu.UI
     {
         public Action onClick;
 
+        /// <summary>지금 탭해서 계산할 수 있는 상태인지 (튜토리얼 화살표용).</summary>
+        public bool CanTap => interactable && gameObject.activeInHierarchy;
+
+        const float MinWidth = 150f, MaxWidth = 560f, TextPadding = 52f;
+        const float PopDuration = 0.28f;
+
         Image bg;
         Text label;
         RectTransform fill;
         GameObject fillRoot;
         Button button;
+        Image tail;
+        GameObject tapBadge;
+        RectTransform root;
         string lastText;
         float flashTimer;
         bool interactable;
+        float appear = 1f;
 
         public void Setup(Image background, Text text, GameObject fillBar, RectTransform fillRect, Button btn)
         {
@@ -25,9 +35,17 @@ namespace Munbanggu.UI
             fillRoot = fillBar;
             fill = fillRect;
             button = btn;
+            root = (RectTransform)transform;
             button.transition = Selectable.Transition.None;
             button.onClick.AddListener(() => onClick?.Invoke());
             gameObject.SetActive(false);
+        }
+
+        /// <summary>꼬리·"탭!" 스티커 연결 (HUD가 만든 장식).</summary>
+        public void SetDecor(Image tailFill, GameObject tapSticker)
+        {
+            tail = tailFill;
+            tapBadge = tapSticker;
         }
 
         /// <summary>계속 보여줌 (매 프레임 호출해도 됨). fill01이 0보다 작으면 인내심 바 숨김.</summary>
@@ -52,12 +70,28 @@ namespace Munbanggu.UI
 
         void Apply(string text, Color color, bool canTap, float fill01)
         {
-            if (!gameObject.activeSelf) gameObject.SetActive(true);
-            if (lastText != text) { label.text = text; lastText = text; }
-            bg.color = color;
+            if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+                appear = 0f; // 뿅 하고 나타나기
+            }
+            if (lastText != text)
+            {
+                if (lastText != null && appear >= 1f) appear = 0.55f; // 내용이 바뀌면 살짝 다시 튐
+                label.text = text;
+                lastText = text;
+                float w = Mathf.Clamp(label.preferredWidth + TextPadding, MinWidth, MaxWidth);
+                if (root != null && Mathf.Abs(root.sizeDelta.x - w) > 0.5f) root.sizeDelta = new Vector2(w, root.sizeDelta.y);
+            }
+            if (bg.color != color)
+            {
+                bg.color = color;
+                if (tail != null) tail.color = color;
+            }
             interactable = canTap;
             button.interactable = canTap;
             bg.raycastTarget = canTap;
+            if (tapBadge != null && tapBadge.activeSelf != canTap) tapBadge.SetActive(canTap);
             bool showFill = fill01 >= 0f;
             if (fillRoot.activeSelf != showFill) fillRoot.SetActive(showFill);
             if (showFill) fill.anchorMax = new Vector2(Mathf.Clamp01(fill01), 1f);
@@ -65,12 +99,26 @@ namespace Munbanggu.UI
 
         void Update()
         {
-            transform.localScale = Vector3.one * (interactable ? 1.08f + Mathf.Sin(Time.time * 8f) * 0.05f : 1f);
+            float s = interactable ? 1.08f + Mathf.Sin(Time.time * 8f) * 0.05f : 1f;
+            if (appear < 1f)
+            {
+                appear = Mathf.Min(1f, appear + Time.unscaledDeltaTime / PopDuration);
+                s *= BackOut(appear);
+            }
+            transform.localScale = new Vector3(s, s, 1f);
             if (flashTimer > 0f)
             {
                 flashTimer -= Time.deltaTime;
                 if (flashTimer <= 0f) gameObject.SetActive(false);
             }
+        }
+
+        /// <summary>살짝 넘쳤다 돌아오는 곡선 (0→1).</summary>
+        static float BackOut(float t)
+        {
+            const float c1 = 1.9f, c3 = c1 + 1f;
+            float u = t - 1f;
+            return 1f + c3 * u * u * u + c1 * u * u;
         }
     }
 }

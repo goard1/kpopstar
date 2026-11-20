@@ -28,6 +28,7 @@ namespace Munbanggu.Customers
         ShelfSlot target;
         float timer;
         float patience;
+        float maxPatience;
         bool retried;
         bool moving;
         float bobSeed;
@@ -35,19 +36,30 @@ namespace Munbanggu.Customers
         public ProductData Carried { get; private set; }
         public ProductData Wanted => wanted;
         public CustomerLook Look { get; private set; }
+        /// <summary>단골이면 그 정의, 일반 손님이면 null.</summary>
+        public RegularProfile Regular { get; private set; }
 
-        public void Init(GameManager gameManager, ProductData wantedProduct, CustomerBubble customerBubble)
+        public void Init(GameManager gameManager, ProductData wantedProduct, CustomerBubble customerBubble,
+            RegularProfile regular = null)
         {
             gm = gameManager;
             wanted = wantedProduct;
             bubble = customerBubble;
+            Regular = regular;
             bubble.onClick = OnBubbleClicked;
             bobSeed = Random.value * 10f;
-            Look = new CustomerLook { seed = Random.Range(0, int.MaxValue) };
+            Look = regular != null
+                ? new CustomerLook { seed = regular.Seed, isRegular = true, regularId = regular.id }
+                : new CustomerLook { seed = Random.Range(0, int.MaxValue) };
+            maxPatience = gm.queuePatience * (regular != null ? regular.patienceMultiplier : 1f);
             visual = CustomerVisual.Build(transform, gm.Materials, Look);
             GameEvents.RaiseCustomerEntered(this);
 
-            bubble.Flash($"{wanted.displayName} 있어요?", UIKit.BubbleNormal, 1.4f);
+            string ask = regular != null && wanted.id == regular.favoriteId && !string.IsNullOrEmpty(regular.askFavorite)
+                ? regular.askFavorite
+                : $"{wanted.displayName} 있어요?";
+            if (regular != null) ask = $"{regular.name}: {ask}";
+            bubble.Flash(ask, UIKit.BubbleNormal, regular != null ? 2f : 1.4f);
             PickTarget();
         }
 
@@ -105,7 +117,7 @@ namespace Munbanggu.Customers
                 Carried = product;
                 GameEvents.RaiseItemPicked(this, target);
                 state = State.Queued;
-                patience = gm.queuePatience;
+                patience = maxPatience;
                 gm.Layout.Queue.Join(this);
                 bubble.Hide();
                 return;
@@ -128,7 +140,7 @@ namespace Munbanggu.Customers
             if (arrived) Face(transform.position + queue.Facing);
 
             patience -= Time.deltaTime;
-            float ratio = patience / gm.queuePatience;
+            float ratio = maxPatience > 0f ? patience / maxPatience : 0f;
 
             if (arrived && queue.Front == this)
                 bubble.Show($"{Carried.displayName} {UIKit.Won(Carried.retailPrice)}",
@@ -151,15 +163,22 @@ namespace Munbanggu.Customers
         {
             if (state != State.Queued || Carried == null || gm.Layout.Queue.Front != this) return;
             int price = Carried.retailPrice;
-            gm.Checkout(this);
+            int tip = gm.Checkout(this);
             gm.Layout.Queue.Leave(this);
             Carried = null;
             GameEvents.RaiseCheckedOut(this, price);
-            Leave($"+{UIKit.Won(price)}", UIKit.BubbleMoney);
+            string msg = $"+{UIKit.Won(price + tip)}";
+            if (Regular != null && !string.IsNullOrEmpty(Regular.happyLine)) msg = $"{Regular.happyLine}\n{msg}";
+            Leave(msg, UIKit.BubbleMoney);
         }
 
         void LeaveUnhappy(string message)
         {
+            if (Regular != null)
+            {
+                if (!string.IsNullOrEmpty(Regular.sadLine)) message = Regular.sadLine;
+                gm.OnRegularUnhappy(this);
+            }
             Leave(message, UIKit.BubbleSad);
             GameEvents.RaiseCustomerLeftUnhappy(this);
         }

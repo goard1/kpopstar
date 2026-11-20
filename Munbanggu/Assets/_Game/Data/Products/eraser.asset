@@ -14,8 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Munbanggu.Data.ProductData
   id: eraser
   displayName: "\uC9C0\uC6B0\uAC1C"
-  wholesalePrice: 80
-  retailPrice: 150
+  wholesalePrice: 50
+  retailPrice: 100
   boxSize: 20
-  popularity: 1
+  popularity: 1.2
+  category: 1
+  korean: 0
+  unlockDay: 1
+  blurb: "\uD5A5\uAE30 \uB098\uB294 \uC9C0\uC6B0\uAC1C. \uC4F0\uAE30\uBCF4\uB2E4
+    \uBAA8\uC73C\uACE0 \uC790\uB791\uD558\uB294 \uAC8C \uB354 \uC911\uC694\uD588\uB2E4."
   color: {r: 0.95, g: 0.95, b: 0.92, a: 1}

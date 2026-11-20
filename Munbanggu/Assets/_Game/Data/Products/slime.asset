@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b149ea7d30fa63f4b8872d17aa3db1f0, type: 3}
+  m_Name: slime
+  m_EditorClassIdentifier: Assembly-CSharp::Munbanggu.Data.ProductData
+  id: slime
+  displayName: "\uC561\uCCB4\uAD34\uBB3C"
+  wholesalePrice: 150
+  retailPrice: 300
+  boxSize: 10
+  popularity: 0.8
+  category: 2
+  korean: 0
+  unlockDay: 7
+  blurb: "\uB9D0\uB791\uB9D0\uB791 \uB048\uC801\uB048\uC801. \uD1B5\uC5D0 \uB2F4\uAE34
+    \uD615\uAD11\uC0C9 \uC561\uCCB4\uAD34\uBB3C."
+  color: {r: 0.45, g: 0.9, b: 0.55, a: 1}

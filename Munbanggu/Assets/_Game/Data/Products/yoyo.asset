@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b149ea7d30fa63f4b8872d17aa3db1f0, type: 3}
+  m_Name: yoyo
+  m_EditorClassIdentifier: Assembly-CSharp::Munbanggu.Data.ProductData
+  id: yoyo
+  displayName: "\uC694\uC694"
+  wholesalePrice: 300
+  retailPrice: 500
+  boxSize: 10
+  popularity: 0.6
+  category: 2
+  korean: 0
+  unlockDay: 3
+  blurb: "\uC904\uC744 \uAC10\uC558\uB2E4 \uD480\uBA70 \uAE30\uC220\uC744 \uACA8\uB8E8\uB294
+    \uC694\uC694. \uBD90\uC774 \uC624\uBA74 \uD488\uADC0!"
+  color: {r: 0.2, g: 0.3, b: 0.65, a: 1}

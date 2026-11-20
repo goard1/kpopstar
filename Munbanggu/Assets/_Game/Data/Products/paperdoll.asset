@@ -14,8 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Munbanggu.Data.ProductData
   id: paperdoll
   displayName: "\uC885\uC774\uC778\uD615"
-  wholesalePrice: 200
-  retailPrice: 400
+  wholesalePrice: 150
+  retailPrice: 300
   boxSize: 10
   popularity: 0.7
+  category: 2
+  korean: 0
+  unlockDay: 1
+  blurb: "\uAC00\uC704\uB85C \uC624\uB824 \uC637\uC744 \uAC08\uC544\uC785\uD788\uB294
+    \uC885\uC774 \uC778\uD615 \uC138\uD2B8."
   color: {r: 0.95, g: 0.6, b: 0.75, a: 1}
