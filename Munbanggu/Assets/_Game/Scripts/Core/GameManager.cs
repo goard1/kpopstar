@@ -39,6 +39,9 @@ namespace Munbanggu.Core
         public int jackpots;       // 1등 나온 횟수
         public int arcade;         // 오락기 수입 (revenue에 포함)
         public int invested;       // 가게 업그레이드에 쓴 돈 (cost와 별도)
+        // 상담 손님
+        public int counselPerfect, counselOk, counselWrong, counselNone;
+        public int reputationDelta;
         public int Profit => revenue - cost;
     }
 
@@ -93,7 +96,7 @@ namespace Munbanggu.Core
         void ApplySpeed()
         {
             // 설정·선택 창이 열려 있으면 게임 시간 정지 (UI 연출은 unscaled 시간이라 계속 움직임)
-            bool paused = Hud != null && (Hud.IsSettingsOpen || Hud.IsChoiceOpen);
+            bool paused = Hud != null && (Hud.IsSettingsOpen || Hud.IsChoiceOpen || Hud.IsPickerOpen);
             float scale = paused ? 0f : SpeedActive ? Speed : 1f;
             if (!Mathf.Approximately(Time.timeScale, scale)) Time.timeScale = scale;
         }
@@ -171,6 +174,13 @@ namespace Munbanggu.Core
             if (Stats.caught > 0) lines.Add(SettlementLine.Count("몰래 나가던 아이 잡음", Stats.caught));
             if (Stats.stolen > 0) lines.Add(SettlementLine.Money($"슬쩍 당함 ({Stats.stolen}개)", Stats.stolenValue, true));
             if (Stats.credits > 0) lines.Add(SettlementLine.Money($"외상 해 줌 ({Stats.credits}건, 내일 받을 돈)", Stats.creditValue));
+            int counsel = Stats.counselPerfect + Stats.counselOk + Stats.counselWrong + Stats.counselNone;
+            if (counsel > 0)
+            {
+                lines.Add(SettlementLine.TextLine($"상담 {counsel}명: 딱 맞음 {Stats.counselPerfect} / 괜찮음 {Stats.counselOk} / 아님 {Stats.counselWrong + Stats.counselNone}"));
+                string d = Stats.reputationDelta > 0 ? $"+{Stats.reputationDelta}" : Stats.reputationDelta.ToString();
+                lines.Add(SettlementLine.TextLine($"동네 평판 {Reputation} ({d})", Stats.reputationDelta >= 0 ? UIKit.Green : UIKit.Red));
+            }
             if (Stats.comforted > 0) lines.Add(SettlementLine.Count("달래 준 아이", Stats.comforted));
             if (Stats.arcade > 0) lines.Add(SettlementLine.Money("그중 오락기 수입", Stats.arcade));
             if (Stats.invested > 0) lines.Add(SettlementLine.Money("오늘 가게에 투자", Stats.invested, true));
@@ -432,7 +442,7 @@ namespace Munbanggu.Core
             }
 
             float rate = IsRush ? rushSpawnPerSec : baseSpawnPerSec;
-            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign));
+            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign)) * ReputationSpawnMultiplier;
             spawnAcc += rate * Time.deltaTime;
             if (spawnAcc < 1f) return;
             spawnAcc -= 1f;
@@ -446,6 +456,14 @@ namespace Munbanggu.Core
                 wanted = UnlockedFavorite(regular);
             if (wanted == null) wanted = RollWanted();
 
+            // 상담 손님: 매대로 가지 않고 계산대로 와서 고민을 말한다 (docs/05)
+            CounselRequest request = null;
+            if (regular == null && kind == CustomerKind.Normal && UnityEngine.Random.value < CounselChance)
+            {
+                request = CounselRequests.Roll(UnlockedCounselable());
+                if (request != null) kind = CustomerKind.Counsel;
+            }
+
             var go = new GameObject(regular != null ? $"Regular {regular.id}" : "Customer");
             go.transform.SetParent(transform, false);
             go.transform.position = Layout.EntrancePoint;
@@ -458,7 +476,98 @@ namespace Munbanggu.Core
                 string intro = regulars.OnEnter(regular, Day);
                 if (intro != null) Dialogue.Show($"{regular.name} · {regular.title}", intro, regular.color);
             }
-            c.Init(this, wanted, Hud.CreateBubble(go.transform), regular, kind);
+            c.Init(this, wanted, Hud.CreateBubble(go.transform), regular, kind, request);
+        }
+
+        // ───────────── 상담 손님 (아이 마음 읽기) ─────────────
+
+        /// <summary>동네 평판 0~100 (시작 50). 상담 결과로 오르내리고 손님 수에 영향.</summary>
+        public int Reputation { get; private set; } = 50;
+        readonly HashSet<string> knownTraits = new HashSet<string>(); // 특징을 알게 된 상품 id
+
+        /// <summary>오늘 손님 중 상담 손님 비율 (1일차 30% → 하루 +5% → 최대 60%).</summary>
+        public float CounselChance => Mathf.Min(0.6f, 0.3f + 0.05f * (Day - 1));
+
+        /// <summary>평판에 따른 손님 수 배율 (0 → ×0.85, 100 → ×1.15).</summary>
+        float ReputationSpawnMultiplier => 0.85f + 0.3f * Reputation / 100f;
+
+        public IEnumerable<ProductData> UnlockedCounselable()
+        {
+            foreach (var p in Catalog.products)
+                if (IsUnlocked(p) && ProductTraits.Counselable(p) && !IsBoardProduct(p)) yield return p;
+        }
+
+        /// <summary>지금 매대에 진열돼 있는 상담 대상 상품 (종류별 한 번씩, 도매상 순서).</summary>
+        public List<ProductData> ShelvedCounselProducts()
+        {
+            var list = new List<ProductData>();
+            foreach (var p in Catalog.products)
+                if (ProductTraits.Counselable(p) && ShelfCount(p) > 0) list.Add(p);
+            return list;
+        }
+
+        /// <summary>매대(뽑기판 제외)에 올라 있는 개수 합.</summary>
+        public int ShelfCount(ProductData p)
+        {
+            int n = 0;
+            foreach (var s in Layout.Slots)
+                if (!s.IsBoard && s.Product == p) n += s.Count;
+            return n;
+        }
+
+        public bool IsTraitKnown(ProductData p) => p != null && knownTraits.Contains(p.id);
+
+        /// <summary>매대에서 그 상품을 하나 꺼낸다 (제일 많은 칸에서). 성공하면 true.</summary>
+        public bool TakeFromShelf(ProductData p)
+        {
+            ShelfSlot best = null;
+            foreach (var s in Layout.Slots)
+                if (!s.IsBoard && s.Product == p && s.Count > 0 && (best == null || s.Count > best.Count)) best = s;
+            if (best == null || !best.TakeOne()) return false;
+            Notify();
+            return true;
+        }
+
+        /// <summary>
+        /// 상담 결과 반영: 통계·평판·특징 발견·팁. 팁(원)을 돌려준다 (딱 맞을 때만).
+        /// given = 실제로 건넨 상품(못 골랐으면 null).
+        /// </summary>
+        public int ResolveCounsel(CounselResult result, ProductData given, bool bought)
+        {
+            int tip = 0, rep = 0;
+            switch (result)
+            {
+                case CounselResult.Perfect:
+                    Stats.counselPerfect++;
+                    rep = 2;
+                    if (given != null)
+                        tip = Mathf.Max(10, Mathf.RoundToInt(given.retailPrice * UnityEngine.Random.Range(0.3f, 0.5f) / 10f) * 10);
+                    break;
+                case CounselResult.Ok:
+                    Stats.counselOk++;
+                    break;
+                case CounselResult.Wrong:
+                    Stats.counselWrong++;
+                    rep = bought ? -1 : -2;
+                    break;
+                default:
+                    Stats.counselNone++;
+                    rep = -1;
+                    break;
+            }
+            if (tip > 0)
+            {
+                Money += tip;
+                Stats.revenue += tip;
+                Stats.tips += tip;
+            }
+            Reputation = Mathf.Clamp(Reputation + rep, 0, 100);
+            Stats.reputationDelta += rep;
+            // 상담으로 건네 본 상품은 특징을 알게 된다 (다음부터 고르기 창에 표시)
+            if (given != null && knownTraits.Add(given.id))
+                Hud.Toast($"{Josa.Eul(given.displayName)} 건네 보니 특징을 알았어요: #{string.Join(" #", ProductTraits.Of(given))}", 2.6f);
+            Notify();
+            return tip;
         }
 
         // ───────────── 가게 업그레이드 ─────────────
@@ -580,6 +689,7 @@ namespace Munbanggu.Core
             {
                 CustomerKind.Sneaky => "앗, 저 아이가 계산 안 하고 나가려 해요! 문을 나가기 전에 보라색 말풍선을 탭해서 잡아요.",
                 CustomerKind.Credit => "외상을 해 달래요. 해 주면 내일 갚을 수도(덤까지!), 떼먹을 수도 있어요.",
+                CustomerKind.Counsel => "아이가 고민을 들고 계산대로 왔어요! 말풍선을 탭하면 무슨 고민인지 듣고, 매대에 있는 것 중에서 골라 줄 수 있어요. 딱 맞게 골라 주면 팁도 받고 동네 평판이 올라요.",
                 CustomerKind.Crying => "돈을 잃어버린 아이가 울고 있어요. 말풍선을 탭하면 제일 싼 물건 하나를 주고 달래요. 고마워서 친구들을 데려올지도?",
                 _ => null
             };
@@ -806,6 +916,9 @@ namespace Munbanggu.Core
             trends.Load(data.trend);
             regulars.Load(data.regulars);
             ledger.Load(data.credits);
+            Reputation = data.reputation > 0 ? Mathf.Clamp(data.reputation, 0, 100) : 50;
+            knownTraits.Clear();
+            if (data.knownTraits != null) foreach (var t in data.knownTraits) knownTraits.Add(t);
             seenEvents.Clear();
             if (data.seenEvents != null) foreach (var s in data.seenEvents) seenEvents.Add(s);
         }
@@ -823,7 +936,8 @@ namespace Munbanggu.Core
             {
                 day = Day, money = Money, trend = trends.State, regulars = regulars.Save(),
                 credits = ledger.Save(), seenEvents = new List<string>(seenEvents),
-                upgrades = Upgrades.Save()
+                upgrades = Upgrades.Save(),
+                reputation = Mathf.Max(1, Reputation), knownTraits = new List<string>(knownTraits)
             };
             foreach (var kv in stock)
                 if (kv.Value > 0) data.backroom.Add(new StockEntry { productId = kv.Key.id, count = kv.Value });

@@ -127,6 +127,15 @@ namespace Munbanggu.EditorTools
                 Shot(hud, cam, rt, outDir, "5d_credit_choice");
                 hud.CloseChoice();
 
+                // 4d) 상담 손님 고르기 창
+                var req = Munbanggu.Customers.CounselRequests.Roll(gm.UnlockedCounselable());
+                if (req != null)
+                {
+                    hud.ShowPicker(req, _ => { });
+                    Shot(hud, cam, rt, outDir, "5e_counsel_picker");
+                    hud.CancelPicker();
+                }
+
                 // 5) 정산 (장부)
                 hud.ShowSettlement();
                 Shot(hud, cam, rt, outDir, "6_settlement");

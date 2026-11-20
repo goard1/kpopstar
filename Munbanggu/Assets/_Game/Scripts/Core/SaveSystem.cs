@@ -33,6 +33,9 @@ namespace Munbanggu.Core
         public List<string> seenEvents = new List<string>();
         // ── 가게 업그레이드 ──
         public List<UpgradeLevel> upgrades = new List<UpgradeLevel>();
+        // ── 상담 손님 ── (0이면 예전 세이브 → 50으로 시작)
+        public int reputation;
+        public List<string> knownTraits = new List<string>();
     }
 
     /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>

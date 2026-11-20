@@ -201,6 +201,7 @@ namespace Munbanggu.UI
             // 설정: 톱니 버튼은 모달 위(overlay)에, 설정 창은 그 위에 (아침 도매상 창·정산 중에도 열 수 있게)
             BuildSettings();
             BuildChoice();
+            { var m = Modal("Picker Modal", out var pkCard, 1640, out var pkJuice); picker = PickerPanel.Build(gm, m, pkCard, pkJuice); }
 
             fxLayer = UIKit.Rect("FX Layer", transform);
             UIKit.Stretch(fxLayer);
@@ -861,6 +862,19 @@ namespace Munbanggu.UI
 
         /// <summary>선택 창이 열려 있으면 게임 시간이 멈춘다 (GameManager.ApplySpeed).</summary>
         public bool IsChoiceOpen => choiceModal != null && choiceModal.activeSelf;
+
+        // ───────────── 상담 고르기 창 ─────────────
+
+        PickerPanel picker;
+
+        /// <summary>상담 고르기 창이 열려 있으면 게임 시간이 멈춘다.</summary>
+        public bool IsPickerOpen => picker != null && picker.IsOpen;
+
+        /// <summary>상담 손님 고민을 보여 주고 매대 상품 중 하나를 고르게 한다 (null = 맞는 게 없음).</summary>
+        public void ShowPicker(Munbanggu.Customers.CounselRequest request, Action<ProductData> onPick) => picker.Open(request, onPick);
+
+        /// <summary>고르기 창을 아무것도 안 고른 것으로 닫는다 (스크린샷 도구 등).</summary>
+        public void CancelPicker() => picker.Cancel();
 
         void BuildChoice()
         {

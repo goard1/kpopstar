@@ -14,6 +14,7 @@ namespace Munbanggu.Customers
         Sneaky,  // 물건을 집어 계산 없이 문으로 살금살금 → 나가기 전에 탭하면 잡음
         Credit,  // 계산할 때 "외상 돼요?" → 해 줄지 선택
         Crying,  // 돈 잃어버려 우는 아이 → 탭하면 싼 물건 하나 주고 달램 → 친구들 데려옴
+        Counsel, // 상담 손님: 계산대로 와서 고민을 말함 → 골라 준 물건으로 판정 (docs/05)
     }
 
     /// <summary>
@@ -60,6 +61,8 @@ namespace Munbanggu.Customers
         float speedMul = 1f;
 
         public CustomerKind Kind { get; private set; }
+        /// <summary>상담 손님의 고민 (상담 손님이 아니면 null).</summary>
+        public CounselRequest Request { get; private set; }
         public ProductData Carried { get; private set; }
         public ProductData Wanted => wanted;
         public CustomerLook Look { get; private set; }
@@ -67,8 +70,10 @@ namespace Munbanggu.Customers
         public RegularProfile Regular { get; private set; }
 
         public void Init(GameManager gameManager, ProductData wantedProduct, CustomerBubble customerBubble,
-            RegularProfile regular = null, CustomerKind kind = CustomerKind.Normal)
+            RegularProfile regular = null, CustomerKind kind = CustomerKind.Normal, CounselRequest request = null)
         {
+            Request = request;
+            if (kind == CustomerKind.Counsel && request == null) kind = CustomerKind.Normal;
             gm = gameManager;
             wanted = wantedProduct;
             bubble = customerBubble;
@@ -94,6 +99,17 @@ namespace Munbanggu.Customers
             };
             routeIdx = 0;
             GameEvents.RaiseCustomerEntered(this);
+
+            if (Kind == CustomerKind.Counsel)
+            {
+                // 매대로 가지 않고 곧장 계산 줄로 (문을 지난 뒤)
+                state = State.Queued;
+                patience = maxPatience = maxPatience * 1.4f;
+                gm.Layout.Queue.Join(this);
+                bubble.SetIcon(null);
+                bubble.Flash("할머니~ 고민 있어요!", UIKit.BubbleNormal, 1.6f);
+                return;
+            }
 
             if (Kind == CustomerKind.Crying)
             {
@@ -296,8 +312,8 @@ namespace Munbanggu.Customers
 
             if (arrived && queue.Front == this)
             {
-                string text = Kind == CustomerKind.Credit
-                    ? "외상 돼요? 내일 갚을게요!"
+                string text = Kind == CustomerKind.Counsel ? "할머니, 고민 있어요!"
+                    : Kind == CustomerKind.Credit ? "외상 돼요? 내일 갚을게요!"
                     : $"{Carried.displayName} {UIKit.Won(Carried.retailPrice)}";
                 bubble.Show(text, ratio < UrgentRatio ? UIKit.BubbleUrgent : UIKit.BubbleReady, true, ratio);
             }
@@ -309,8 +325,9 @@ namespace Munbanggu.Customers
             if (patience <= 0f)
             {
                 queue.Leave(this);
-                gm.ReturnUnpaid(Carried);
+                if (Carried != null) gm.ReturnUnpaid(Carried);
                 Carried = null;
+                if (Kind == CustomerKind.Counsel) gm.ResolveCounsel(CounselResult.NoAnswer, null, false);
                 LeaveUnhappy("너무 오래 걸려요!");
             }
         }
@@ -320,9 +337,50 @@ namespace Munbanggu.Customers
             if (state == State.Sneaking) { CatchSneak(); return; }
             if (state == State.Crying) { Comfort(); return; }
             if (state == State.Pulling) { DoPull(); return; }
-            if (state != State.Queued || Carried == null || gm.Layout.Queue.Front != this) return;
+            if (state != State.Queued || gm.Layout.Queue.Front != this) return;
+            if (Kind == CustomerKind.Counsel) { OpenCounsel(); return; }
+            if (Carried == null) return;
             if (Kind == CustomerKind.Credit) { AskCredit(); return; }
             PayAndLeave(null);
+        }
+
+        // ───────────── 상담 (아이 마음 읽기) ─────────────
+
+        /// <summary>고민을 듣고 고르기 창을 연다 (게임 시간 정지).</summary>
+        void OpenCounsel()
+        {
+            state = State.AwaitCredit; // 선택 기다리는 동안 (시간 정지)
+            gm.ShowEventTip(Kind);
+            gm.Hud.ShowPicker(Request, OnCounselPicked);
+        }
+
+        void OnCounselPicked(ProductData p)
+        {
+            if (this == null) return;
+            state = State.Queued;
+            var queue = gm.Layout.Queue;
+            var result = CounselRequests.Judge(Request, p);
+
+            // 못 골라 줌 / 틀렸는데 안 삼 → 빈손으로 감
+            if (p == null || (result == CounselResult.Wrong && Random.value < 0.5f) || !gm.TakeFromShelf(p))
+            {
+                queue.Leave(this);
+                gm.ResolveCounsel(result, p, false);
+                bubble.SetIcon(p != null ? ProductIcons.Get(p) : null);
+                LeaveUnhappy(p == null ? "그럼 다음에 올게요…" : Request.wrongLine);
+                return;
+            }
+
+            Carried = p;
+            bubble.SetIcon(ProductIcons.Get(p));
+            int tip = gm.ResolveCounsel(result, p, true);
+            string line = result switch
+            {
+                CounselResult.Perfect => $"딱 맞아요! {Request.perfectLine}\n(팁 +{UIKit.Won(tip)})",
+                CounselResult.Ok => Request.okLine,
+                _ => $"{Request.wrongLine} 그래도 살게요",
+            };
+            PayAndLeave(line);
         }
 
         /// <summary>
