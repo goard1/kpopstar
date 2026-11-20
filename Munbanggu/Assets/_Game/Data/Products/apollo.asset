@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b149ea7d30fa63f4b8872d17aa3db1f0, type: 3}
+  m_Name: apollo
+  m_EditorClassIdentifier: Assembly-CSharp::Munbanggu.Data.ProductData
+  id: apollo
+  displayName: "\uC544\uD3F4\uB85C"
+  wholesalePrice: 40
+  retailPrice: 100
+  boxSize: 20
+  popularity: 1.2
+  color: {r: 0.95, g: 0.85, b: 0.3, a: 1}

@@ -1,0 +1,38 @@
+# Unity (project lives in Munbanggu/)
+Munbanggu/[Ll]ibrary/
+Munbanggu/[Tt]emp/
+Munbanggu/[Oo]bj/
+Munbanggu/[Bb]uild/
+Munbanggu/[Bb]uilds/
+Munbanggu/[Ll]ogs/
+Munbanggu/[Uu]ser[Ss]ettings/
+Munbanggu/[Mm]emoryCaptures/
+Munbanggu/[Rr]ecordings/
+
+# IDE / generated
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Build output
+*.apk
+*.aab
+*.unitypackage
+crashlytics-build.properties
+
+# OS
+.DS_Store
+Thumbs.db
