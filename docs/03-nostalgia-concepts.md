@@ -131,6 +131,38 @@
 
 ---
 
+## 4.5 글로벌 판매 전략 (추가 리서치 2026-11-20)
+
+**질문: 한국 문방구가 해외에서 팔릴까?** → 그대로 내면 약함, **설계를 바꾸면 가능**.
+
+**근거**
+- **"사라진 가게" 추억은 세계 공통으로 팔림:** *Retro Rewind* (비디오 대여점 시뮬, Steam 2026.3) — 거의 사라진 비디오 대여점에 대한 향수가 성공 요인으로 꼽힘.
+- **"남의 나라 추억"도 팔림:** *A Space for the Unbound* (90년대 말 인도네시아 시골 배경) Steam 매출 약 $2.7M 추정. *응답하라 1988*은 10년째 해외 인기, 해외 시청자는 서울 골목 문화를 "이상적인 공동체"로 봄. 낯선 과거 서울 = **해외엔 '문화적 발견'**.
+- **같은 자리를 노리는 경쟁작도 있음:** *inKONBINI* (90년대 초 일본 시골 편의점 서사 시뮬, 2026.4 출시 예정 보도), *Konbini Simulator* (2025.12, 리뷰 대부분 부정) → 수요는 있고, **완성도가 승부**.
+
+**설계 원칙: "감정은 보편, 물건은 지역"**
+1. **원형을 보편화:** "학교 앞 장난감·과자 가게" — 일본 다가시야, 미국 corner/candy store, 필리핀 사리사리, 인니 와룽, 멕시코 티엔디타 모두 같은 원형.
+2. **상품 구성 7:3:** 70%는 세계 공통 추억템(요요, 구슬, 스티커, 트레이딩 카드, 캡슐 토이, 사탕, 디지털 펫, 물총, 슬라임) / 30%는 한국 시그니처(딱지, 쫀드기류, 번호 뽑기판, 달고나). **도감에 아이템 설명** → 해외 유저에겐 발견의 재미.
+3. **배경은 서울 골목 유지** (진정성 = 차별점), 대신 **영문 브랜딩은 보편적으로**: 예) *Corner Shop '99*, *After School Shop* ("Munbanggu"는 부제/설정으로).
+4. **해외 유저는 장르 재미로 삼:** Supermarket Simulator 구매자는 추억 때문에 사지 않음 → 경영·유행 예측·수집의 손맛 자체가 탄탄해야 함.
+5. **현지화:** 한/영/일/중(간·번)/스페인어/포르투갈어(브라질). 텍스트 양 적게 설계.
+6. **확장 DLC (판매 확인 후):** "도쿄 다가시야 팩", "아메리칸 코너스토어 팩".
+
+**채널별 예상 매출 비중 (가설)**
+| 채널 | 주 구매층 | 비중 가설 |
+|---|---|---|
+| Google Play 한국 | 추억 직격 25~45세 | 높음 (초기 바이럴 엔진) |
+| Steam 글로벌 | 상점 시뮬·코지 게임 팬 | **가장 높을 가능성** |
+| 일본 (모바일+Steam) | 다가시야 세대 | 중간 |
+| 동남아·남미 모바일 | 캐주얼 유저 | 낮음 (광고 단가 낮음) |
+
+**개발 전에 싸게 검증하기 (3~4주)**
+- Steam 페이지 + 캡슐 아트 + 15~30초 GIF/트레일러 공개 → **위시리스트 수**로 해외 수요 측정.
+- 영어/한국어 숏폼 동시 업로드, Reddit(r/CozyGamers, r/IndieGaming 등 규칙 확인) 반응 비교.
+- 영문명 2~3개, "Seoul 1999" 강조 vs 보편 강조 썸네일 A/B.
+
+---
+
 ## 5. 리스크
 
 | 리스크 | 대응 |
@@ -157,3 +189,9 @@
 - [PocketGamer.biz — Retro Bowl takes US by storm](https://www.pocketgamer.biz/uk-based-new-star-games-takes-us-by-storm-with-retro-bowl) · [PocketGamer.biz — Making of Retro Bowl](https://www.pocketgamer.biz/new-star-games-simon-read-retro-bowl-making-of) · [AppMagic — Retro Bowl & Retro Goal](https://appmagic.rocks/blog/retro-bowl-retro-goal) · [AppGoblin — Retro Bowl](https://appgoblin.info/apps/com.newstargames.retrobowl)
 
 > ⚠️ 매출·다운로드 수치는 AppMagic·AppGoblin·Steam 리뷰 기반 추정 등 제3자 자료라 편차가 큼. 문방구 시뮬 경쟁작 부재는 이번 검색 기준이며, 구글플레이·Steam에서 직접 재확인 필요.
+
+### 글로벌 전략 추가 자료
+- [Wikipedia — Retro Rewind](https://en.wikipedia.org/wiki/Retro_Rewind)
+- [games-stats — A Space for the Unbound Steam 매출 추정](https://games-stats.com/steam/game/a-space-for-the-unbound/) · [Xbox Store — A Space for the Unbound](https://www.xbox.com/en-GB/games/store/a-space-for-the-unbound/9pg2rz8gvzcj)
+- [Gematsu — inKONBINI 2026.4 출시](https://www.gematsu.com/2025/11/inkonbini-one-store-many-stories-launches-in-april-2026) · [Steam — Konbini Simulator](https://store.steampowered.com/app/4041940/Konbini_Simulator/) · [Steam — Let's Tidy Up! : Konbini](https://store.steampowered.com/app/4914230/Lets_Tidy_Up__Konbini/)
+- [Korea Times — Global viewers discover Korean nostalgia (2025.9)](https://www.koreatimes.co.kr/amp/entertainment/shows-dramas/20250920/global-viewers-discover-korean-nostalgia-as-dramas-go-retro) · [SlashFilm — Best K-drama per IMDb: Reply 1988](https://www.slashfilm.com/1776507/best-k-drama-imdb-reply-1988) · [Korea Times — Reply 1988](https://www.koreatimes.co.kr/www/art/2025/03/398_394732.html)
