@@ -60,16 +60,16 @@ namespace Munbanggu.Core
 
         public static string JobName(StaffJob j) => j switch
         {
-            StaffJob.Cashier => "계산",
-            StaffJob.Stocker => "진열",
+            StaffJob.Cashier => "계산·진열",
+            StaffJob.Stocker => "진열·계산",
             StaffJob.Guard => "경비",
             _ => "상담 보조",
         };
 
         public static string JobDesc(StaffJob j) => j switch
         {
-            StaffJob.Cashier => "줄 맨 앞 손님을 대신 계산 (손 빠르기·친절)",
-            StaffJob.Stocker => "반 넘게 빈 매대를 창고 재고로 채움 (손 빠르기)",
+            StaffJob.Cashier => "돌아다니며 계산·진열, 계산 먼저 (손 빠르기·친절)",
+            StaffJob.Stocker => "돌아다니며 진열·계산, 진열 먼저 (손 빠르기)",
             StaffJob.Guard => "몰래 나가는 아이를 문 앞에서 잡음 (눈썰미)",
             _ => "고르기 창에 ★추천을 붙여 줌 (눈썰미), 상담 손님 인내심↑ (친절)",
         };

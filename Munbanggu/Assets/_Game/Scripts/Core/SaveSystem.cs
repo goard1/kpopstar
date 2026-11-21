@@ -44,6 +44,8 @@ namespace Munbanggu.Core
         public int district;     // 상권(동네) 번호 (docs/07)
         public int expansion;    // 그 동네에서 지은 증축 단계
         public List<string> slotGroups = new List<string>();
+        // ── 진열대 옮기기 ── (옮긴 진열대만)
+        public List<SlotPlacement> placements = new List<SlotPlacement>();
     }
 
     /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>
@@ -101,5 +103,16 @@ namespace Munbanggu.Core
         {
             if (File.Exists(FilePath)) File.Delete(FilePath);
         }
+    }
+}
+
+namespace Munbanggu.Core
+{
+    /// <summary>플레이어가 옮긴 진열대 하나의 자리·방향 (Layout.Slots 인덱스 기준).</summary>
+    [System.Serializable]
+    public class SlotPlacement
+    {
+        public int index;
+        public float x, z, yaw;
     }
 }

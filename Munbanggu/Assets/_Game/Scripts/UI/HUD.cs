@@ -191,7 +191,7 @@ namespace Munbanggu.UI
             BuildBottom(safe);
             BuildSlotLabels();
             BuildWholesaleModal();
-            { var m = Modal("Upgrade Modal", out var upCard, 1640, out var upJuice); upgradePanel = UpgradePanel.Build(gm, m, upCard, upJuice, EnterDecorMode); }
+            { var m = Modal("Upgrade Modal", out var upCard, 1640, out var upJuice); upgradePanel = UpgradePanel.Build(gm, m, upCard, upJuice, EnterDecorMode, EnterMoveMode); }
             { var m = Modal("Decor Modal", out var dcCard, 1500, out var dcJuice); decorPanel = DecorPanel.Build(gm, m, dcCard, dcJuice); }
             { var m = Modal("Staff Modal", out var sfCard, 1640, out var sfJuice); staffPanel = StaffPanel.Build(gm, m, sfCard, sfJuice); }
             BuildSettlementModal();
@@ -1057,6 +1057,126 @@ namespace Munbanggu.UI
             }
         }
 
+        // ───────────── 진열대 옮기기 모드 ─────────────
+
+        bool moveMode;
+        ShelfSlot moveSel;
+        GameObject moveRoot, moveMarker;
+        Text moveText;
+        Button moveRotate;
+
+        public bool InMoveMode => moveMode;
+
+        /// <summary>
+        /// 진열대 옮기기: 진열대를 탭해서 고르고 → 바닥을 탭하면 그 자리로, "돌리기"로 90°씩 방향 바꾸기.
+        /// 길을 막거나 겹치면 안 되고 이유를 알려 준다. 아침에만.
+        /// </summary>
+        public void EnterMoveMode()
+        {
+            if (gm.Phase != DayPhase.Morning) return;
+            CloseModals();
+            moveMode = true;
+            moveSel = null;
+            var banner = UIKit.CardPanel("Move Mode Banner", overlaySafe, UIKit.Green, 28, true, 6);
+            moveRoot = banner.gameObject;
+            UIKit.Place(banner.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -214), new Vector2(1000, 190));
+            moveText = UIKit.Label("Text", banner.transform, "", 30, Color.white, TextAnchor.UpperLeft);
+            UIKit.Stretch(moveText.rectTransform, 30, 80, 30, 14);
+            moveText.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            Button Btn(string name, string label, float x0, float x1, Color bg, Color fg, UnityEngine.Events.UnityAction a)
+            {
+                var b = UIKit.Button(name, banner.transform, label, 30, bg, fg, out _);
+                var rt = (RectTransform)b.transform;
+                rt.anchorMin = new Vector2(x0, 0); rt.anchorMax = new Vector2(x1, 0);
+                rt.pivot = new Vector2(0.5f, 0);
+                rt.offsetMin = new Vector2(10, 14); rt.offsetMax = new Vector2(-10, 80);
+                b.onClick.AddListener(a);
+                return b;
+            }
+            moveRotate = Btn("Rotate", "방향 돌리기", 0f, 0.36f, UIKit.Yellow, UIKit.Ink, RotateSelected);
+            Btn("Reset", "처음대로", 0.36f, 0.68f, UIKit.Cream, UIKit.Ink, () =>
+                ShowChoice("진열대를 처음 자리로?", "옮긴 진열대를 전부 처음 자리·방향으로 되돌려요.", "되돌려요", "아니요",
+                    yes => { if (yes) { gm.ResetShelfPlacements(); SelectForMove(null); Toast("진열대를 처음 자리로 되돌렸어요"); } }));
+            Btn("Done", "완료", 0.68f, 1f, UIKit.Red, Color.white, ExitMoveMode);
+            SelectForMove(null);
+        }
+
+        public void ExitMoveMode()
+        {
+            moveMode = false;
+            moveSel = null;
+            if (moveRoot != null) Kill(moveRoot);
+            if (moveMarker != null) Kill(moveMarker);
+            moveRoot = moveMarker = null;
+        }
+
+        void SelectForMove(ShelfSlot s)
+        {
+            moveSel = s;
+            if (moveMarker != null) Kill(moveMarker);
+            moveMarker = null;
+            if (moveRotate != null) moveRotate.interactable = s != null;
+            if (s == null)
+            {
+                moveText.text = "옮길 진열대를 탭하세요";
+                return;
+            }
+            string name = s.Product != null ? s.Product.displayName : "빈";
+            moveText.text = $"{name} 진열대 선택! 놓을 바닥을 탭하세요 (앞쪽에 손님 설 자리가 있어야 해요)";
+            // 고른 진열대 위 표시
+            var tag = UIKit.Panel("Move Marker", worldLayer, UIKit.Green, false);
+            UIKit.Round(tag, 16);
+            tag.rectTransform.sizeDelta = new Vector2(150, 50);
+            var tl = UIKit.Label("Text", tag.transform, "▼ 옮기는 중", 24, Color.white, TextAnchor.MiddleCenter);
+            UIKit.Stretch(tl.rectTransform);
+            tl.horizontalOverflow = HorizontalWrapMode.Overflow;
+            var f = tag.gameObject.AddComponent<WorldFollower>();
+            f.target = s.transform;
+            f.worldOffset = new Vector3(0, 1.8f, 0);
+            f.cam = cam;
+            moveMarker = tag.gameObject;
+        }
+
+        void RotateSelected()
+        {
+            if (moveSel == null) return;
+            var t = moveSel.transform;
+            if (gm.TryMoveShelf(moveSel, t.position, t.eulerAngles.y + 90f, out string reason)) Toast("방향을 돌렸어요");
+            else Toast(reason);
+        }
+
+        /// <summary>옮기기 모드일 때 가게 화면 탭을 여기서 처리 (처리했으면 true).</summary>
+        public bool HandleWorldTap(Vector2 screenPos)
+        {
+            if (!moveMode) return false;
+            if (gm.Phase != DayPhase.Morning) { ExitMoveMode(); return false; }
+            Physics.SyncTransforms(); // 방금 옮긴 진열대 콜라이더도 맞게
+            var ray = cam.ScreenPointToRay(screenPos);
+            ShelfSlot hit = null;
+            float best = float.MaxValue;
+            foreach (var h in Physics.RaycastAll(ray, 200f))
+            {
+                var s = h.collider.GetComponentInParent<ShelfSlot>();
+                if (s != null && !s.IsBoard && h.distance < best) { hit = s; best = h.distance; }
+            }
+            if (hit != null)
+            {
+                SelectForMove(hit == moveSel ? null : hit);
+                return true;
+            }
+            if (moveSel == null) { Toast("먼저 옮길 진열대를 탭하세요"); return true; }
+            // 바닥(y=0) 위 지점
+            if (Mathf.Abs(ray.direction.y) < 1e-4f) return true;
+            float tHit = -ray.origin.y / ray.direction.y;
+            Vector3 p = ray.origin + ray.direction * tHit;
+            if (gm.TryMoveShelf(moveSel, p, moveSel.transform.eulerAngles.y, out string reason))
+                Toast("여기로 옮겼어요!");
+            else
+                Toast(reason);
+            return true;
+        }
+
         public void CloseModals()
         {
             wholesaleModal.SetActive(false);
@@ -1064,6 +1184,7 @@ namespace Munbanggu.UI
             staffPanel.Close();
             decorPanel.Close();
             ExitDecorMode();
+            ExitMoveMode();
             StopSettlementAnim();
             settlementModal.SetActive(false);
         }
@@ -1398,6 +1519,7 @@ namespace Munbanggu.UI
             // 손님이 물건을 집어가는 건 Changed 이벤트가 없으므로 가격표만 가볍게 매 프레임 확인 (바뀔 때만 문자열 생성)
             foreach (var kv in slotLabels) UpdateSlotLabel(kv.Key, kv.Value);
             if (decorMode) UpdateDecorMarkers();
+            if (moveMode && gm.Phase != DayPhase.Morning) ExitMoveMode();
 
             phaseText.text = gm.Phase switch
             {

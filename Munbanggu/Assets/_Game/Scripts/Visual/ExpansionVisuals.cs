@@ -52,30 +52,42 @@ namespace Munbanggu.Visual
             float x0 = ShopLayout.BayX0(bay), x1 = ShopLayout.BayX1(bay);
             // 받침·벽·보도는 이 칸 오른쪽 끝(본 가게면 -4.2)에서 왼쪽 끝(맨 왼쪽 칸이면 -0.2 더)까지
             float px1 = bay == 1 ? -4.2f : x1, px0 = leftmost ? x0 - 0.2f : x0;
-            b.FloorQuad(new Vector3((px0 + px1) * 0.5f - 0.3f, -0.45f, -1.3f), new Vector2(px1 - px0 + 1.2f, 16f), Color.white);
+            // 칸마다 깊이가 다를 수 있음 (동네별 가게 모양). 오른쪽 칸보다 깊으면 그 사이에 옆벽
+            float back = ShopLayout.BayBack(bay), rightBack = bay == 1 ? 4f : ShopLayout.BayBack(bay - 1);
+            float pz0 = -6f, pz1 = back + 0.2f, pcz = (pz0 + pz1) * 0.5f, pdz = pz1 - pz0;
+            b.FloorQuad(new Vector3((px0 + px1) * 0.5f - 0.3f, -0.45f, pcz - 0.4f), new Vector2(px1 - px0 + 1.2f, pdz + 6f), Color.white);
 
             // 받침
-            k.Box(new Vector3((px0 + px1) * 0.5f, -0.2f, -0.9f), new Vector3(px1 - px0, 0.4f, 10.2f), ShopDecor.PlinthLip, ShopDecor.PlinthSide);
-            k.FlatBox(new Vector3((px0 + px1) * 0.5f, -0.03f, -0.9f), new Vector3(px1 - px0 + 0.02f, 0.06f, 10.22f), ShopDecor.PlinthLip);
+            k.Box(new Vector3((px0 + px1) * 0.5f, -0.2f, pcz), new Vector3(px1 - px0, 0.4f, pdz), ShopDecor.PlinthLip, ShopDecor.PlinthSide);
+            k.FlatBox(new Vector3((px0 + px1) * 0.5f, -0.03f, pcz), new Vector3(px1 - px0 + 0.02f, 0.06f, pdz + 0.02f), ShopDecor.PlinthLip);
 
             // 바닥 (본 가게 체크무늬 이어서: 본 가게 x 칸 번호를 음수로 이어 감)
             const float t = 0.5f;
             int cols = Mathf.RoundToInt((x1 - x0) / t);
             int firstCol = Mathf.RoundToInt((-4f - x1) / t); // 이 칸 오른쪽 끝이 본 가게 왼쪽 끝에서 몇 칸 떨어졌나
+            int rows = Mathf.RoundToInt((back + 4f) / t);
             for (int i = 1; i <= cols; i++)
-                for (int z = 0; z < 16; z++)
+                for (int z = 0; z < rows; z++)
                 {
                     int gx = -(firstCol + i);
                     var c = ((gx + z) % 2 + 2) % 2 == 0 ? ShopDecor.FloorA : ShopDecor.FloorB;
                     k.FloorQuad(new Vector3(x1 - t * 0.5f - (i - 1) * t, 0.001f, -4f + t * 0.5f + z * t), new Vector2(t, t), c);
                 }
             // 옛 벽 자리 표시: 바닥에 얇은 나무 문턱 (옆칸을 텄다는 느낌)
-            k.FlatBox(new Vector3(x1, 0.004f, 0f), new Vector3(0.1f, 0.008f, 8f), ShopDecor.WoodLight);
+            k.FlatBox(new Vector3(x1, 0.004f, (rightBack - 4f) * 0.5f), new Vector3(0.1f, 0.008f, rightBack + 4f), ShopDecor.WoodLight);
 
             // 뒷벽 (+Z) 이어 붙이기 + 몰딩·징두리
             float wh = ShopDecor.WallH;
-            k.Box(new Vector3((px0 + px1) * 0.5f, wh * 0.5f, 4.1f), new Vector3(px1 - px0, wh, 0.2f), ShopDecor.WallTop, ShopDecor.WallUpper);
-            k.Push(new Vector3(0f, 0f, 4.0f), Quaternion.identity);
+            k.Box(new Vector3((px0 + px1) * 0.5f, wh * 0.5f, back + 0.1f), new Vector3(px1 - px0, wh, 0.2f), ShopDecor.WallTop, ShopDecor.WallUpper);
+            if (back > rightBack + 0.01f)
+            {
+                // 오른쪽 칸보다 깊다 → 오른쪽 끝에 옆벽 (방 쪽 -X를 봄)
+                k.Box(new Vector3(x1 + 0.1f, wh * 0.5f, (rightBack + back) * 0.5f + 0.1f), new Vector3(0.2f, wh, back - rightBack + 0.2f), ShopDecor.WallTop, ShopDecor.WallUpper);
+                k.Push(new Vector3(x1, 0f, 0f), Quaternion.Euler(0f, 90f, 0f));
+                ShopDecor.WallTrim(k, -back, -rightBack);
+                k.Pop();
+            }
+            k.Push(new Vector3(0f, 0f, back), Quaternion.identity);
             ShopDecor.WallTrim(k, x0, x1);
             // 차양: 오른쪽 칸과 줄무늬가 이어지게 (2.5m = 0.32m × 8줄 → 칸마다 위상 같음)
             ShopDecor.Awning(k, x1 - 8 * 0.32f + 0.001f, x1, 0);
@@ -98,7 +110,7 @@ namespace Munbanggu.Visual
 
             if (!leftmost) return;
             // 왼쪽 끝 기둥 (디오라마 단면 쪽 마감) + 구석 화분
-            k.Box(new Vector3(x0 - 0.1f, wh * 0.5f, 4.1f), new Vector3(0.22f, wh, 0.24f), ShopDecor.WoodDark, ShopDecor.Wood);
+            k.Box(new Vector3(x0 - 0.1f, wh * 0.5f, back + 0.1f), new Vector3(0.22f, wh, 0.24f), ShopDecor.WoodDark, ShopDecor.Wood);
             var pot = new Vector3(x0 + 0.25f, 0f, -3.6f);
             k.Frustum(pot + new Vector3(0f, 0.18f, 0f), 0.16f, 0.2f, 0.36f, 8, new Color(0.8f, 0.45f, 0.3f), new Color(0.45f, 0.3f, 0.22f));
             k.Sphere(pot + new Vector3(0f, 0.55f, 0f), new Vector3(0.26f, 0.3f, 0.26f), 8, 4, new Color(0.36f, 0.66f, 0.4f));
@@ -149,7 +161,7 @@ namespace Munbanggu.Visual
         static void Upstairs(MeshKit k, MeshKit g, bool arcade)
         {
             const float x0 = AnnexX0 - 0.15f, x1 = -4.05f;
-            const float z0 = 3.2f, z1 = 4.25f;
+            float z0 = ShopLayout.BayBack(1) - 0.8f, z1 = ShopLayout.BayBack(1) + 0.25f; // 옆칸1 뒷벽 위
             float y0 = ShopDecor.WallH;
             const float h = 1.35f;
             float cx = (x0 + x1) * 0.5f, cz = (z0 + z1) * 0.5f, w = x1 - x0, d = z1 - z0;

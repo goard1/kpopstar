@@ -42,16 +42,16 @@ namespace Munbanggu.UI
 
         public bool IsOpen => modal != null && modal.activeSelf;
 
-        System.Action onDecorate;
+        System.Action onDecorate, onMove;
         Text comboText;
         Text expTitle, expBody, expBuyLabel, expHeader;
         bool moving; // 증축 카드가 지금 "이사" 안내인지
         Button expBuy;
         Image expBuyBg;
 
-        public static UpgradePanel Build(GameManager gm, GameObject modal, RectTransform card, UIJuice juice, System.Action onDecorate = null)
+        public static UpgradePanel Build(GameManager gm, GameObject modal, RectTransform card, UIJuice juice, System.Action onDecorate = null, System.Action onMove = null)
         {
-            var p = new UpgradePanel(gm, modal, juice) { onDecorate = onDecorate };
+            var p = new UpgradePanel(gm, modal, juice) { onDecorate = onDecorate, onMove = onMove };
             p.BuildCard(card);
             return p;
         }
@@ -134,17 +134,24 @@ namespace Munbanggu.UI
 
             // 진열대 장식 & 콤보 (배치 모드로 들어가기)
             {
-                var header = UIKit.Label("Header", content, "진열대 장식 & 콤보", 32, UIKit.Accent, TextAnchor.LowerLeft);
+                var header = UIKit.Label("Header", content, "진열대 배치·장식 & 콤보", 32, UIKit.Accent, TextAnchor.LowerLeft);
                 UIKit.Layout(header, -1, 56);
                 var row = UIKit.CardPanel("Decor", content, UIKit.Card, 24, true, 6);
-                UIKit.Layout(row, -1, 170);
+                UIKit.Layout(row, -1, 210);
                 comboText = UIKit.Label("Combos", row.transform, "", 24, UIKit.Muted, TextAnchor.UpperLeft);
                 UIKit.Stretch(comboText.rectTransform, 28, 16, 250, 18);
                 var go = UIKit.Button("Go", row.transform, "장식하기", 32, UIKit.Blue, Color.white, out _);
                 var grt = (RectTransform)go.transform;
                 grt.anchorMin = new Vector2(1, 0); grt.anchorMax = new Vector2(1, 1);
                 grt.pivot = new Vector2(1, 0.5f);
-                grt.offsetMin = new Vector2(-226, 26); grt.offsetMax = new Vector2(-16, -20);
+                grt.anchorMin = new Vector2(1, 0.5f);
+                grt.offsetMin = new Vector2(-226, 6); grt.offsetMax = new Vector2(-16, -16);
+                var mv = UIKit.Button("Move", row.transform, "진열대 옮기기", 28, UIKit.Green, Color.white, out _);
+                var mrt = (RectTransform)mv.transform;
+                mrt.anchorMin = new Vector2(1, 0); mrt.anchorMax = new Vector2(1, 0.5f);
+                mrt.pivot = new Vector2(1, 0.5f);
+                mrt.offsetMin = new Vector2(-226, 18); mrt.offsetMax = new Vector2(-16, -6);
+                mv.onClick.AddListener(() => { Close(); onMove?.Invoke(); });
                 go.onClick.AddListener(() => { Close(); onDecorate?.Invoke(); });
             }
 
@@ -252,7 +259,7 @@ namespace Munbanggu.UI
             if (comboText != null)
             {
                 var found = gm.DiscoveredComboNames();
-                comboText.text = "진열대 위에 장식을 놓아 \"○○ 코너\"를, 옆 진열대에 짝 상품을 놓아 \"세트\"를 만들어요.\n"
+                comboText.text = "진열대는 아무 데나 옮기고 돌릴 수 있어요. 위에 장식을 놓아 \"○○ 코너\"를, 옆 진열대에 짝 상품을 놓아 \"세트\"를 만들어요.\n"
                     + $"발견한 콤보 {found.Count}/{GameManager.TotalComboCount}"
                     + (found.Count > 0 ? ": " + string.Join(", ", found) : "");
             }

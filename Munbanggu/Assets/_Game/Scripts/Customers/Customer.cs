@@ -617,18 +617,22 @@ namespace Munbanggu.Customers
 
         // ───────────── 이동·연출 ─────────────
 
+        readonly NavWalker walker = new NavWalker();
+
+        /// <summary>dest까지 길찾기로 걷는다 (진열대를 돌아서). 도착하면 true.</summary>
         bool MoveTo(Vector3 dest)
         {
             dest.y = 0f;
             Vector3 pos = transform.position;
-            Vector3 to = dest - pos;
+            Vector3 wp = walker.Next(pos, dest);
+            Vector3 to = wp - pos;
             to.y = 0f;
             float dist = to.magnitude;
-            if (dist <= ArriveDistance) return true;
+            if (walker.OnLast && dist <= ArriveDistance) return true;
 
             float step = Speed * speedMul * Time.deltaTime;
-            transform.position = step >= dist ? dest : pos + to / dist * step;
-            Face(dest);
+            transform.position = step >= dist ? new Vector3(wp.x, pos.y, wp.z) : pos + to / Mathf.Max(dist, 1e-4f) * step;
+            Face(wp);
             moving = true;
             return false;
         }

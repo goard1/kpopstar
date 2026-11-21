@@ -1,5 +1,6 @@
 using System;
 using Munbanggu.Core;
+using Munbanggu.Shop;
 using Munbanggu.UI;
 using Munbanggu.Visual;
 using UnityEngine;
@@ -7,23 +8,26 @@ using UnityEngine;
 namespace Munbanggu.Customers
 {
     /// <summary>
-    /// 가게 안의 직원 한 명 (보이는 몸 + 말풍선). 평소엔 맡은 자리에 서 있고,
-    /// 심부름(진열 등)이 있으면 그 자리로 걸어갔다가 돌아온다. 일 자체의 효과는 GameManager가 처리.
+    /// 가게 안의 직원 한 명 (보이는 몸 + 말풍선). 가게 안을 걸어 다니며 일한다:
+    /// GoTo(자리, 도착하면 할 일) → 그 자리에 머묾 / GoHome() → 쉬는 자리로.
+    /// 길은 ShopNav로 찾아서 진열대를 돌아 다닌다. 일 자체의 효과는 GameManager가 처리.
     /// 앞치마 색으로 맡은 일을 구분한다.
     /// </summary>
     public class StaffAgent : MonoBehaviour
     {
-        const float Speed = 2.2f;
+        const float Speed = 2.3f;
 
         public StaffMember Member { get; private set; }
         Vector3 home;
         Quaternion homeRot;
         CustomerBubble bubble;
         Transform visual;
-        Vector3 errand;
+        Vector3 target;
+        Vector3? lookAt;
         Action onArrive;
-        bool busy, returning, moving;
+        bool busy, moving;
         float bobSeed;
+        readonly NavWalker walker = new NavWalker();
 
         static readonly MeshKit kit = new MeshKit();
 
@@ -35,14 +39,14 @@ namespace Munbanggu.Customers
             _ => new Color(0.86f, 0.38f, 0.58f),
         };
 
-        /// <summary>맡은 일·순번별 서 있는 자리 (계산대 뒤 / 가게 가운데 뒤 / 문 안쪽 / 계산대 옆).</summary>
+        /// <summary>맡은 일·순번별 쉬는 자리 (계산대 옆 / 가게 가운데 뒤 / 문 안쪽 / 계산대 옆).</summary>
         public static (Vector3 pos, float yaw) Post(StaffJob job, int order)
         {
             // 같은 일을 맡은 직원이 3명 이상이면(가게 증축 후) 세 번째 자리부터 조금씩 옆으로
             int i = Mathf.Clamp(order, 0, 2);
             var (pos, yaw) = job switch
             {
-                StaffJob.Cashier => i == 0 ? (new Vector3(-3.62f, 0f, -0.45f), 110f) : i == 1 ? (new Vector3(-3.62f, 0f, -2.05f), 70f) : (new Vector3(-3.62f, 0f, -1.25f), 90f),
+                StaffJob.Cashier => i == 0 ? (new Vector3(-3.62f, 0f, -0.45f), 110f) : i == 1 ? (new Vector3(-3.62f, 0f, -2.05f), 70f) : (new Vector3(-1.0f, 0f, 0.2f), 200f),
                 StaffJob.Stocker => i == 0 ? (new Vector3(0.6f, 0f, 1.7f), 200f) : i == 1 ? (new Vector3(-0.8f, 0f, 1.7f), 160f) : (new Vector3(2.0f, 0f, 0.9f), 230f),
                 StaffJob.Guard => i == 0 ? (new Vector3(2.45f, 0f, -3.15f), 230f) : i == 1 ? (new Vector3(0.1f, 0f, -3.15f), 160f) : (new Vector3(2.2f, 0f, -1.6f), 250f),
                 _ => i == 0 ? (new Vector3(-2.75f, 0f, 0.45f), 120f) : i == 1 ? (new Vector3(-2.75f, 0f, 1.05f), 120f) : (new Vector3(-2.75f, 0f, 1.65f), 120f),
@@ -83,49 +87,61 @@ namespace Munbanggu.Customers
             if (bubble != null) bubble.Flash(text, color, seconds);
         }
 
+        /// <summary>걸어가는 중인지.</summary>
         public bool Busy => busy;
+        public bool AtHome => !busy && (transform.position - home).sqrMagnitude < 0.04f;
+        public Vector3 Position => transform.position;
 
-        /// <summary>point까지 걸어가서 arrive()를 부르고 제자리로 돌아온다 (옆칸이면 경유점을 지나).</summary>
-        public void Errand(Vector3 point, Action arrive)
+        /// <summary>point까지 걸어가서 arrive()를 부르고 그 자리에 머문다. face가 있으면 도착 후 그쪽을 본다.</summary>
+        public void GoTo(Vector3 point, Action arrive, Vector3? face = null)
         {
             busy = true;
-            returning = false;
-            errand = point;
+            target = point;
             onArrive = arrive;
-            path.Clear();
-            Munbanggu.Shop.ShopLayout.AppendPath(path, transform.position, point);
+            lookAt = face;
+            walker.Reset();
         }
 
-        readonly System.Collections.Generic.List<Vector3> path = new System.Collections.Generic.List<Vector3>();
+        /// <summary>쉬는 자리로 돌아간다.</summary>
+        public void GoHome()
+        {
+            if (AtHome) return;
+            GoTo(home, null);
+            lookAt = null;
+            goingHome = true;
+        }
+        bool goingHome;
+
+        /// <summary>point까지 갔다가 arrive() 후 쉬는 자리로 돌아온다.</summary>
+        public void Errand(Vector3 point, Action arrive) => GoTo(point, () => { arrive?.Invoke(); GoHome(); });
 
         void Update()
         {
             moving = false;
             if (busy)
             {
-                if (path.Count == 0) Munbanggu.Shop.ShopLayout.AppendPath(path, transform.position, returning ? home : errand);
-                if (MoveTo(path[0]))
+                if (MoveTo(target))
                 {
-                    path.RemoveAt(0);
-                    if (path.Count > 0) { /* 경유점 하나 지남 */ }
-                    else if (!returning)
-                    {
-                        var cb = onArrive;
-                        onArrive = null;
-                        cb?.Invoke();
-                        returning = true;
-                        Munbanggu.Shop.ShopLayout.AppendPath(path, errand, home);
-                    }
-                    else
-                    {
-                        busy = false;
-                        returning = false;
-                    }
+                    busy = false;
+                    var cb = onArrive;
+                    onArrive = null;
+                    bool wasHome = goingHome;
+                    goingHome = false;
+                    cb?.Invoke();
+                    if (wasHome && !busy) lookAt = null;
                 }
             }
             else
             {
-                transform.rotation = Quaternion.Slerp(transform.rotation, homeRot, 6f * Time.deltaTime);
+                Quaternion want = homeRot;
+                if (lookAt.HasValue)
+                {
+                    Vector3 d = lookAt.Value - transform.position; d.y = 0f;
+                    if (d.sqrMagnitude > 1e-4f) want = Quaternion.LookRotation(d);
+                }
+                else if (!AtHome)
+                    want = transform.rotation;
+                transform.rotation = Quaternion.Slerp(transform.rotation, want, 6f * Time.deltaTime);
             }
             if (visual != null)
                 visual.localPosition = new Vector3(0f, moving ? Mathf.Abs(Mathf.Sin(Time.time * 14f + bobSeed)) * 0.06f : 0f, 0f);
@@ -135,12 +151,13 @@ namespace Munbanggu.Customers
         {
             dest.y = 0f;
             Vector3 pos = transform.position;
-            Vector3 to = dest - pos;
+            Vector3 wp = walker.Next(pos, dest);
+            Vector3 to = wp - pos;
             to.y = 0f;
             float dist = to.magnitude;
-            if (dist <= 0.04f) return true;
+            if (walker.OnLast && dist <= 0.05f) return true;
             float step = Speed * Time.deltaTime;
-            transform.position = step >= dist ? dest : pos + to / dist * step;
+            transform.position = step >= dist ? new Vector3(wp.x, pos.y, wp.z) : pos + to / Mathf.Max(dist, 1e-4f) * step;
             if (to.sqrMagnitude > 1e-4f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(to), 12f * Time.deltaTime);
             moving = true;

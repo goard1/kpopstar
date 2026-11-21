@@ -115,6 +115,13 @@ namespace Munbanggu.Core
 
         void Tap(Vector2 pos)
         {
+            // 진열대 옮기기 모드면 HUD가 먼저 처리
+            if (gm.Hud != null && gm.Hud.HandleWorldTap(pos)) return;
+            TapWorld(pos);
+        }
+
+        void TapWorld(Vector2 pos)
+        {
             var ray = gm.Layout.Camera.ScreenPointToRay(pos);
             int n = Physics.RaycastNonAlloc(ray, hits, 200f);
             ShelfSlot best = null;

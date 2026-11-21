@@ -193,6 +193,17 @@ namespace Munbanggu.Core
             return district > 0 || Has(district, level, ExpansionFeature.Pyeongsang);
         }
 
+        /// <summary>
+        /// 옆칸 k의 깊이(뒷벽 z). 동네마다 가게 모양이 다르다:
+        /// 학교 앞 = 네모(4), 아파트 = 옆칸이 뒤로 깊은 ㄱ자(6), 번화가 = 첫 옆칸은 얕고 그다음부터 깊은 계단 모양(4 → 6.5).
+        /// </summary>
+        public static float BayBack(int district, int k) => district switch
+        {
+            1 => 6f,
+            2 => k == 1 ? 4f : 6.5f,
+            _ => 4f,
+        };
+
         public static int MaxStaff(int district, int level) => District(district).baseStaff + level;
 
         /// <summary>매일 정산 때 나가는 월세 + 관리비.</summary>

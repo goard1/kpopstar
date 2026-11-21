@@ -19,6 +19,10 @@ namespace Munbanggu.Shop
         public bool GrandPrizeLeft { get; private set; }
 
         /// <summary>손님이 서서 고르는 위치 (매대 앞).</summary>
+        /// <summary>처음 놓인 자리 (진열대 옮기기 "처음대로"용).</summary>
+        public Vector3 DefaultPos;
+        public float DefaultYaw;
+
         public Vector3 StandPoint => transform.TransformPoint(new Vector3(0f, 0f, IsBoard ? 0.7f : 0.85f));
 
         // 가격표 위치 (매대 앞 레일, 로컬)

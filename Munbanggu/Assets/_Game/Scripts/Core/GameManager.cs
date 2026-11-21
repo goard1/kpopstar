@@ -43,6 +43,7 @@ namespace Munbanggu.Core
         public int counselPerfect, counselOk, counselWrong, counselNone;
         public int reputationDelta;
         public int salary;         // 직원 월급 (정산 때 빠짐)
+        public int counselSpawned; // 오늘 나온 고민 손님 수 (하루 CounselPerDay명까지)
         public int upkeep;         // 가게 관리비 (증축 단계, 정산 때 빠짐)
         public int comic;          // 2층 만화방 수입 (정산 때 들어옴, revenue에 포함)
         public int Profit => revenue - cost;
@@ -158,6 +159,8 @@ namespace Munbanggu.Core
             HUD.CollectSettlementLines -= AddSettlementLines; // static 이벤트: 중복 구독 방지
             HUD.CollectSettlementLines += AddSettlementLines;
             LoadOrNew();
+            ApplyDistrictShape();
+            RebuildNav();
             RebuildStaffAgents();
             RebuildDecor();
             Speed = Mathf.Clamp(PlayerPrefs.GetInt(SpeedPref, 1), 1, MaxSpeed);
@@ -344,6 +347,10 @@ namespace Munbanggu.Core
         void StartMorning()
         {
             Phase = DayPhase.Morning;
+            // 직원은 쉬는 자리로 (어제 계산대·매대 앞에 있던 채로 남지 않게)
+            registerStaff = null;
+            restockTargets.Clear();
+            foreach (var ag in staffAgents.Values) if (ag != null) ag.GoHome();
             Stats = new DayStats();
             trends.Advance(Day, (p, d) => p.unlockDay <= d);
             regulars.PlanDay(Day, UnlockedFavorite);
@@ -475,7 +482,7 @@ namespace Munbanggu.Core
 
             // 상담 손님: 매대로 가지 않고 계산대로 와서 고민을 말한다 (docs/05)
             CounselRequest request = null;
-            if (regular == null && kind == CustomerKind.Normal && UnityEngine.Random.value < CounselChance)
+            if (regular == null && kind == CustomerKind.Normal && RollCounsel())
             {
                 request = CounselRequests.Roll(UnlockedCounselable());
                 if (request != null) kind = CustomerKind.Counsel;
@@ -502,8 +509,22 @@ namespace Munbanggu.Core
         public int Reputation { get; private set; } = 50;
         readonly HashSet<string> knownTraits = new HashSet<string>(); // 특징을 알게 된 상품 id
 
-        /// <summary>오늘 손님 중 상담 손님 비율 (1일차 30% → 하루 +5% → 최대 60%).</summary>
-        public float CounselChance => Mathf.Min(0.6f, 0.3f + 0.05f * (Day - 1));
+        /// <summary>하루 고민(상담) 손님 수 상한.</summary>
+        public const int CounselPerDay = 5;
+
+        /// <summary>
+        /// 고민 손님은 하루 CounselPerDay명까지, 영업 시간 동안 고르게 (진행도 몫보다 앞서 나오지 않게).
+        /// 1일차는 튜토리얼이라 2명까지.
+        /// </summary>
+        bool RollCounsel()
+        {
+            int quota = Day <= 1 ? 2 : CounselPerDay;
+            if (Stats.counselSpawned >= quota) return false;
+            if (Stats.counselSpawned >= 1 + quota * OpenProgress) return false;
+            if (UnityEngine.Random.value >= 0.3f) return false;
+            Stats.counselSpawned++;
+            return true;
+        }
 
         /// <summary>평판에 따른 손님 수 배율 (0 → ×0.85, 100 → ×1.15).</summary>
         float ReputationSpawnMultiplier => 0.85f + 0.3f * Reputation / 100f;
@@ -665,7 +686,7 @@ namespace Munbanggu.Core
         /// <summary>스크린샷 도구용: 동네·증축 단계를 바로 바꾸고 새 진열대를 채운다.</summary>
         public void DebugDistrict(int district, int level)
         {
-            if (district != District) { ShopBuilder.ClearGroups(Layout); Facilities.decor.RemoveAll(d => d.slot > Layout.Board.Index); District = Mathf.Clamp(district, 0, ExpansionTable.Districts.Length - 1); ApplyDistrictLook(); }
+            if (district != District) { ShopBuilder.ClearGroups(Layout); placements.Clear(); ShopBuilder.ResetSlotTransforms(Layout); Facilities.decor.RemoveAll(d => d.slot > Layout.Board.Index); District = Mathf.Clamp(district, 0, ExpansionTable.Districts.Length - 1); ApplyDistrictLook(); }
             Expansion = Mathf.Clamp(level, 0, ExpansionTable.Max);
             if (Hud != null) Hud.RebuildSlotLabels();
             ApplyUpgrades();
@@ -677,6 +698,23 @@ namespace Munbanggu.Core
                 }
             RebuildDecor();
             Notify();
+        }
+
+        /// <summary>스크린샷 도구용: 지금 배치에서 길이 다 이어지는지, 문 → 각 진열대 길 경유점 수.</summary>
+        public string DebugCheckNav()
+        {
+            RebuildNav();
+            bool ok = AllReachable(out string why);
+            var sb = new System.Text.StringBuilder($"동네 {District} 증축 {Expansion}: 길 {(ok ? "OK" : "막힘 - " + why)}");
+            var path = new List<Vector3>();
+            var door = new Vector3(ShopLayout.DoorX, 0f, ShopLayout.DoorInsideZ);
+            foreach (var s in Layout.Slots)
+            {
+                if (s.IsBoard) continue;
+                nav.FindPath(door, s.StandPoint, path);
+                sb.Append($" | #{s.Index}:{path.Count}");
+            }
+            return sb.ToString();
         }
 
         /// <summary>스크린샷 도구용: 다음 날 아침으로 (돈 넉넉히).</summary>
@@ -691,7 +729,9 @@ namespace Munbanggu.Core
         /// <summary>업그레이드·동네·증축 단계를 가게에 반영 (매대 칸 수, 추가 진열대, 장식, 옆칸). 여러 번 불러도 됨.</summary>
         void ApplyUpgrades()
         {
+            ApplyDistrictShape();
             int cap = UpgradeTable.ShelfCapacity(Upgrades.Level(UpgradeTable.ShelfSize));
+            int before = Layout.Slots.Count;
             bool added = false;
             if (Upgrades.Level(UpgradeTable.Island) > 0) added |= ShopBuilder.AddShelfGroup(Layout, Materials, cap, ShopBuilder.GroupExtra);
             int bays = ExpansionTable.Bays(District, Expansion);
@@ -701,13 +741,172 @@ namespace Munbanggu.Core
                 if (ExpansionTable.HasSideShelf(District, Expansion, k))
                     added |= ShopBuilder.AddShelfGroup(Layout, Materials, cap, ShopBuilder.SideGroup(k));
             }
+            ApplyPlacements();
             if (added && Hud != null) Hud.RebuildSlotLabels();
             foreach (var s in Layout.Slots)
                 if (!s.IsBoard) s.SetCapacity(cap);
             upgradeDecor = Visual.UpgradeVisuals.Rebuild(Layout.Root, Materials, Upgrades, upgradeDecor);
             expansionDecor = Visual.ExpansionVisuals.Rebuild(Layout.Root, Materials, District, Expansion, expansionDecor);
             Staff.maxStaff = ExpansionTable.MaxStaff(District, Expansion);
+            RebuildNav();
+            // 새로 생긴 진열대가 옮겨 둔 진열대와 겹치면 가까운 빈자리로
+            for (int i = before; i < Layout.Slots.Count; i++) RelocateIfBlocked(Layout.Slots[i]);
             UpdateCameraFocus();
+        }
+
+        /// <summary>동네 모양(옆칸 깊이)을 레이아웃에 알려 준다.</summary>
+        void ApplyDistrictShape()
+        {
+            for (int k = 1; k <= ShopLayout.BayBacks.Length; k++)
+                ShopLayout.BayBacks[k - 1] = ExpansionTable.BayBack(District, k);
+        }
+
+        // ───────────── 진열대 옮기기 · 길찾기 ─────────────
+
+        readonly ShopNav nav = new ShopNav();
+        /// <summary>플레이어가 옮긴 진열대 자리 (Slots 인덱스 → 자리·방향).</summary>
+        readonly Dictionary<int, SlotPlacement> placements = new Dictionary<int, SlotPlacement>();
+
+        public static readonly Vector2 ShelfSize = new Vector2(1.16f, 0.76f);
+
+        static ShopNav.Box ShelfBox(Vector3 pos, float yaw) => new ShopNav.Box(new Vector2(pos.x, pos.z), ShelfSize, yaw);
+
+        /// <summary>바닥·장애물·진열대로 길찾기 격자를 다시 만든다. exclude는 빼고 (옮기기 확인용).</summary>
+        void RebuildNav(ShelfSlot exclude = null)
+        {
+            nav.Begin();
+            nav.AddInside(Rect.MinMaxRect(-4f, -4f, 4f, 4f));
+            int bays = ExpansionTable.Bays(District, Expansion);
+            for (int k = 1; k <= bays; k++)
+                nav.AddInside(Rect.MinMaxRect(ShopLayout.BayX0(k), -4f, ShopLayout.BayX1(k), ShopLayout.BayBack(k)));
+            float left = bays > 0 ? ShopLayout.BayX0(bays) - 0.2f : -4.2f;
+            nav.AddOutside(Rect.MinMaxRect(left, -6f, 4.2f, -4f));
+            foreach (var b in Layout.Statics) nav.AddStatic(b);
+            foreach (var r in Layout.Reserved) nav.AddReserved(r);
+            // 가게 앞 평상·냉동고, 오락기
+            if (ExpansionTable.Has(District, Expansion, ExpansionFeature.Pyeongsang) || ExpansionTable.Has(District, Expansion, ExpansionFeature.Freezer))
+                nav.AddStatic(new ShopNav.Box(new Vector2(-5.1f, -4.9f), new Vector2(2.0f, 1.0f)));
+            int arcades = UpgradeTable.ArcadeMachines(Upgrades.Level(UpgradeTable.Arcade));
+            for (int i = 0; i < arcades; i++)
+            {
+                var p = Visual.UpgradeVisuals.ArcadePosition(i);
+                nav.AddStatic(new ShopNav.Box(new Vector2(p.x, p.z), new Vector2(0.55f, 0.55f)));
+            }
+            var boxes = new List<ShopNav.Box>();
+            foreach (var s in Layout.Slots)
+                if (s != null && !s.IsBoard && s != exclude)
+                    boxes.Add(ShelfBox(s.transform.localPosition, s.transform.localEulerAngles.y));
+            nav.Rebuild(boxes);
+            ShopNav.Current = nav;
+        }
+
+        /// <summary>저장된(옮긴) 진열대 자리를 적용.</summary>
+        void ApplyPlacements()
+        {
+            foreach (var kv in placements)
+            {
+                if (kv.Key < 0 || kv.Key >= Layout.Slots.Count) continue;
+                var s = Layout.Slots[kv.Key];
+                if (s.IsBoard) continue;
+                s.transform.localPosition = new Vector3(kv.Value.x, 0f, kv.Value.z);
+                s.transform.localRotation = Quaternion.Euler(0f, kv.Value.yaw, 0f);
+            }
+        }
+
+        /// <summary>진열대가 다른 것과 겹치면 가장 가까운 놓을 수 있는 자리로 옮긴다 (증축으로 생긴 진열대용).</summary>
+        void RelocateIfBlocked(ShelfSlot s)
+        {
+            if (s == null || s.IsBoard) return;
+            Vector3 p = s.transform.localPosition;
+            float yaw = s.transform.localEulerAngles.y;
+            RebuildNav(s);
+            if (nav.CanPlace(ShelfBox(p, yaw))) { RebuildNav(); return; }
+            for (int r = 1; r <= 24; r++)
+                for (int dz = -r; dz <= r; dz++)
+                    for (int dx = -r; dx <= r; dx++)
+                    {
+                        if (Mathf.Abs(dx) != r && Mathf.Abs(dz) != r) continue;
+                        var q = p + new Vector3(dx * 0.25f, 0f, dz * 0.25f);
+                        if (!nav.CanPlace(ShelfBox(q, yaw))) continue;
+                        s.transform.localPosition = q;
+                        placements[s.Index] = new SlotPlacement { index = s.Index, x = q.x, z = q.z, yaw = yaw };
+                        RebuildNav();
+                        return;
+                    }
+            RebuildNav();
+        }
+
+        /// <summary>
+        /// 진열대를 옮긴다 (아침에만). pos는 0.25m 격자, yaw는 90° 단위로 맞춘다.
+        /// 벽·다른 진열대·계산 줄과 겹치거나, 놓으면 손님이 못 가는 진열대·계산 줄이 생기면 안 됨.
+        /// </summary>
+        public bool TryMoveShelf(ShelfSlot slot, Vector3 pos, float yaw, out string reason)
+        {
+            reason = null;
+            if (slot == null || slot.IsBoard) { reason = "이건 옮길 수 없어요"; return false; }
+            if (Phase != DayPhase.Morning) { reason = "진열대는 아침에만 옮길 수 있어요"; return false; }
+            pos = Layout.Root.InverseTransformPoint(pos);
+            pos = new Vector3(Mathf.Round(pos.x * 4f) / 4f, 0f, Mathf.Round(pos.z * 4f) / 4f);
+            yaw = Mathf.Repeat(Mathf.Round(yaw / 90f) * 90f, 360f);
+
+            RebuildNav(slot);
+            if (!nav.CanPlace(ShelfBox(pos, yaw)))
+            {
+                RebuildNav();
+                reason = "여기엔 못 놓아요 (벽·다른 진열대·계산 줄·문 앞과 겹쳐요)";
+                return false;
+            }
+            var oldPos = slot.transform.localPosition;
+            var oldRot = slot.transform.localRotation;
+            slot.transform.localPosition = pos;
+            slot.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            RebuildNav();
+            if (!AllReachable(out string blocked))
+            {
+                slot.transform.localPosition = oldPos;
+                slot.transform.localRotation = oldRot;
+                RebuildNav();
+                reason = blocked;
+                return false;
+            }
+            placements[slot.Index] = new SlotPlacement { index = slot.Index, x = pos.x, z = pos.z, yaw = yaw };
+            RebuildDecor();
+            Notify();
+            Save();
+            return true;
+        }
+
+        /// <summary>문 안쪽에서 모든 진열대 앞·계산 줄·직원 자리·바깥 길까지 갈 수 있는지.</summary>
+        bool AllReachable(out string reason)
+        {
+            reason = null;
+            var seen = nav.ReachableFrom(new Vector3(ShopLayout.DoorX, 0f, ShopLayout.DoorInsideZ));
+            foreach (var s in Layout.Slots)
+            {
+                if (s == null || s.IsBoard) continue;
+                if (!nav.IsReachable(seen, s.StandPoint))
+                {
+                    reason = s.Product != null ? $"{s.Product.displayName} 진열대 앞이 막혀요 (앞쪽을 비워 주세요)" : "진열대 앞이 막혀요 (앞쪽을 비워 주세요)";
+                    return false;
+                }
+            }
+            foreach (var q in ShopBuilder.QueueSpots)
+                if (!nav.IsReachable(seen, q)) { reason = "계산 줄로 가는 길이 막혀요"; return false; }
+            if (!nav.IsReachable(seen, RegisterPoint) || !nav.IsReachable(seen, BackroomPoint))
+            { reason = "직원이 다닐 길(계산대 뒤·창고 앞)이 막혀요"; return false; }
+            if (!nav.IsReachable(seen, Layout.ExitPoint)) { reason = "문으로 나가는 길이 막혀요"; return false; }
+            return true;
+        }
+
+        /// <summary>진열대 자리를 처음대로 (옮긴 것 전부 취소). 아침에만.</summary>
+        public void ResetShelfPlacements()
+        {
+            if (!MorningOnly("진열대 되돌리기")) return;
+            placements.Clear();
+            ShopBuilder.ResetSlotTransforms(Layout);
+            RebuildNav();
+            RebuildDecor();
+            Notify();
         }
 
         // ───────────── 가게 증축 (docs/06 3단계) · 상권 이동 (docs/07) ─────────────
@@ -797,6 +996,7 @@ namespace Munbanggu.Core
             });
             Money += refund;
             ShopBuilder.ClearGroups(Layout);
+            { var drop = new List<int>(); foreach (var k in placements.Keys) if (k > Layout.Board.Index) drop.Add(k); foreach (var k in drop) placements.Remove(k); }
 
             District++;
             Expansion = 0;
@@ -819,6 +1019,7 @@ namespace Munbanggu.Core
         /// <summary>동네 색으로 바닥·벽·차양을 다시 그린다.</summary>
         void ApplyDistrictLook()
         {
+            ApplyDistrictShape();
             Visual.ShopDecor.ApplyPalette(CurrentDistrict.palette);
             ShopBuilder.RebuildStatic(Layout, Materials);
         }
@@ -850,7 +1051,9 @@ namespace Munbanggu.Core
             if (bays > 0)
             {
                 float left = ShopLayout.BayX0(bays) - 0.6f;
-                b.Encapsulate(Layout.Root.TransformPoint(new Vector3(left, -0.4f, 3.8f)));
+                float maxBack = 4f;
+                for (int k = 1; k <= bays; k++) maxBack = Mathf.Max(maxBack, ShopLayout.BayBack(k));
+                b.Encapsulate(Layout.Root.TransformPoint(new Vector3(left, -0.4f, maxBack - 0.2f)));
                 b.Encapsulate(Layout.Root.TransformPoint(new Vector3(left, -0.4f, -4.6f)));
             }
             if (ExpansionTable.Has(District, Expansion, ExpansionFeature.ComicRoom) || ExpansionTable.Has(District, Expansion, ExpansionFeature.Arcade2F))
@@ -1170,6 +1373,8 @@ namespace Munbanggu.Core
         void RebuildStaffAgents()
         {
             foreach (var a in staffAgents.Values) if (a != null) Destroy(a.gameObject);
+            registerStaff = null;
+            restockTargets.Clear();
             staffAgents.Clear();
             var order = new Dictionary<StaffJob, int>();
             foreach (var m in Staff.members)
@@ -1186,59 +1391,119 @@ namespace Munbanggu.Core
             return null;
         }
 
-        /// <summary>영업 중 직원 일: 계산·진열 (경비·상담 보조는 손님 쪽에서 물어봄).</summary>
+        // ── 걸어 다니는 직원 (계산·진열 담당은 둘 다 함. 맡은 일이 먼저) ──
+        StaffMember registerStaff;   // 지금 계산대에 서 있거나 가는 직원
+        float registerIdle;          // 계산대에서 줄이 빈 채로 기다린 시간
+        readonly HashSet<ShelfSlot> restockTargets = new HashSet<ShelfSlot>(); // 누가 채우러 가는 중인 매대
+
+        /// <summary>직원이 계산하는 자리 (할머니 옆, 계산대 뒤).</summary>
+        public static readonly Vector3 RegisterPoint = new Vector3(-3.6f, 0f, -0.45f);
+        /// <summary>물건 가지러 가는 창고 상자 앞.</summary>
+        public static readonly Vector3 BackroomPoint = new Vector3(-3.3f, 0f, 2.45f);
+
+        /// <summary>
+        /// 영업 중 직원 일. 계산·진열 담당은 가게를 돌아다니며
+        /// · 줄이 있고 계산대가 비었으면 → 계산대로 걸어가서 계산 (줄이 비면 잠시 뒤 다른 일)
+        /// · 반 넘게 빈 매대가 있으면 → 창고에 가서 물건을 들고 → 매대로 가서 채움
+        /// 계산 담당은 계산이 먼저, 진열 담당은 진열이 먼저. 경비·상담 보조는 손님 쪽에서 물어봄.
+        /// </summary>
         void TickStaff()
         {
+            float dt = Time.deltaTime;
+            if (registerStaff != null && !Staff.members.Contains(registerStaff)) registerStaff = null;
             foreach (var m in Staff.members)
             {
+                if (m.job != StaffJob.Cashier && m.job != StaffJob.Stocker) continue;
+                if (!staffAgents.TryGetValue(m, out var a) || a == null) continue;
                 staffTimers.TryGetValue(m, out float t);
-                t += Time.deltaTime;
-                if (m.job == StaffJob.Cashier)
+                t += dt;
+
+                if (registerStaff == m)
                 {
-                    float interval = StaffRules.CashierInterval(m);
-                    if (t >= interval)
+                    if (!a.Busy) // 계산대에 서 있음
                     {
                         var front = Layout.Queue.Front;
-                        if (front != null && front.TryAutoCheckout($"{Josa.I(m.name)} 계산해 줬어요"))
+                        if (front != null)
                         {
-                            t = 0f;
-                            GiveStaffExp(m, 1);
-                            if (UnityEngine.Random.value < StaffRules.TipChance(m))
+                            registerIdle = 0f;
+                            if (t >= StaffRules.CashierInterval(m) && front.TryAutoCheckout($"{Josa.I(m.name)} 계산해 줬어요"))
                             {
-                                int tip = 50;
-                                Money += tip; Stats.revenue += tip; Stats.tips += tip;
-                                if (staffAgents.TryGetValue(m, out var a)) a.Say($"친절하다고 팁 +{UIKit.Won(tip)}", UIKit.BubbleMoney);
+                                t = 0f;
+                                GiveStaffExp(m, 1);
+                                if (UnityEngine.Random.value < StaffRules.TipChance(m))
+                                {
+                                    int tip = 50;
+                                    Money += tip; Stats.revenue += tip; Stats.tips += tip;
+                                    a.Say($"친절하다고 팁 +{UIKit.Won(tip)}", UIKit.BubbleMoney);
+                                }
                             }
                         }
-                        else t = interval; // 손님 오면 바로
-                    }
-                }
-                else if (m.job == StaffJob.Stocker)
-                {
-                    float interval = StaffRules.StockerInterval(m);
-                    if (t >= interval && staffAgents.TryGetValue(m, out var a) && !a.Busy)
-                    {
-                        var slot = SlotToRestock();
-                        if (slot != null)
+                        else
                         {
-                            t = 0f;
-                            var member = m;
-                            a.Errand(slot.StandPoint, () => RestockSlot(member, slot));
+                            registerIdle += dt;
+                            // 줄이 비면 잠시 기다렸다가 다른 일 (진열 담당은 빨리 떠남)
+                            bool restockNeeded = SlotToRestock() != null;
+                            float wait = m.job == StaffJob.Cashier ? (restockNeeded ? 3f : 8f) : 1.5f;
+                            if (registerIdle > wait) { registerStaff = null; t = 0f; }
                         }
-                        else t = interval;
                     }
+                    staffTimers[m] = t;
+                    continue;
                 }
+
+                if (a.Busy) { staffTimers[m] = t; continue; } // 걷는 중 (진열 심부름 등)
+
+                bool canRegister = Layout.Queue.Front != null && registerStaff == null;
+                var slot = t >= StaffRules.StockerInterval(m) * 0.4f ? SlotToRestock() : null;
+                bool cashierFirst = m.job == StaffJob.Cashier;
+
+                if (canRegister && (cashierFirst || slot == null))
+                    GoToRegister(m, a, ref t);
+                else if (slot != null)
+                    GoRestock(m, a, slot, ref t);
+                else if (canRegister)
+                    GoToRegister(m, a, ref t);
+                else if (t > 2.5f && !a.AtHome)
+                    a.GoHome();
                 staffTimers[m] = t;
             }
         }
 
-        /// <summary>창고에 같은 상품이 있고 반 넘게 빈 매대 (제일 빈 곳).</summary>
+        void GoToRegister(StaffMember m, StaffAgent a, ref float t)
+        {
+            registerStaff = m;
+            registerIdle = 0f;
+            t = 0f;
+            a.Say("계산할게요!", UIKit.BubbleNormal, 0.8f);
+            a.GoTo(RegisterPoint, null, ShopBuilder.QueueSpots[0]);
+        }
+
+        void GoRestock(StaffMember m, StaffAgent a, ShelfSlot slot, ref float t)
+        {
+            restockTargets.Add(slot);
+            t = 0f;
+            a.Say($"{slot.Product.displayName} 가지러!", UIKit.BubbleNormal, 0.8f);
+            var member = m;
+            // 창고 상자 앞 → 매대 앞 → 채움 → 그 자리에서 다음 일 (일이 없으면 잠시 뒤 쉬는 자리로)
+            a.GoTo(BackroomPoint, () =>
+            {
+                if (slot == null) { restockTargets.Remove(slot); return; }
+                a.GoTo(slot.StandPoint, () =>
+                {
+                    restockTargets.Remove(slot);
+                    RestockSlot(member, slot);
+                }, slot != null ? slot.transform.position : (Vector3?)null);
+            });
+        }
+
+        /// <summary>창고에 같은 상품이 있고 반 넘게 빈 매대 (제일 빈 곳, 이미 누가 가는 곳 빼고).</summary>
         ShelfSlot SlotToRestock()
         {
             ShelfSlot best = null;
             foreach (var s in Layout.Slots)
             {
-                if (s.Product == null || s.Count * 2 > s.Capacity || Stock(s.Product) <= 0) continue;
+                if (s == null || s.IsBoard || s.Product == null || s.Count * 2 > s.Capacity || Stock(s.Product) <= 0) continue;
+                if (restockTargets.Contains(s)) continue;
                 if (best == null || s.Count < best.Count) best = s;
             }
             return best;
@@ -1543,7 +1808,10 @@ namespace Munbanggu.Core
             Upgrades.Load(data.upgrades);
             Facilities = data.facilities ?? new FacilityState();
             District = Mathf.Clamp(data.district, 0, ExpansionTable.Districts.Length - 1);
+            ApplyDistrictShape();
             if (District > 0) ApplyDistrictLook();
+            placements.Clear();
+            if (data.placements != null) foreach (var p in data.placements) placements[p.index] = p;
             Expansion = Mathf.Clamp(data.expansion, 0, ExpansionTable.Max);
             // 나중에 붙은 진열대는 저장 때 붙어 있던 순서 그대로 (진열 인덱스가 어긋나지 않게)
             if (data.slotGroups != null)
@@ -1578,7 +1846,8 @@ namespace Munbanggu.Core
                 credits = ledger.Save(), seenEvents = new List<string>(seenEvents),
                 upgrades = Upgrades.Save(), staff = Staff, facilities = Facilities,
                 reputation = Mathf.Max(1, Reputation), knownTraits = new List<string>(knownTraits),
-                district = District, expansion = Expansion, slotGroups = new List<string>(Layout.Groups)
+                district = District, expansion = Expansion, slotGroups = new List<string>(Layout.Groups),
+                placements = new List<SlotPlacement>(placements.Values)
             };
             foreach (var kv in stock)
                 if (kv.Value > 0) data.backroom.Add(new StockEntry { productId = kv.Key.id, count = kv.Value });

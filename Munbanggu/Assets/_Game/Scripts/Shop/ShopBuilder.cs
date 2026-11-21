@@ -37,13 +37,7 @@ namespace Munbanggu.Shop
         /// <summary>from → to로 갈 때 필요한 경유점(옆칸 ↔ 본 가게)과 to를 path 뒤에 붙인다.</summary>
         public static void AppendPath(List<Vector3> path, Vector3 from, Vector3 to)
         {
-            // 옆칸 안에서는 뒷벽 앞 통로(z = HubAnnex.z)를 따라 x만 옮긴 뒤 목적지로 꺾는다
-            // (옆칸이 여러 개면 칸 사이 가운데 진열대를 피하려고)
-            bool a = InAnnex(from), b = InAnnex(to);
-            float lane = HubAnnex.z;
-            if (a && !b) { path.Add(new Vector3(from.x, 0f, lane)); path.Add(HubAnnex); path.Add(HubMain); }
-            else if (!a && b) { path.Add(HubMain); path.Add(HubAnnex); path.Add(new Vector3(to.x, 0f, lane)); }
-            else if (a && b && Mathf.Abs(from.x - to.x) > 1.0f) { path.Add(new Vector3(from.x, 0f, lane)); path.Add(new Vector3(to.x, 0f, lane)); }
+            // 길찾기(ShopNav)가 진열대를 돌아가므로 경유점은 따로 넣지 않는다
             path.Add(to);
         }
 
@@ -51,6 +45,15 @@ namespace Munbanggu.Shop
         public const float BayWidth = 2.5f;
         public static float BayX0(int k) => -4f - BayWidth * k;      // 왼쪽 끝
         public static float BayX1(int k) => -4f - BayWidth * (k - 1); // 오른쪽 끝
+
+        /// <summary>옆칸 k(1부터)의 뒷벽 안쪽 z. 동네마다 가게 모양이 달라서 깊은 칸(ㄱ자·계단 모양)이 있다. GameManager가 동네에 맞춰 채움.</summary>
+        public static float[] BayBacks = { 4f, 4f, 4f, 4f };
+        public static float BayBack(int k) => k >= 1 && k <= BayBacks.Length ? BayBacks[k - 1] : 4f;
+
+        /// <summary>움직이지 않는 장애물 (계산대·상자·뽑기 기계 등). 길찾기가 피해 간다.</summary>
+        public readonly List<ShopNav.Box> Statics = new List<ShopNav.Box>();
+        /// <summary>진열대를 놓으면 안 되는 자리 (계산 줄·문 앞·계산대 뒤·창고 앞).</summary>
+        public readonly List<Rect> Reserved = new List<Rect>();
     }
 
     /// <summary>
@@ -97,6 +100,22 @@ namespace Munbanggu.Shop
 
             layout.Queue = new CounterQueue(new List<Vector3>(QueueSpots), Vector3.left);
 
+            // 길찾기 장애물 (ShopDecor 위치와 맞춤) · 진열대 못 놓는 자리
+            var st = layout.Statics;
+            st.Add(new ShopNav.Box(new Vector2(-2.8f, -1.2f), new Vector2(1.0f, 1.8f)));     // 계산대
+            st.Add(new ShopNav.Box(new Vector2(-3.72f, -1.25f), new Vector2(0.55f, 0.55f))); // 할머니 의자
+            st.Add(new ShopNav.Box(new Vector2(-3.72f, 3.25f), new Vector2(0.5f, 0.95f)));   // 재고 상자 더미
+            st.Add(new ShopNav.Box(new Vector2(3.45f, 3.35f), new Vector2(0.8f, 0.8f)));     // 안쪽 구석 캡슐 뽑기
+            st.Add(new ShopNav.Box(new Vector2(-3.25f, -4.55f), new Vector2(1.3f, 0.6f)));   // 가게 앞 뽑기 기계 두 대
+            st.Add(new ShopNav.Box(new Vector2(-1.95f, -4.55f), new Vector2(1.3f, 0.5f)));   // 번호 뽑기판
+            st.Add(new ShopNav.Box(new Vector2(3.3f, -4.7f), new Vector2(0.7f, 0.5f)));      // 입간판
+            var rs = layout.Reserved;
+            rs.Add(Rect.MinMaxRect(-2.35f, -3.85f, -0.05f, -3.05f));  // 계산 줄 (앞쪽 가로)
+            rs.Add(Rect.MinMaxRect(-2.35f, -3.85f, -1.45f, -0.75f));  // 계산 줄 (계산대 앞 세로)
+            rs.Add(Rect.MinMaxRect(0.3f, -4.0f, 2.2f, -2.7f));        // 문 안쪽
+            rs.Add(Rect.MinMaxRect(-4.0f, -2.4f, -2.15f, 0.15f));     // 계산대·뒤 (직원 계산 자리)
+            rs.Add(Rect.MinMaxRect(-3.7f, 2.0f, -2.9f, 2.8f));        // 창고 상자 앞 (직원이 물건 가지러 서는 곳)
+
             layout.EntrancePoint = new Vector3(ShopLayout.DoorX, 0f, ShopLayout.DoorOutsideZ);
             layout.ExitPoint = new Vector3(ShopLayout.DoorX, 0f, -5.6f);
 
@@ -136,8 +155,12 @@ namespace Munbanggu.Shop
             go.transform.localPosition = pos;
             go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
 
-            // 나무 매대는 장식 메시에 합침
-            ShopDecor.ShelfCabinet(kit, blob, pos, yaw, index);
+            // 나무 매대는 진열대마다 따로 (진열대를 옮기면 같이 움직이게). kit·blob 인자는 예전 호환용으로 안 씀.
+            var ck = new MeshKit();
+            var cb = new MeshKit();
+            ShopDecor.ShelfCabinet(ck, cb, Vector3.zero, 0f, index);
+            ck.Build("Cabinet", go.transform, mats.VertexColor);
+            if (mats.Blob != null) cb.Build("Cabinet Shadow", go.transform, mats.Blob);
 
             // 상품 12개 자리 (4 x 3, 앞줄이 낮은 계단식). 실제 모양은 ShelfSlot이 메시 하나로 그림.
             var items = ShelfSlot.CreateAnchors(go.transform, 12, index);
@@ -148,6 +171,8 @@ namespace Munbanggu.Shop
             col3d.size = new Vector3(1.25f, 1.2f, 1.0f);
 
             var slot = go.AddComponent<ShelfSlot>();
+            slot.DefaultPos = pos;
+            slot.DefaultYaw = yaw;
             slot.Init(index, items, mats);
             return slot;
         }
@@ -178,7 +203,7 @@ namespace Munbanggu.Shop
             if (k <= 0) return System.Array.Empty<(Vector3, float)>();
             float x1 = ShopLayout.BayX1(k), x0 = ShopLayout.BayX0(k);
             if (group == GroupAnnex || group.StartsWith("bay"))
-                return new[] { (new Vector3(x1 - 0.65f, 0f, 3.35f), 180f), (new Vector3(x1 - 1.9f, 0f, 3.35f), 180f) };
+                return new[] { (new Vector3(x1 - 0.65f, 0f, ShopLayout.BayBack(k) - 0.65f), 180f), (new Vector3(x1 - 1.9f, 0f, ShopLayout.BayBack(k) - 0.65f), 180f) };
             return new[] { (new Vector3(x0 + 0.45f, 0f, 1.2f), 90f) };
         }
 
@@ -222,15 +247,20 @@ namespace Munbanggu.Shop
             var glass = new MeshKit();
             var blob = new MeshKit();
             ShopDecor.Build(kit, glass, blob);
-            int keep = layout.Board != null ? layout.Board.Index : layout.Slots.Count;
-            for (int i = 0; i < keep && i < layout.Slots.Count; i++)
-            {
-                var s = layout.Slots[i].transform;
-                ShopDecor.ShelfCabinet(kit, blob, s.localPosition, s.localEulerAngles.y, i);
-            }
             kit.Build("Decor", layout.Root, mats.VertexColor);
             if (mats.Glass != null) glass.Build("Glass", layout.Root, mats.Glass);
             if (mats.Blob != null) blob.Build("Shadows", layout.Root, mats.Blob);
+        }
+
+        /// <summary>모든 진열대를 처음 자리·방향으로.</summary>
+        public static void ResetSlotTransforms(ShopLayout layout)
+        {
+            foreach (var s in layout.Slots)
+            {
+                if (s == null || s.IsBoard) continue;
+                s.transform.localPosition = s.DefaultPos;
+                s.transform.localRotation = Quaternion.Euler(0f, s.DefaultYaw, 0f);
+            }
         }
 
         static void Kill(GameObject go)
@@ -253,8 +283,8 @@ namespace Munbanggu.Shop
                 slot.SetCapacity(capacity);
                 layout.Slots.Add(slot);
             }
-            kit.Build($"Shelves {group}", layout.Root, mats.VertexColor);
-            if (mats.Blob != null) blob.Build($"Shadows {group}", layout.Root, mats.Blob);
+
+
             return true;
         }
 
@@ -278,6 +308,8 @@ namespace Munbanggu.Shop
             col.size = new Vector3(1.3f, 1.8f, 0.8f);
 
             var slot = go.AddComponent<ShelfSlot>();
+            slot.DefaultPos = pos;
+            slot.DefaultYaw = yaw;
             slot.Init(index, tabs, mats, isBoard: true);
             return slot;
         }

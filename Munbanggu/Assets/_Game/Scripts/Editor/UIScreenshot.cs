@@ -199,6 +199,28 @@ namespace Munbanggu.EditorTools
                 hud.OpenUpgrades();
                 Shot(hud, cam, rt, outDir, "23_downtown_card");
 
+                // 11) 동네별 모양 + 길 확인 + 진열대 옮기기
+                hud.CloseModals();
+                Debug.Log("[UIScreenshot] " + gm.DebugCheckNav());
+                gm.DebugDistrict(1, 3);
+                Debug.Log("[UIScreenshot] " + gm.DebugCheckNav());
+                Shot(hud, cam, rt, outDir, "24_apartment_L_shape");
+                gm.DebugDistrict(0, 3);
+                Debug.Log("[UIScreenshot] " + gm.DebugCheckNav());
+                // 진열대 옮기기: 2번을 가게 가운데로 돌려서, 3번을 문 앞(막혀야 함), 5번을 가운데 옆
+                var s2 = gm.Layout.Slots[2];
+                bool m1 = gm.TryMoveShelf(s2, new Vector3(0.5f, 0f, 0.25f), 90f, out string r1);
+                bool m2 = gm.TryMoveShelf(gm.Layout.Slots[3], new Vector3(1.2f, 0f, -3.3f), 0f, out string r2);
+                bool m3 = gm.TryMoveShelf(gm.Layout.Slots[5], new Vector3(1.75f, 0f, 0.25f), 270f, out string r3);
+                Debug.Log($"[UIScreenshot] 옮기기: 2번 {m1} ({r1}) / 3번 문 앞 {m2} ({r2}) / 5번 {m3} ({r3})");
+                Debug.Log("[UIScreenshot] " + gm.DebugCheckNav());
+                Shot(hud, cam, rt, outDir, "25_moved_shelves");
+                hud.EnterMoveMode();
+                var sp = cam.WorldToScreenPoint(gm.Layout.Slots[2].transform.position + Vector3.up * 0.7f);
+                hud.HandleWorldTap(new Vector2(sp.x, sp.y));
+                Shot(hud, cam, rt, outDir, "26_move_mode");
+                hud.CloseModals();
+
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
             }
             finally
