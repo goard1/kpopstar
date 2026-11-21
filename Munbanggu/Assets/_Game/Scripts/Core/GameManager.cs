@@ -46,6 +46,7 @@ namespace Munbanggu.Core
         public int counselSpawned; // 오늘 나온 고민 손님 수 (하루 CounselPerDay명까지)
         public string tournament;  // 오늘 연 동네 대회 이름
         public int comicReaders;   // 오늘 2층 만화방 손님
+        public int comicRequests;  // 오늘 들어준 만화 요청 쪽지 수
         public int upkeep;         // 가게 관리비 (증축 단계, 정산 때 빠짐)
         public int comic;          // 2층 만화방 수입 (정산 때 들어옴, revenue에 포함)
         public int Profit => revenue - cost;
@@ -164,6 +165,7 @@ namespace Munbanggu.Core
             LoadOrNew();
             ApplyDistrictShape();
             RebuildNav();
+            ApplyComicEffects();
             RebuildStaffAgents();
             RebuildDecor();
             Speed = Mathf.Clamp(PlayerPrefs.GetInt(SpeedPref, 1), 1, MaxSpeed);
@@ -650,7 +652,7 @@ namespace Munbanggu.Core
         public float QueuePatience => queuePatience * UpgradeTable.PatienceMultiplier(Upgrades.Level(UpgradeTable.Fan)) * ExpansionTable.PatienceMultiplier(District, Expansion) * GrandmaPatienceMultiplier;
 
         /// <summary>몰래 나가는 아이 속도 배율 (방범 거울 반영).</summary>
-        public float SneakSpeed => UpgradeTable.SneakSpeedMultiplier(Upgrades.Level(UpgradeTable.Mirror)) * GrandmaSneakMultiplier;
+        public float SneakSpeed => UpgradeTable.SneakSpeedMultiplier(Upgrades.Level(UpgradeTable.Mirror)) * GrandmaSneakMultiplier * ComicSneakMultiplier;
 
         /// <summary>업그레이드 사기 (아침에만). 성공하면 바로 가게에 반영.</summary>
         public bool BuyUpgrade(string id)
@@ -1630,7 +1632,7 @@ namespace Munbanggu.Core
             get
             {
                 var m = FirstOnJob(StaffJob.Counselor);
-                return m != null ? StaffRules.CounselPatience(m) : 1f;
+                return (m != null ? StaffRules.CounselPatience(m) : 1f) * ComicCounselPatience;
             }
         }
 

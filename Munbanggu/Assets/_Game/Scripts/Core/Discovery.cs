@@ -96,6 +96,7 @@ namespace Munbanggu.Core
             new AlbumPage("first_recipe", "할머니표 특제", "이것저것 섞어 보다가 그만 대박이 났네!"),
             new AlbumPage("cat", "치즈가 온 날", "문 앞에 노란 고양이가 앉아 있었어. 그날부터 우리 식구야."),
             new AlbumPage("comic_complete", "만화 완결", "마지막 권을 덮은 아이들이 박수를 쳤어."),
+            new AlbumPage("comic_legend", "할머니의 문방구", "만화 속 할머니가 꼭 나 같대. 아이들이 그 만화를 들고 와서 웃더라."),
             new AlbumPage("graduation", "첫 졸업", "\"할머니 안녕히 계세요.\" 가방 멘 뒷모습이 어찌나 컸는지."),
             new AlbumPage("rival_closed", "골목을 지키다", "큰 가게가 와도 아이들은 할머니한테 왔어."),
             new AlbumPage("first_move", "이사 가는 날", "정든 골목을 떠나며 셔터를 쓰다듬었지."),

@@ -32,14 +32,14 @@ namespace Munbanggu.Core
         /// <summary>달력·대회·만화방(간식)이 손님이 찾는 물건에 주는 배율.</summary>
         float TownDemand(ProductData p)
         {
-            float m = Today.Demand(p);
+            float m = Today.Demand(p) * ComicDemand(p);
             var t = TournamentToday;
             if (t != null && p != null && p.id == t.productId) m *= TournamentTable.DemandMultiplier;
             return m;
         }
 
         /// <summary>달력·대회·라이벌이 손님 수에 주는 배율.</summary>
-        float TownSpawnMultiplier => Today.SpawnMultiplier * (TournamentToday != null ? TournamentTable.SpawnMultiplier : 1f) * RivalSpawnMultiplier * DiscoverySpawnMultiplier;
+        float TownSpawnMultiplier => Today.SpawnMultiplier * (TournamentToday != null ? TournamentTable.SpawnMultiplier : 1f) * RivalSpawnMultiplier * DiscoverySpawnMultiplier * ComicSpawnMultiplier;
 
         // ───────────── 하루 흐름 ─────────────
 
@@ -68,6 +68,19 @@ namespace Munbanggu.Core
 
             if (HasComicRoom)
             {
+                // 월요일: 이번 주 만화 순위 + TV 방영
+                if (Today.weekday == 0)
+                {
+                    var chart = ComicTable.Chart(Day);
+                    var tvs = ComicTable.TVSeries(Day);
+                    string top = $"1위 「{chart[0].name}」  2위 「{chart[1].name}」  3위 「{chart[2].name}」";
+                    string tvLine = tvs != null
+                        ? $"\n이번 주 TV 만화 방영: 「{tvs.name}」! 만화방 손님 ×1.5, {Catalog.Find(tvs.linkedProduct)?.displayName ?? "관련 상품"}이 잘 팔려요"
+                        : "";
+                    Dialogue.Show("이번 주 만화 순위", top + tvLine, UIKit.Accent, "순");
+                }
+                var reqs = ComicTable.Requests(Day);
+                Dialogue.Show("만화방 요청 쪽지", "오늘 아이들이 보고 싶대요: " + string.Join(", ", reqs.ConvertAll(r => $"「{r.series.name}」 {r.volume}권{(Town.comic.Owned(r.series.id) >= r.volume ? "(있음)" : "")}")) + $"\n있는 권마다 정산 때 {UIKit.Won(ComicTable.RequestTip)} 팁!", UIKit.Accent, "쪽");
                 var fresh = ComicTable.NewToday(Day);
                 if (fresh != null)
                     Dialogue.Show("만화 총판", $"「{fresh.name}」 {ComicTable.Released(fresh, Day)}권 신간이 나왔어요! 오늘 들여놓으면 아이들이 줄을 설 거예요. (동네 → 만화방)", UIKit.Accent, "만");
@@ -104,6 +117,7 @@ namespace Munbanggu.Core
             lines.Add(SettlementLine.TextLine($"{Today.WeekName}요일 · {Today.WeatherIcon} · {Today.Title}", UIKit.Muted));
             if (Stats.tournament != null) lines.Add(SettlementLine.TextLine($"{Stats.tournament} 개최! 평판 +{TournamentTable.Reputation}", UIKit.Green));
             if (Stats.comicReaders > 0) lines.Add(SettlementLine.Count("2층 만화방 손님", Stats.comicReaders));
+            if (Stats.comicRequests > 0) lines.Add(SettlementLine.Money($"만화 요청 쪽지 {Stats.comicRequests}개 들어줌", Stats.comicRequests * ComicTable.RequestTip));
             if (Town.rival.active && !Town.rival.closed)
                 lines.Add(SettlementLine.TextLine($"{RivalTable.Name(District)} 기세 {Town.rival.strength}", Town.rival.strength >= 60 ? UIKit.Red : UIKit.Muted));
             var tm = Tomorrow;
@@ -248,12 +262,15 @@ namespace Munbanggu.Core
         public float ComicAppeal()
         {
             float a = 0f;
+            var tv = ComicTable.TVSeries(Day);
             foreach (var s in ComicTable.All)
             {
-                int owned = Town.comic.Owned(s.id);
-                if (owned <= 0) continue;
-                float v = owned * s.popularity;
-                if (owned >= s.total) v *= 1.5f;
+                var b = Town.comic.Book(s.id);
+                if (b.owned <= 0) continue;
+                // 권 수 × 인기 × 이번 주 순위 배율 + 희귀판 (초판 +0.5, 사인본 +1.5)
+                float v = b.owned * s.popularity * ComicTable.ChartMultiplier(s, Day) + b.first.Count * 0.5f + b.signed.Count * 1.5f;
+                if (b.owned >= s.total) v *= 1.5f;
+                if (tv == s) v *= 1.5f; // TV 방영 중
                 a += v;
             }
             if (Town.comic.newBoughtDay == Day) a *= 1.5f;
@@ -359,24 +376,32 @@ namespace Munbanggu.Core
             int readers = comicReadersToday;
             Stats.comicReaders = readers;
             Town.comic.lastReaders = readers;
-            // 완결 보너스 (시리즈마다 한 번)
+            // 예전 세이브: 다 모았는데 완결 처리가 안 된 시리즈
             foreach (var s in ComicTable.All)
-                if (Town.comic.Owned(s.id) >= s.total && !Town.comic.completed.Contains(s.id))
-                {
-                    Town.comic.completed.Add(s.id);
-                    UnlockAlbum("comic_complete");
-                    AddReputation(3);
-                    rivalHit += 5;
-                    Dialogue.Show("만화방", $"「{s.name}」 전권을 다 모았어요! 완결까지 본 아이들이 감동했대요. (평판 +3)", UIKit.Accent, "만");
-                }
+                if (Town.comic.Owned(s.id) >= s.total && !Town.comic.Completed(s.id)) CompleteComicSeries(s);
+            // 오늘의 요청 쪽지: 그 권이 있으면 팁 + 평판 (하루 평판은 +2까지)
+            int done = 0;
+            foreach (var r in ComicTable.Requests(Day))
+                if (Town.comic.Owned(r.series.id) >= r.volume) done++;
+            if (readers > 0 && done > 0)
+            {
+                int tip = done * ComicTable.RequestTip;
+                Money += tip;
+                Stats.revenue += tip;
+                AddReputation(Mathf.Min(2, done));
+                Stats.comicRequests = done;
+            }
             RefreshComicReaders(0);
             return readers * Town.comic.Fee * 2; // 두 시간씩
         }
 
         public int ComicVolumeCost(ComicSeries s) => s.pricePerVolume;
 
+        public bool ComicVisible(ComicSeries s) => !s.hidden || Town.comic.legendUnlocked;
+
         public string ComicBuyBlocker(ComicSeries s)
         {
+            if (!ComicVisible(s)) return $"보통 시리즈 {ComicTable.LegendNeeds}개를 완결하면 열려요";
             int owned = Town.comic.Owned(s.id), released = ComicTable.Released(s, Day);
             if (owned >= s.total) return "완결까지 다 있어요";
             if (owned >= released) return "다음 권이 아직 안 나왔어요";
@@ -393,17 +418,87 @@ namespace Munbanggu.Core
             if (Money < cost) { Fail("돈이 부족해요"); return false; }
             Money -= cost;
             Stats.invested += cost;
-            int owned = Town.comic.Owned(s.id) + 1;
-            Town.comic.SetOwned(s.id, owned);
+            var book = Town.comic.Book(s.id);
+            book.owned++;
+            int vol = book.owned;
+            // 희귀판 뽑기
+            float roll = Random.value;
+            string rare = null;
+            if (roll < ComicTable.SignedChance) { book.signed.Add(vol); rare = "작가 사인본"; }
+            else if (roll < ComicTable.SignedChance + ComicTable.FirstEditionChance) { book.first.Add(vol); rare = "초판 한정본"; }
+
             var fresh = ComicTable.NewToday(Day);
-            if (fresh == s && owned == ComicTable.Released(s, Day))
+            if (fresh == s && vol == ComicTable.Released(s, Day)) Town.comic.newBoughtDay = Day;
+            if (rare != null)
             {
-                Town.comic.newBoughtDay = Day;
-                Hud.Toast($"신간 「{s.name}」 {owned}권 입고! 오늘 만화방 손님 ×1.5");
+                Dialogue.Show("만화 총판", $"와! 「{s.name}」 {vol}권이 {rare}이에요! 만화방 아이들이 줄을 서겠어요. (만화 도감 ★)", UIKit.Accent, "★");
+                GameEvents.RaiseRushStarted();
             }
-            else Hud.Toast($"「{s.name}」 {owned}권을 들여놨어요");
+            else Hud.Toast(Town.comic.newBoughtDay == Day && fresh == s ? $"신간 「{s.name}」 {vol}권 입고! 오늘 만화방 손님 ×1.5" : $"「{s.name}」 {vol}권을 들여놨어요");
+            if (book.owned >= s.total && !Town.comic.Completed(s.id)) CompleteComicSeries(s);
+            RefreshUpstairsShelf();
+            Save();
             Notify();
             return true;
+        }
+
+        /// <summary>시리즈 완결: 평판·라이벌 타격·앨범 + 시리즈마다 영구 효과. 보통 시리즈 3개면 숨은 시리즈가 열림.</summary>
+        void CompleteComicSeries(ComicSeries s)
+        {
+            Town.comic.completed.Add(s.id);
+            UnlockAlbum("comic_complete");
+            AddReputation(3);
+            rivalHit += 5;
+            Dialogue.Show("만화 완결!", $"「{s.name}」 전권을 다 모았어요! 완결까지 본 아이들이 박수를 쳐요. (평판 +3)\n{s.effect}", UIKit.Accent, "만");
+            if (s.id == "ppyong") { RevealRecipeHint(); RevealRecipeHint(); }
+            ApplyComicEffects();
+            int normal = 0;
+            foreach (var c in ComicTable.Rotation) if (Town.comic.Completed(c.id)) normal++;
+            if (!Town.comic.legendUnlocked && normal >= ComicTable.LegendNeeds)
+            {
+                Town.comic.legendUnlocked = true;
+                Dialogue.Show("만화 총판", "단골 손님께만 드리는 비밀 시리즈가 있어요… 「할머니의 문방구」 전 3권! 어쩐지 이 가게 이야기 같다던데요?", new Color(1f, 0.55f, 0.65f), "?");
+            }
+            if (s.id == "legend") UnlockAlbum("comic_legend");
+        }
+
+        /// <summary>완결 효과 중 다른 곳에서 읽는 것들을 반영 (직원 걸음).</summary>
+        void ApplyComicEffects()
+        {
+            int walk = Town.comic.Completed("kwang") ? 1 : 0;
+            if (StaffRules.GlobalWalkBonus != walk)
+            {
+                StaffRules.GlobalWalkBonus = walk;
+                RebuildStaffAgents();
+            }
+        }
+
+        // ── 완결 효과·TV 방영이 가게에 주는 배율 ──
+        float ComicDemand(ProductData p)
+        {
+            if (p == null) return 1f;
+            float m = 1f;
+            var cs = Town.comic;
+            if (cs.Completed("bungae") && (p.category == ProductCategory.Toy)) m *= 1.1f;
+            if (cs.Completed("halmae") && p.category == ProductCategory.Snack) m *= 1.1f;
+            var tv = ComicTable.TVSeries(Day);
+            if (tv != null && tv.linkedProduct == p.id) m *= 1.5f; // TV 만화 방영 → 관련 상품 붐
+            return m;
+        }
+
+        float ComicSpawnMultiplier => Town.comic.Completed("legend") ? 1.1f : 1f;
+        float ComicSneakMultiplier => Town.comic.Completed("hana") ? 0.85f : 1f;
+        float ComicCounselPatience => Town.comic.Completed("dudu") ? 1.15f : 1f;
+
+        /// <summary>2층 창문 책장에 모은 만큼 책등을 꽂는다.</summary>
+        void RefreshUpstairsShelf()
+        {
+            var spines = new List<Color>();
+            foreach (var s in ComicTable.All)
+                for (int i = 0; i < Town.comic.Owned(s.id); i++) spines.Add(s.color);
+            Visual.ExpansionVisuals.ComicSpines = spines;
+            if (Layout != null && HasComicRoom)
+                expansionDecor = Visual.ExpansionVisuals.Rebuild(Layout.Root, Materials, District, Expansion, expansionDecor);
         }
 
         public bool UpgradeComicSeats()
@@ -523,6 +618,8 @@ namespace Munbanggu.Core
             Town.collection ??= new CollectionState();
             Town.grandmaSkills ??= new List<string>();
             LoadDiscovery();
+            ApplyComicEffects();
+            RefreshUpstairsShelf();
             Today = SchoolCalendar.For(Day);
         }
 
@@ -533,6 +630,9 @@ namespace Munbanggu.Core
             Money = Mathf.Max(Money, 50000);
             foreach (var s in ComicTable.All) Town.comic.SetOwned(s.id, Mathf.Min(ComicTable.Released(s, Day), s.id == "bungae" ? 8 : 2));
             Town.comic.seatLevel = 2;
+            { var bk = Town.comic.Book("bungae"); bk.first.Clear(); bk.signed.Clear(); bk.first.Add(2); bk.signed.Add(5); }
+            if (!Town.comic.completed.Contains("bungae")) Town.comic.completed.Add("bungae");
+            RefreshUpstairsShelf();
             Town.rival = new RivalState { district = District, active = true, strength = 62, openedDay = Day - 3, updatedDay = Day };
             Town.collection.AddCustomer("normal"); Town.collection.AddCustomer("counsel"); Town.collection.AddCustomer("regular_cheolsu");
             foreach (var p in Catalog.products) if (p.unlockDay <= 2) Town.collection.AddSold(p.id);

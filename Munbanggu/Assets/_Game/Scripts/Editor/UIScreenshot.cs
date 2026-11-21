@@ -241,6 +241,8 @@ namespace Munbanggu.EditorTools
                 Shot(hud, cam, rt, outDir, "29_dex_products");
                 hud.Town.OpenDex(2);
                 Shot(hud, cam, rt, outDir, "30_dex_combos");
+                hud.Town.OpenDex(3);
+                Shot(hud, cam, rt, outDir, "30b_dex_comics");
                 hud.CloseModals();
                 gm.DebugComicReaders(5);
                 Shot(hud, cam, rt, outDir, "31_comic_readers");

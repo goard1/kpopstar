@@ -18,6 +18,9 @@ namespace Munbanggu.Visual
 
         public const float AnnexX0 = -6.5f, AnnexX1 = -4.0f;
 
+        /// <summary>2층 만화방 창문 책장에 꽂을 책등 색 (모은 권마다 하나, GameManager가 채움).</summary>
+        public static System.Collections.Generic.List<Color> ComicSpines = new System.Collections.Generic.List<Color>();
+
         public static GameObject Rebuild(Transform parent, MaterialCache mats, int district, int level, GameObject previous)
         {
             if (previous != null)
@@ -180,6 +183,7 @@ namespace Munbanggu.Visual
 
             // 앞면(-Z) 창문 2개: 만화방은 책장, 오락실은 오락기 화면들
             float wy = y0 + 0.12f + h * 0.52f;
+            int spineIndex = 0;
             foreach (float wx in new[] { x0 + w * 0.28f, x0 + w * 0.72f })
             {
                 k.FlatBox(new Vector3(wx, wy, z0 - 0.005f), new Vector3(0.78f, 0.62f, 0.01f), arcade ? new Color(0.12f, 0.12f, 0.2f) : ShopDecor.Paper);
@@ -195,10 +199,16 @@ namespace Munbanggu.Visual
                 }
                 else
                 {
-                    Color[] spines = { ShopDecor.Red, ShopDecor.Yellow, ShopDecor.Blue, ShopDecor.Green, ShopDecor.Pink, ShopDecor.Ink };
+                    // 모은 만화책만큼 책등을 꽂는다 (창문 하나에 18권, 빈 칸은 연한 나무색)
+                    var empty = new Color(0.93f, 0.86f, 0.76f);
                     for (int r = 0; r < 2; r++)
                         for (int i = 0; i < 9; i++)
-                            k.FlatBox(new Vector3(wx - 0.3f + i * 0.075f, wy - 0.12f + r * 0.25f, z0 - 0.012f), new Vector3(0.06f, 0.2f, 0.004f), spines[(i + r * 2) % spines.Length]);
+                        {
+                            Color col = spineIndex < ComicSpines.Count ? ComicSpines[spineIndex] : empty;
+                            float hgt = spineIndex < ComicSpines.Count ? 0.2f : 0.06f;
+                            spineIndex++;
+                            k.FlatBox(new Vector3(wx - 0.3f + i * 0.075f, wy - 0.22f + r * 0.25f + hgt * 0.5f, z0 - 0.012f), new Vector3(0.06f, hgt, 0.004f), col);
+                        }
                 }
                 g.FlatBox(new Vector3(wx, wy, z0 - 0.02f), new Vector3(0.72f, 0.56f, 0.004f), new Color(0.8f, 0.92f, 1f));
                 k.Box(new Vector3(wx, wy - 0.33f, z0 - 0.04f), new Vector3(0.84f, 0.05f, 0.08f), ShopDecor.WoodLight, ShopDecor.Wood);

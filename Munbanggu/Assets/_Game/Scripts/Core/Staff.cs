@@ -151,7 +151,9 @@ namespace Munbanggu.Core
         };
 
         public static int Speed(StaffMember m) => Mathf.Clamp(m.speed + (FindItem(m.item)?.speed ?? 0) + (Has(m, "quickhands") ? 2 : 0), 1, 16);
-        public static int Walk(StaffMember m) => Mathf.Clamp(Mathf.Max(1, m.walk) + (FindItem(m.item)?.walk ?? 0) + (Has(m, "shortcut") ? 2 : 0), 1, 16);
+        /// <summary>가게 전체 걸음 보너스 (만화 「로봇 대장 쾅」 완결 등).</summary>
+        public static int GlobalWalkBonus;
+        public static int Walk(StaffMember m) => Mathf.Clamp(Mathf.Max(1, m.walk) + (FindItem(m.item)?.walk ?? 0) + (Has(m, "shortcut") ? 2 : 0) + GlobalWalkBonus, 1, 17);
         public static int Kindness(StaffMember m) => Mathf.Clamp(m.kindness + (FindItem(m.item)?.kindness ?? 0) + (Has(m, "smile") ? 2 : 0), 1, 16);
         public static int Sharp(StaffMember m) => Mathf.Clamp(m.sharp + (FindItem(m.item)?.sharp ?? 0) + (Has(m, "eagle") ? 2 : 0), 1, 16);
 

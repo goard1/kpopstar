@@ -230,7 +230,7 @@ namespace Munbanggu.UI
                 var tl = UIKit.Label("Text", tag.transform, s.active ? "버튼" : "늘 켜짐", 20, Color.white, TextAnchor.MiddleCenter);
                 UIKit.Stretch(tl.rectTransform);
                 Label(c, locked && gm.Day < s.minDay - 2 ? "???" : s.name, 30, learned ? UIKit.Green : UIKit.Ink, 122, 14, 250, 40);
-                Label(c, locked && gm.Day < s.minDay - 2 ? $"{s.minDay}일차쯤 알 수 있어요" : (learned ? "✓ " : "") + s.desc, 21, locked ? UIKit.Muted : UIKit.Muted, 26, 60, 250, 60);
+                Label(c, locked && gm.Day < s.minDay - 2 ? $"{s.minDay}일차쯤 알 수 있어요" : (learned ? "★ " : "") + s.desc, 21, locked ? UIKit.Muted : UIKit.Muted, 26, 60, 250, 60);
                 string id = s.id;
                 Side(c, -1, learned ? "배움" : blocker != null ? "아직" : $"배우기\n{UIKit.Won(s.cost)}", UIKit.Accent,
                     !learned && blocker == null && gm.Money >= s.cost, () => gm.BuyGrandmaSkill(id));
@@ -296,18 +296,71 @@ namespace Munbanggu.UI
                 }
             }
 
-            Header("만화책 (권마다 사서 꽂아 둬요 · 완결까지 모으면 보너스)");
+            // 이번 주 순위 · TV 방영
+            {
+                var chart = ComicTable.Chart(gm.Day);
+                var tv = ComicTable.TVSeries(gm.Day);
+                var c = Card(tv != null ? 210 : 170);
+                Label(c, "이번 주 만화 순위", 28, UIKit.Accent, 26, 12, 26, 36);
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < 3; i++)
+                {
+                    var s = chart[i];
+                    int last = ComicTable.LastWeekRank(s, gm.Day);
+                    string move = last < 0 ? "" : last > i ? " ▲" : last < i ? " ▼" : " -";
+                    sb.Append($"{i + 1}위 「{s.name}」{move}   ");
+                    if (i == 1) sb.Append("\n");
+                }
+                Label(c, sb.ToString(), 23, UIKit.Ink, 26, 52, 26, 70);
+                if (tv != null)
+                    Label(c, $"TV 방영 중: 「{tv.name}」 → 만화방 ×1.5 · {gm.Catalog.Find(tv.linkedProduct)?.displayName} 판매 ×1.5", 22, UIKit.Red, 26, 130, 26, 60);
+                else
+                    Label(c, "TV 만화는 2주마다 그 주 1위가 방영돼요", 21, UIKit.Muted, 26, 124, 26, 36);
+            }
+
+            // 오늘의 요청 쪽지
+            {
+                var reqs = ComicTable.Requests(gm.Day);
+                var c = Card(170);
+                Label(c, $"오늘의 요청 쪽지 (있는 권마다 정산 때 {UIKit.Won(ComicTable.RequestTip)})", 26, UIKit.Accent, 26, 12, 26, 36);
+                var sb = new System.Text.StringBuilder();
+                foreach (var r in reqs)
+                {
+                    bool have = cs.Owned(r.series.id) >= r.volume;
+                    sb.Append($"{(have ? "● 있음" : "○ 없음")}  「{r.series.name}」 {r.volume}권\n");
+                }
+                Label(c, sb.ToString().TrimEnd(), 24, UIKit.Ink, 26, 52, 26, 110);
+            }
+
+            Header("만화책 (권마다 사요 · 초판 10% / 사인본 3% · 완결하면 영구 효과)");
             var fresh = ComicTable.NewToday(gm.Day);
+            var tvNow = ComicTable.TVSeries(gm.Day);
+            var rank = ComicTable.Chart(gm.Day);
             foreach (var s in ComicTable.All)
             {
-                int owned = cs.Owned(s.id), released = ComicTable.Released(s, gm.Day);
+                if (!gm.ComicVisible(s))
+                {
+                    var lc = Card(120);
+                    var ls = UIKit.CardPanel("Cover", lc.transform, new Color(0.85f, 0.83f, 0.82f), 10, false, 3);
+                    UIKit.Place(ls.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(24, 0), new Vector2(66, 90));
+                    Label(lc, "??? (숨은 시리즈)", 28, UIKit.Muted, 110, 16, 26, 40);
+                    Label(lc, $"보통 시리즈 {ComicTable.LegendNeeds}개를 완결하면 만화 총판이 몰래 보여 준대요…", 21, UIKit.Muted, 110, 60, 26, 50);
+                    continue;
+                }
+                var book = cs.Book(s.id);
+                int owned = book.owned, released = ComicTable.Released(s, gm.Day);
                 bool isNew = fresh == s && owned < released;
                 bool done = owned >= s.total;
-                var c = Card(150);
+                int r = rank.IndexOf(s);
+                var c = Card(196);
                 var swatch = UIKit.CardPanel("Cover", c.transform, s.color, 10, false, 3);
                 UIKit.Place(swatch.rectTransform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(24, 0), new Vector2(66, 96));
-                Label(c, s.name + (done ? "  ★완결" : isNew ? "  신간!" : ""), 30, isNew ? UIKit.Red : done ? UIKit.Green : UIKit.Ink, 110, 12, 250, 44);
-                Label(c, $"{owned}권 보유 / {released}권 나옴 (전 {s.total}권)\n{s.blurb}", 21, UIKit.Muted, 110, 58, 250, 80);
+                string tags = (done ? "  ★완결" : "") + (isNew ? "  신간!" : "") + (tvNow == s ? "  TV" : "") + (r >= 0 && r < 3 ? $"  {r + 1}위" : "");
+                Label(c, s.name + tags, 28, isNew || tvNow == s ? UIKit.Red : done ? UIKit.Green : UIKit.Ink, 110, 12, 250, 40);
+                string rare = (book.first.Count > 0 ? $" · 초판 {book.first.Count}" : "") + (book.signed.Count > 0 ? $" · 사인본 {book.signed.Count}" : "");
+                Label(c, $"{owned}권 보유 / {released}권 나옴 (전 {s.total}권){rare}", 21, UIKit.Muted, 110, 54, 250, 30);
+                Label(c, s.blurb, 20, UIKit.Muted, 110, 84, 250, 56);
+                Label(c, (done ? "★ " : "") + s.effect, 20, done ? UIKit.Green : UIKit.Blue, 110, 142, 250, 40);
                 string blocker = gm.ComicBuyBlocker(s);
                 string id = s.id;
                 Side(c, -1, blocker == null ? $"{owned + 1}권 사기\n{UIKit.Won(s.pricePerVolume)}" : done ? "완결" : "대기", UIKit.Blue,
@@ -380,10 +433,36 @@ namespace Munbanggu.UI
                 default:
                     foreach (var s in ComicTable.All)
                     {
-                        int owned = gm.Town.comic.Owned(s.id);
-                        var c = Card(110);
-                        Label(c, owned > 0 ? $"{s.name}  {owned}/{s.total}권" + (owned >= s.total ? " ★" : "") : "???", 28, owned > 0 ? UIKit.Ink : UIKit.Muted, 26, 12, 26, 40);
-                        Label(c, owned > 0 ? s.blurb : "만화방에 들여놓으면 알 수 있어요.", 21, UIKit.Muted, 26, 56, 26, 46);
+                        if (!gm.ComicVisible(s))
+                        {
+                            var hc = Card(90);
+                            Label(hc, "??? (숨은 시리즈)", 28, UIKit.Muted, 26, 22, 26, 40);
+                            continue;
+                        }
+                        var book = gm.Town.comic.Book(s.id);
+                        int released = ComicTable.Released(s, gm.Day);
+                        var c = Card(160);
+                        Label(c, book.owned > 0 ? $"{s.name}  {book.owned}/{s.total}권" + (book.owned >= s.total ? " ★완결" : "") : $"{s.name}  (아직 없음)", 27, book.owned > 0 ? UIKit.Ink : UIKit.Muted, 26, 12, 26, 40);
+                        // 권마다 칸: 가진 권 = 시리즈 색 (초판 ★ 금테, 사인본 ★★), 나왔지만 없는 권 = 회색, 안 나온 권 = 점선 느낌의 연한 칸
+                        for (int v = 1; v <= s.total; v++)
+                        {
+                            bool have = v <= book.owned;
+                            bool first = book.first.Contains(v), signed = book.signed.Contains(v);
+                            Color volColor = have ? s.color : v <= released ? new Color(0.82f, 0.8f, 0.8f) : new Color(0.94f, 0.93f, 0.92f);
+                            var tile = UIKit.CardPanel("Vol", c.transform, signed ? new Color(1f, 0.6f, 0.2f) : first ? new Color(1f, 0.85f, 0.3f) : volColor, 8, false, 2);
+                            var trt = tile.rectTransform;
+                            trt.anchorMin = trt.anchorMax = new Vector2(0, 1);
+                            trt.pivot = new Vector2(0, 1);
+                            trt.sizeDelta = new Vector2(70, 92);
+                            trt.anchoredPosition = new Vector2(26 + (v - 1) * 80, -56);
+                            if (signed || first)
+                            {
+                                var inner = UIKit.CardPanel("Cover", tile.transform, volColor, 6, false, 0);
+                                UIKit.Stretch(inner.rectTransform, 6, 6, 6, 6);
+                            }
+                            var t = UIKit.Label("N", tile.transform, signed ? "★★" : first ? "★" : v.ToString(), signed || first ? 22 : 26, have ? Color.white : UIKit.Muted, TextAnchor.MiddleCenter);
+                            UIKit.Stretch(t.rectTransform);
+                        }
                     }
                     break;
             }
