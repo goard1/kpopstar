@@ -150,7 +150,7 @@ namespace Munbanggu.Visual
             k.FlatBox(new Vector3(cx, y0 + 0.07f, 3.995f), new Vector3(w, 0.05f, 0.012f), Yellow);
 
             // 문 방 구 (블록 글자). 대만판은 SignText가 「柑仔店」을 쓴다
-            if (!Munbanggu.Core.L.Zh)
+            if (!Munbanggu.Core.L.Translated)
             {
                 const float g = 0.62f, gap = 0.78f;
                 float gx = cx - gap - g * 0.5f, gy = cy - g * 0.5f;
@@ -174,10 +174,12 @@ namespace Munbanggu.Visual
             k.Box(new Vector3(cx + 2.3f, 3.01f, 4.1f), new Vector3(0.1f, 0.06f, 0.14f), WoodDark);
         }
 
-        /// <summary>대만판 간판 글자 「柑仔店」 (블록 글자 대신 둥근 글꼴 TextMesh). 한국어판은 아무것도 안 만든다.</summary>
+        /// <summary>번역판 간판 글자 (대만판 「柑仔店」, 미국판 "CORNER STORE"). 한국어판은 블록 글자라 아무것도 안 만든다.</summary>
         public static void SignText(Transform root)
         {
-            if (!Munbanggu.Core.L.Zh) return;
+            if (!Munbanggu.Core.L.Translated) return;
+            string word = Munbanggu.Core.L.Zh ? "柑仔店" : "CORNER STORE";
+            float size = Munbanggu.Core.L.Zh ? 0.064f : 0.034f;
             var font = Munbanggu.UI.UIKit.Font;
             var go = new GameObject("SignText");
             go.transform.SetParent(root, false);
@@ -185,21 +187,21 @@ namespace Munbanggu.Visual
             // 한국어판 블록 글자처럼 두툼하게: 진한 그림자 글자를 여러 겹 뒤에 깔고 앞에 흰 글자
             var shade = new Color(0.30f, 0.36f, 0.52f);
             for (int i = 3; i >= 1; i--)
-                MakeSignLayer(go.transform, font, new Vector3(0.012f * i, -0.016f * i, 0.004f * i), shade);
-            MakeSignLayer(go.transform, font, Vector3.zero, Paper);
+                MakeSignLayer(go.transform, font, new Vector3(0.012f * i, -0.016f * i, 0.004f * i), shade, word, size);
+            MakeSignLayer(go.transform, font, Vector3.zero, Paper, word, size);
         }
 
-        static void MakeSignLayer(Transform parent, Font font, Vector3 offset, Color color)
+        static void MakeSignLayer(Transform parent, Font font, Vector3 offset, Color color, string word, float size)
         {
             var go = new GameObject("Layer");
             go.transform.SetParent(parent, false);
             go.transform.localPosition = offset;
             var tm = go.AddComponent<TextMesh>();
             tm.font = font;
-            tm.text = "柑仔店";
+            tm.text = word;
             tm.fontSize = 96;
             tm.fontStyle = FontStyle.Bold;
-            tm.characterSize = 0.064f;
+            tm.characterSize = size;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
             tm.color = color;

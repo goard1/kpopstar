@@ -236,10 +236,19 @@ namespace Munbanggu.Core
         /// <summary>돈 표시. 한국어 "1,000원", 대만판 "100元".</summary>
         public static string Money(int won)
         {
-            if (En) return "₩" + won.ToString("N0", CultureInfo.InvariantCulture);   // 영어판: 한국 동네 그대로, ₩1,000
+            if (En) return UsDollars(won);   // 미국판: 1,000원 = $1 (100원 = $0.10)
             if (!Zh) return won.ToString("N0", CultureInfo.InvariantCulture) + "원";
             if (won % 10 == 0) return (won / 10).ToString("N0", CultureInfo.InvariantCulture) + "元";
             return (won / 10f).ToString("0.#", CultureInfo.InvariantCulture) + "元";
+        }
+
+        /// <summary>미국판 돈: 원 ÷ 1000 달러. 딱 떨어지면 "$3", 아니면 "$0.50".</summary>
+        static string UsDollars(int won)
+        {
+            string sign = won < 0 ? "-" : "";
+            int a = Mathf.Abs(won);
+            if (a % 1000 == 0) return sign + "$" + (a / 1000).ToString("N0", CultureInfo.InvariantCulture);
+            return sign + "$" + (a / 1000f).ToString("N2", CultureInfo.InvariantCulture);
         }
 
         static void NoteMissing(string s)

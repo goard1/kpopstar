@@ -78,3 +78,25 @@
 - 번역값 `∅` = 일부러 비움 (영어에선 "명·개" 같은 단위를 안 붙이려고).
 - 영어가 길어서 타이틀 제목·컷신 쪽지/편지 글은 칸에 맞게 글자 크기를 자동으로 줄인다.
 - 도구: `문방구/UI 스크린샷 찍기 (English)` → `Logs/ui-shots-en`, 못 바꾼 글 `Logs/loc-missing-en.txt`.
+
+## 영어판 → 미국판으로 현지화 (10-4)
+한국 배경을 살리던 영어판을 대만판처럼 **미국 아이들의 추억**으로 바꿨다. 제목 「Grandma's Corner Store」, 간판 "CORNER STORE".
+
+| 한국어판 | 미국판 |
+|---|---|
+| 쫀드기 · 아폴로 · 맥주사탕 · 쌀대롱 | Taffy · Candy Straws · Root Beer Barrels · Cheese Puffs |
+| 딱지 · 번호 뽑기 · 물총 · 스티커 | Milk Caps · Punch Board · Squirt Gun · Scratch 'n' Sniff Stickers |
+| 철수 · 영희 · 민수 · 영수 | Tommy · Amy · Richie · Danny |
+| 학교 앞 골목 / 아파트 상가 / 번화가 | School Corner / Strip Mall / Main Street |
+| 할인마트 · 편의점 · 백화점 | MegaMart Discount Store · Gas Station Mini-Mart · Toy Town at the Mall |
+| 반장 아저씨 · 도깨비 꼬마 · 구청장 | PTA Mom (bake sale) · Little Leprechaun (pot o' gold) · The Mayor |
+| 서울 전학생 · 옆집 할아버지 | New kid from New York · Old Mr. Wilson |
+| 고양이 치즈 | Nacho |
+| 어린이날 · 추석 · 설날 | Last Day of School · Fourth of July · Christmas Eve |
+| 시험 기간 · 운동회 · 방학 | Test week · Field Day · Summer vacation |
+| 돈 1,000원 | $1 (100원 = $0.10, 50원 = a nickel) |
+
+- 직원 이름도 Jenny · Mike · Lisa … , 주인공 기본 이름 Emma / Jake.
+- 3D 모양 4가지: 태피(파스텔 종이 꼬임) · 루트비어 배럴 · 치즈퍼프 봉지 · 밀크캡.
+- 만화: Karate Girl Hannah · Captain Robo Blast · Detective Pup · Grandma's Kitchen Champs, 숨은 시리즈 「Grandma's Corner Store」.
+- 상표 이름(포그·픽시스틱 등)은 쓰지 않았다.

@@ -55,6 +55,7 @@ namespace Munbanggu.Visual
         static void BuildShape(MeshKit k, string id, Color c)
         {
             if (Munbanggu.Core.L.Zh && TaiwanShape(k, id)) return; // 대만판: 王子麵·牛奶糖·乖乖·尪仔標
+            if (Munbanggu.Core.L.En && UsShape(k, id)) return;      // 미국판: 태피·루트비어 배럴·치즈퍼프·밀크캡
             switch (id)
             {
                 case "jjondeugi": Jjondeugi(k, c); return;
@@ -211,6 +212,71 @@ namespace Munbanggu.Visual
             k.Cylinder(new Vector3(0f, 0.009f, -0.014f), 0.012f, 0.002f, 6, rims[0]);
             k.Pop();
         }
+
+        // ───────────── 미국판 모양 ─────────────
+
+        /// <summary>미국판에서 모양까지 바뀌는 상품 (태피·루트비어 배럴·치즈퍼프·밀크캡). 아니면 false.</summary>
+        static bool UsShape(MeshKit k, string id)
+        {
+            switch (id)
+            {
+                case "jjondeugi": Taffy(k); return true;
+                case "beercandy": RootBeerBarrels(k); return true;
+                case "ssaldaerong": CheesePuffs(k); return true;
+                case "ddakji": MilkCaps(k); return true;
+            }
+            return false;
+        }
+
+        // 태피: 파스텔 종이에 양끝을 꼰 말랑 사탕 무더기
+        static void Taffy(MeshKit k)
+        {
+            Color[] cols = { new Color(1f, 0.7f, 0.78f), new Color(0.7f, 0.88f, 1f), new Color(1f, 0.93f, 0.6f), new Color(0.72f, 0.95f, 0.78f) };
+            Vector3[] pos = { new Vector3(-0.05f, 0.03f, 0.03f), new Vector3(0.05f, 0.03f, -0.02f), new Vector3(0f, 0.03f, -0.06f), new Vector3(0f, 0.075f, 0.01f), new Vector3(-0.04f, 0.075f, -0.04f) };
+            for (int i = 0; i < pos.Length; i++)
+            {
+                k.Push(pos[i], Quaternion.Euler(0f, i * 47f, 0f));
+                k.Box(Vector3.zero, new Vector3(0.07f, 0.035f, 0.04f), cols[i % cols.Length], cols[i % cols.Length]);
+                k.Push(new Vector3(0.05f, 0f, 0f), Quaternion.Euler(0f, 0f, 90f));
+                k.Frustum(Vector3.zero, 0.022f, 0.006f, 0.025f, 5, Paper, Paper);
+                k.Pop();
+                k.Push(new Vector3(-0.05f, 0f, 0f), Quaternion.Euler(0f, 0f, -90f));
+                k.Frustum(Vector3.zero, 0.022f, 0.006f, 0.025f, 5, Paper, Paper);
+                k.Pop();
+                k.Pop();
+            }
+        }
+
+        // 루트비어 배럴: 갈색 통 모양 사탕 (흰 띠) 여러 개
+        static void RootBeerBarrels(MeshKit k)
+        {
+            Color brown = new Color(0.55f, 0.30f, 0.16f), band = new Color(0.98f, 0.9f, 0.75f);
+            Vector3[] pos = { new Vector3(-0.045f, 0.03f, 0.03f), new Vector3(0.045f, 0.03f, 0.01f), new Vector3(0f, 0.03f, -0.05f), new Vector3(0f, 0.085f, 0f) };
+            for (int i = 0; i < pos.Length; i++)
+            {
+                k.Push(pos[i], Quaternion.Euler(0f, i * 40f, 90f));
+                k.Sphere(Vector3.zero, new Vector3(0.032f, 0.045f, 0.032f), 8, 5, brown);
+                k.Cylinder(new Vector3(0f, 0.022f, 0f), 0.031f, 0.006f, 8, band);
+                k.Cylinder(new Vector3(0f, -0.022f, 0f), 0.031f, 0.006f, 8, band);
+                k.Pop();
+            }
+        }
+
+        // 치즈퍼프: 주황 봉지 + 노란 퍼프 그림
+        static void CheesePuffs(MeshKit k)
+        {
+            Color orange = new Color(0.98f, 0.55f, 0.15f), yellow = new Color(1f, 0.86f, 0.3f);
+            PillowBag(k, orange, new Color(0.85f, 0.35f, 0.1f), 0.18f, 0.22f);
+            k.Push(Vector3.zero, Quaternion.Euler(-12f, 0f, 0f));
+            k.DiscFacing(new Vector3(0f, 0.14f, 0.052f), new Vector2(0.06f, 0.035f), Vector3.forward, 12, yellow);
+            k.FlatBox(new Vector3(0f, 0.14f, 0.055f), new Vector3(0.08f, 0.018f, 0.004f), new Color(0.85f, 0.2f, 0.15f));
+            for (int i = 0; i < 3; i++)
+                k.DiscFacing(new Vector3(-0.045f + i * 0.045f, 0.06f, 0.052f), new Vector2(0.018f, 0.012f), Vector3.forward, 7, new Color(1f, 0.65f, 0.2f));
+            k.Pop();
+        }
+
+        // 밀크캡: 그림 찍힌 동그란 종이 뚜껑 묶음 (尪仔標와 같은 모양, 색만 미국풍)
+        static void MilkCaps(MeshKit k) => AngAPiau(k);
 
         // ───────────── 알려진 상품 ─────────────
 
