@@ -106,7 +106,8 @@ namespace Munbanggu.UI
         readonly Dictionary<ProductData, InvItem> invByProduct = new Dictionary<ProductData, InvItem>();
         readonly List<InvItem> invOrder = new List<InvItem>();
         GameObject actionRow;
-        Button wholesaleButton, openButton, speedButton, upgradeButton;
+        Button wholesaleButton, openButton, speedButton, upgradeButton, staffButton;
+        StaffPanel staffPanel;
         UpgradePanel upgradePanel;
         Text speedLabel;
         int shownSpeed = -1;
@@ -190,6 +191,7 @@ namespace Munbanggu.UI
             BuildSlotLabels();
             BuildWholesaleModal();
             { var m = Modal("Upgrade Modal", out var upCard, 1640, out var upJuice); upgradePanel = UpgradePanel.Build(gm, m, upCard, upJuice); }
+            { var m = Modal("Staff Modal", out var sfCard, 1640, out var sfJuice); staffPanel = StaffPanel.Build(gm, m, sfCard, sfJuice); }
             BuildSettlementModal();
 
             // 모달 위에 뜨는 것들: 토스트·배너·튜토리얼·동전
@@ -321,23 +323,30 @@ namespace Munbanggu.UI
             UIKit.Bottom(row, ActionHeight, ActionY, 22);
             actionRow = row.gameObject;
 
-            wholesaleButton = UIKit.Button("Wholesale", row, "도매상", 44, UIKit.Blue, Color.white, out _);
+            wholesaleButton = UIKit.Button("Wholesale", row, "도매상", 40, UIKit.Blue, Color.white, out _);
             wholesaleButton.onClick.AddListener(() => OpenModal(wholesaleModal, wholesaleCardJuice));
             var shopRt = (RectTransform)wholesaleButton.transform;
-            shopRt.anchorMin = new Vector2(0, 0); shopRt.anchorMax = new Vector2(0.3f, 1);
+            shopRt.anchorMin = new Vector2(0, 0); shopRt.anchorMax = new Vector2(0.24f, 1);
             shopRt.offsetMin = new Vector2(0, 8); shopRt.offsetMax = new Vector2(-10, 0);
 
             // 가게 꾸미기 (업그레이드 상점)
-            upgradeButton = UIKit.Button("Upgrade", row, "가게 꾸미기", 38, UIKit.Yellow, UIKit.Ink, out _);
+            upgradeButton = UIKit.Button("Upgrade", row, "꾸미기", 38, UIKit.Yellow, UIKit.Ink, out _);
             upgradeButton.onClick.AddListener(() => upgradePanel.Open());
             var upRt = (RectTransform)upgradeButton.transform;
-            upRt.anchorMin = new Vector2(0.3f, 0); upRt.anchorMax = new Vector2(0.58f, 1);
-            upRt.offsetMin = new Vector2(10, 8); upRt.offsetMax = new Vector2(-10, 0);
+            upRt.anchorMin = new Vector2(0.24f, 0); upRt.anchorMax = new Vector2(0.46f, 1);
+            upRt.offsetMin = new Vector2(8, 8); upRt.offsetMax = new Vector2(-8, 0);
 
-            openButton = UIKit.Button("Open", row, "가게 문 열기!", 46, UIKit.Red, Color.white, out _);
+            // 직원 관리
+            staffButton = UIKit.Button("Staff", row, "직원", 38, UIKit.Green, Color.white, out _);
+            staffButton.onClick.AddListener(() => staffPanel.Open());
+            var stRt = (RectTransform)staffButton.transform;
+            stRt.anchorMin = new Vector2(0.46f, 0); stRt.anchorMax = new Vector2(0.66f, 1);
+            stRt.offsetMin = new Vector2(8, 8); stRt.offsetMax = new Vector2(-8, 0);
+
+            openButton = UIKit.Button("Open", row, "문 열기!", 44, UIKit.Red, Color.white, out _);
             openButton.onClick.AddListener(gm.OpenShop);
             var openRt = (RectTransform)openButton.transform;
-            openRt.anchorMin = new Vector2(0.58f, 0); openRt.anchorMax = new Vector2(1, 1);
+            openRt.anchorMin = new Vector2(0.66f, 0); openRt.anchorMax = new Vector2(1, 1);
             openRt.offsetMin = new Vector2(10, 8); openRt.offsetMax = Vector2.zero;
             UIKit.TapeStrip(openButton.transform, new Vector2(1, 1), new Vector2(-46, -6), -18, 96);
 
@@ -930,11 +939,13 @@ namespace Munbanggu.UI
         public void CloseSettings() => settings.Close();
 
         public void OpenUpgrades() => upgradePanel.Open();
+        public void OpenStaff() => staffPanel.Open();
 
         public void CloseModals()
         {
             wholesaleModal.SetActive(false);
             upgradePanel.Close();
+            staffPanel.Close();
             StopSettlementAnim();
             settlementModal.SetActive(false);
         }

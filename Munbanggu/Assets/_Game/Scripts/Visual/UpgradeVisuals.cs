@@ -43,15 +43,6 @@ namespace Munbanggu.Visual
                 ArcadeCabinet(kit, ArcadePosition(i), i);
             kit.Build("Upgrade Mesh", root.transform, mats.VertexColor);
 
-            // 알바생: 계산대 뒤 (할머니 옆에 서서 손님 줄을 봄)
-            if (up.Level(UpgradeTable.Helper) > 0)
-            {
-                var helper = new GameObject("Helper");
-                helper.transform.SetParent(root.transform, false);
-                helper.transform.localPosition = new Vector3(-3.62f, 0f, -0.45f);
-                helper.transform.localRotation = Quaternion.Euler(0f, 110f, 0f);
-                CustomerVisual.Build(helper.transform, mats, new CustomerLook { seed = 424242 });
-            }
             return root;
         }
 

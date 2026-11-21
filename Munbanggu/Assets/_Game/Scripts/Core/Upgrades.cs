@@ -35,7 +35,7 @@ namespace Munbanggu.Core
         public const string Sign = "sign";
         public const string Fan = "fan";
         public const string Hours = "hours";
-        public const string Helper = "helper";
+        public const string Helper = "helper"; // (예전 업그레이드, 지금은 직원 시스템으로 대체 — 세이브 변환용 id)
         public const string Mirror = "mirror";
         public const string Ledger = "ledger";
         public const string Wholesale = "wholesale";
@@ -53,8 +53,6 @@ namespace Munbanggu.Core
                 new[] { 2500, 7000 }, new[] { "손님 인내심 +25%", "손님 인내심 +50%" }),
             new UpgradeDef(Hours, "영업시간 연장", UpgradeCategory.Customers, "문을 조금 더 늦게 닫아요.",
                 new[] { 5000, 14000 }, new[] { "영업 +20초", "영업 +40초" }),
-            new UpgradeDef(Helper, "알바생", UpgradeCategory.Helpers, "계산 줄 맨 앞 손님을 알아서 계산해 줘요.",
-                new[] { 10000, 25000 }, new[] { "6초마다 한 명 계산", "3.5초마다 한 명 계산" }),
             new UpgradeDef(Mirror, "방범 거울", UpgradeCategory.Helpers, "몰래 나가는 아이가 눈치 보느라 느려져요.",
                 new[] { 3000, 8000 }, new[] { "슬쩍 아이 속도 -25%", "슬쩍 아이 속도 -45%" }),
             new UpgradeDef(Ledger, "외상 장부 관리", UpgradeCategory.Helpers, "외상 장부에 집 전화번호까지 적어 둬요.",
@@ -76,7 +74,6 @@ namespace Munbanggu.Core
         public static float SpawnMultiplier(int lv) => 1f + 0.15f * lv;
         public static float PatienceMultiplier(int lv) => 1f + 0.25f * lv;
         public static float ExtraOpenSeconds(int lv) => 20f * lv;
-        public static float HelperInterval(int lv) => lv <= 0 ? 0f : lv == 1 ? 6f : 3.5f;
         public static float SneakSpeedMultiplier(int lv) => lv <= 0 ? 1f : lv == 1 ? 0.75f : 0.55f;
         public static float CreditRepayChance(int lv) => lv <= 0 ? 0.6f : lv == 1 ? 0.75f : 0.9f;
         public static float WholesaleMultiplier(int lv) => 1f - 0.1f * lv;

@@ -59,6 +59,7 @@ namespace Munbanggu.Customers
         int routeIdx;
         float doorX;
         float speedMul = 1f;
+        bool guardChecked;
 
         public CustomerKind Kind { get; private set; }
         /// <summary>상담 손님의 고민 (상담 손님이 아니면 null).</summary>
@@ -104,7 +105,7 @@ namespace Munbanggu.Customers
             {
                 // 매대로 가지 않고 곧장 계산 줄로 (문을 지난 뒤)
                 state = State.Queued;
-                patience = maxPatience = maxPatience * 1.4f;
+                patience = maxPatience = maxPatience * 1.4f * gm.CounselPatienceBonus;
                 gm.Layout.Queue.Join(this);
                 bubble.SetIcon(null);
                 bubble.Flash("할머니~ 고민 있어요!", UIKit.BubbleNormal, 1.6f);
@@ -205,6 +206,13 @@ namespace Munbanggu.Customers
             if (routeIdx < route.Length)
             {
                 if (MoveTo(route[routeIdx])) routeIdx++;
+                // 경비 직원: 몰래 나가던 아이가 문 안쪽에 닿으면 잡을 기회
+                if (state == State.Sneaking && !guardChecked && routeIdx >= 1)
+                {
+                    guardChecked = true;
+                    var guard = gm.TryGuardCatch();
+                    if (guard != null) { CatchSneak($"경비 {guard.name}: 거기 서!"); Bob(); return; }
+                }
                 if (routeIdx >= route.Length && (state == State.Leaving || state == State.Sneaking))
                 {
                     if (state == State.Sneaking) gm.OnStolen(Carried); // 못 잡았다
@@ -334,7 +342,7 @@ namespace Munbanggu.Customers
 
         void OnBubbleClicked()
         {
-            if (state == State.Sneaking) { CatchSneak(); return; }
+            if (state == State.Sneaking) { CatchSneak(null); return; }
             if (state == State.Crying) { Comfort(); return; }
             if (state == State.Pulling) { DoPull(); return; }
             if (state != State.Queued || gm.Layout.Queue.Front != this) return;
@@ -387,7 +395,7 @@ namespace Munbanggu.Customers
         /// 알바생 자동 계산: 줄 맨 앞에 도착해 기다리는 보통 손님만 (외상 손님은 주인이 직접 판단).
         /// 계산했으면 true.
         /// </summary>
-        public bool TryAutoCheckout()
+        public bool TryAutoCheckout(string line = "알바생이 계산해 줬어요")
         {
             if (state != State.Queued || Carried == null || Kind == CustomerKind.Credit) return false;
             var queue = gm.Layout.Queue;
@@ -395,7 +403,7 @@ namespace Munbanggu.Customers
             Vector3 d = queue.SpotFor(this) - transform.position;
             d.y = 0f;
             if (d.sqrMagnitude > 0.05f) return false; // 아직 걸어오는 중
-            PayAndLeave("알바생이 계산해 줬어요");
+            PayAndLeave(line);
             return true;
         }
 
@@ -472,7 +480,7 @@ namespace Munbanggu.Customers
         }
 
         /// <summary>문 나가기 전에 잡았다 → 제값 받고 보냄.</summary>
-        void CatchSneak()
+        void CatchSneak(string byLine)
         {
             if (Carried == null) return;
             speedMul = 1f;
@@ -481,7 +489,8 @@ namespace Munbanggu.Customers
             Carried = null;
             bubble.SetIcon(null);
             GameEvents.RaiseCheckedOut(this, price);
-            Leave($"헉! 죄송해요… 돈 낼게요\n+{UIKit.Won(price)}", UIKit.BubbleMoney, 1.8f);
+            string head = byLine != null ? byLine + "\n" : "";
+            Leave($"{head}헉! 죄송해요… 돈 낼게요\n+{UIKit.Won(price)}", UIKit.BubbleMoney, 1.8f);
         }
 
         void AskCredit()

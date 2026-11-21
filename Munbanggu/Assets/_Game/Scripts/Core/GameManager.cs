@@ -42,6 +42,7 @@ namespace Munbanggu.Core
         // 상담 손님
         public int counselPerfect, counselOk, counselWrong, counselNone;
         public int reputationDelta;
+        public int salary;         // 직원 월급 (정산 때 빠짐)
         public int Profit => revenue - cost;
     }
 
@@ -154,6 +155,7 @@ namespace Munbanggu.Core
             HUD.CollectSettlementLines -= AddSettlementLines; // static 이벤트: 중복 구독 방지
             HUD.CollectSettlementLines += AddSettlementLines;
             LoadOrNew();
+            RebuildStaffAgents();
             Speed = Mathf.Clamp(PlayerPrefs.GetInt(SpeedPref, 1), 1, MaxSpeed);
             initialized = true;
             StartMorning();
@@ -184,6 +186,7 @@ namespace Munbanggu.Core
             if (Stats.comforted > 0) lines.Add(SettlementLine.Count("달래 준 아이", Stats.comforted));
             if (Stats.arcade > 0) lines.Add(SettlementLine.Money("그중 오락기 수입", Stats.arcade));
             if (Stats.invested > 0) lines.Add(SettlementLine.Money("오늘 가게에 투자", Stats.invested, true));
+            if (Stats.salary > 0) lines.Add(SettlementLine.Money($"직원 월급 ({Staff.members.Count}명)", Stats.salary, true));
             if (Stats.pulls > 0) lines.Add(SettlementLine.Count("번호 뽑기", Stats.pulls, "판"));
             if (Stats.jackpots > 0) lines.Add(SettlementLine.Count("1등 당첨!", Stats.jackpots, "번"));
             var board = Layout.Board;
@@ -377,6 +380,9 @@ namespace Munbanggu.Core
         void EnterSettlement()
         {
             Phase = DayPhase.Settlement;
+            // 직원 월급
+            int salary = DailySalaryTotal();
+            if (salary > 0) { Money -= salary; Stats.salary = salary; }
             Save();
             GameEvents.RaisePhaseChanged(Phase);
             Notify();
@@ -387,7 +393,7 @@ namespace Munbanggu.Core
         {
             if (!initialized) return;
             ApplySpeed();
-            if (Phase == DayPhase.Open || Phase == DayPhase.Closing) TickHelper();
+            if (Phase == DayPhase.Open || Phase == DayPhase.Closing) TickStaff();
             if (Phase == DayPhase.Open)
             {
                 openTimer += Time.deltaTime;
@@ -574,7 +580,6 @@ namespace Munbanggu.Core
 
         public Upgrades Upgrades { get; } = new Upgrades();
         GameObject upgradeDecor;
-        float helperTimer;
         float arcadeTimer;
 
         /// <summary>상자 값 (도매상 단골 할인 반영, 10원 단위).</summary>
@@ -648,17 +653,6 @@ namespace Munbanggu.Core
             upgradeDecor = Visual.UpgradeVisuals.Rebuild(Layout.Root, Materials, Upgrades, upgradeDecor);
         }
 
-        /// <summary>알바생: 일정 간격으로 계산 줄 맨 앞 손님을 대신 계산.</summary>
-        void TickHelper()
-        {
-            float interval = UpgradeTable.HelperInterval(Upgrades.Level(UpgradeTable.Helper));
-            if (interval <= 0f) return;
-            helperTimer += Time.deltaTime;
-            if (helperTimer < interval) return;
-            var front = Layout.Queue.Front;
-            if (front != null && front.TryAutoCheckout()) helperTimer = 0f;
-            else helperTimer = interval; // 손님이 오면 바로
-        }
 
         /// <summary>오락기: 영업 중 대수만큼 일정 간격으로 동전 수입.</summary>
         void TickArcade()
@@ -675,6 +669,265 @@ namespace Munbanggu.Core
             int which = UnityEngine.Random.Range(0, machines);
             Hud.Fx.CoinBurst(Layout.Root.TransformPoint(Visual.UpgradeVisuals.ArcadePosition(which)) + Vector3.up * 1.4f, coin);
             Notify();
+        }
+
+        // ───────────── 직원 (docs/06) ─────────────
+
+        public StaffState Staff { get; private set; } = new StaffState();
+        readonly Dictionary<StaffMember, float> staffTimers = new Dictionary<StaffMember, float>();
+        readonly Dictionary<StaffMember, StaffAgent> staffAgents = new Dictionary<StaffMember, StaffAgent>();
+        readonly System.Random staffRng = new System.Random();
+
+        /// <summary>오늘의 지원자 (이미 고용한 사람 제외).</summary>
+        public List<StaffMember> StaffCandidates()
+        {
+            if (Staff.hiredDay != Day) { Staff.hiredDay = Day; Staff.hiredToday.Clear(); }
+            var taken = new HashSet<string>(Staff.hiredToday);
+            foreach (var m in Staff.members) taken.Add(m.name);
+            return StaffRules.Candidates(Day, 3, taken);
+        }
+
+        public int DailySalaryTotal()
+        {
+            int sum = 0;
+            foreach (var m in Staff.members) sum += StaffRules.DailySalary(m);
+            return sum;
+        }
+
+        bool MorningOnly(string what)
+        {
+            if (Phase == DayPhase.Morning) return true;
+            Fail($"{Josa.Eun(what)} 아침에만 할 수 있어요");
+            return false;
+        }
+
+        public bool HireStaff(StaffMember candidate)
+        {
+            if (candidate == null || !MorningOnly("직원 고용")) return false;
+            if (Staff.members.Count >= Staff.maxStaff) { Fail($"직원은 {Staff.maxStaff}명까지예요 (가게를 넓히면 늘어나요)"); return false; }
+            Staff.members.Add(candidate);
+            Staff.hiredToday.Add(candidate.name);
+            Hud.Toast($"{Josa.I(candidate.name)} 오늘부터 일해요! ({StaffRules.JobName(candidate.job)})");
+            RebuildStaffAgents();
+            Save();
+            Notify();
+            return true;
+        }
+
+        public void FireStaff(StaffMember m)
+        {
+            if (m == null || !MorningOnly("직원 내보내기")) return;
+            Staff.members.Remove(m);
+            Hud.Toast($"{Josa.Wa(m.name)} 작별했어요. 그동안 고마웠어!");
+            RebuildStaffAgents();
+            Save();
+            Notify();
+        }
+
+        /// <summary>맡은 일을 다음 일로 바꾼다 (계산 → 진열 → 경비 → 상담 보조).</summary>
+        public void CycleStaffJob(StaffMember m)
+        {
+            if (m == null || !MorningOnly("일 바꾸기")) return;
+            m.job = (StaffJob)(((int)m.job + 1) % 4);
+            RebuildStaffAgents();
+            Save();
+            Notify();
+        }
+
+        /// <summary>교육: 돈을 내고 바로 레벨업.</summary>
+        public bool TrainStaff(StaffMember m)
+        {
+            if (m == null || !MorningOnly("교육")) return false;
+            if (m.level >= StaffRules.MaxLevel) { Fail("이미 최고 레벨이에요"); return false; }
+            int cost = StaffRules.TrainCost(m);
+            if (Money < cost) { Fail("돈이 부족해요"); return false; }
+            Money -= cost;
+            Stats.invested += cost;
+            m.exp = 0;
+            StaffRules.LevelUp(m, staffRng);
+            Hud.Toast($"{m.name} 교육 완료! Lv{m.level}");
+            Save();
+            Notify();
+            return true;
+        }
+
+        public bool BuyStaffItem(string id)
+        {
+            var def = StaffRules.FindItem(id);
+            if (def == null || !MorningOnly("아이템 사기")) return false;
+            if (Staff.ownedItems.Contains(id)) { Fail("이미 있는 아이템이에요"); return false; }
+            if (Money < def.price) { Fail("돈이 부족해요"); return false; }
+            Money -= def.price;
+            Stats.invested += def.price;
+            Staff.ownedItems.Add(id);
+            Hud.Toast($"{def.name} 샀어요! 직원에게 달아 주세요");
+            Save();
+            Notify();
+            return true;
+        }
+
+        /// <summary>장착할 아이템을 다음 것으로 (없음 → 가진 아이템 중 다른 직원이 안 쓰는 것 …).</summary>
+        public void CycleStaffItem(StaffMember m)
+        {
+            if (m == null || !MorningOnly("아이템 달기")) return;
+            var free = new List<string> { "" };
+            foreach (var id in Staff.ownedItems)
+            {
+                bool usedByOther = Staff.members.Exists(o => o != m && o.item == id);
+                if (!usedByOther) free.Add(id);
+            }
+            int idx = free.IndexOf(m.item ?? "");
+            m.item = free[(idx + 1) % free.Count];
+            Save();
+            Notify();
+        }
+
+        void GiveStaffExp(StaffMember m, int amount)
+        {
+            if (m.level >= StaffRules.MaxLevel) return;
+            m.exp += amount;
+            if (m.exp < StaffRules.ExpToNext(m.level)) return;
+            m.exp = 0;
+            StaffRules.LevelUp(m, staffRng);
+            Hud.Toast($"{m.name} 레벨업! Lv{m.level}");
+            if (staffAgents.TryGetValue(m, out var a)) a.Say($"레벨업! Lv{m.level}", UIKit.BubbleMoney, 1.6f);
+        }
+
+        /// <summary>직원들을 가게에 (다시) 세운다. 맡은 일별 순번으로 자리 결정.</summary>
+        void RebuildStaffAgents()
+        {
+            foreach (var a in staffAgents.Values) if (a != null) Destroy(a.gameObject);
+            staffAgents.Clear();
+            var order = new Dictionary<StaffJob, int>();
+            foreach (var m in Staff.members)
+            {
+                order.TryGetValue(m.job, out int n);
+                order[m.job] = n + 1;
+                staffAgents[m] = StaffAgent.Create(Layout.Root, Materials, Hud, m, n);
+            }
+        }
+
+        StaffMember FirstOnJob(StaffJob job)
+        {
+            foreach (var m in Staff.members) if (m.job == job) return m;
+            return null;
+        }
+
+        /// <summary>영업 중 직원 일: 계산·진열 (경비·상담 보조는 손님 쪽에서 물어봄).</summary>
+        void TickStaff()
+        {
+            foreach (var m in Staff.members)
+            {
+                staffTimers.TryGetValue(m, out float t);
+                t += Time.deltaTime;
+                if (m.job == StaffJob.Cashier)
+                {
+                    float interval = StaffRules.CashierInterval(m);
+                    if (t >= interval)
+                    {
+                        var front = Layout.Queue.Front;
+                        if (front != null && front.TryAutoCheckout($"{Josa.I(m.name)} 계산해 줬어요"))
+                        {
+                            t = 0f;
+                            GiveStaffExp(m, 1);
+                            if (UnityEngine.Random.value < StaffRules.TipChance(m))
+                            {
+                                int tip = 50;
+                                Money += tip; Stats.revenue += tip; Stats.tips += tip;
+                                if (staffAgents.TryGetValue(m, out var a)) a.Say($"친절하다고 팁 +{UIKit.Won(tip)}", UIKit.BubbleMoney);
+                            }
+                        }
+                        else t = interval; // 손님 오면 바로
+                    }
+                }
+                else if (m.job == StaffJob.Stocker)
+                {
+                    float interval = StaffRules.StockerInterval(m);
+                    if (t >= interval && staffAgents.TryGetValue(m, out var a) && !a.Busy)
+                    {
+                        var slot = SlotToRestock();
+                        if (slot != null)
+                        {
+                            t = 0f;
+                            var member = m;
+                            a.Errand(slot.StandPoint, () => RestockSlot(member, slot));
+                        }
+                        else t = interval;
+                    }
+                }
+                staffTimers[m] = t;
+            }
+        }
+
+        /// <summary>창고에 같은 상품이 있고 반 넘게 빈 매대 (제일 빈 곳).</summary>
+        ShelfSlot SlotToRestock()
+        {
+            ShelfSlot best = null;
+            foreach (var s in Layout.Slots)
+            {
+                if (s.Product == null || s.Count * 2 > s.Capacity || Stock(s.Product) <= 0) continue;
+                if (best == null || s.Count < best.Count) best = s;
+            }
+            return best;
+        }
+
+        void RestockSlot(StaffMember m, ShelfSlot slot)
+        {
+            if (slot == null || slot.Product == null) return;
+            var p = slot.Product;
+            int added = slot.Add(p, Mathf.Min(StaffRules.StockerBatch(m), Stock(p)));
+            if (added <= 0) return;
+            RemoveStock(p, added);
+            GameEvents.RaiseItemsPlaced(slot, p, added);
+            GiveStaffExp(m, 1);
+            if (staffAgents.TryGetValue(m, out var a)) a.Say($"{p.displayName} +{added}", UIKit.BubbleNormal, 0.9f);
+            Notify();
+        }
+
+        /// <summary>몰래 나가는 아이가 문에 닿았을 때 경비가 잡는지. 잡았으면 그 직원.</summary>
+        public StaffMember TryGuardCatch()
+        {
+            foreach (var m in Staff.members)
+            {
+                if (m.job != StaffJob.Guard) continue;
+                if (UnityEngine.Random.value < StaffRules.CatchChance(m))
+                {
+                    GiveStaffExp(m, 2);
+                    if (staffAgents.TryGetValue(m, out var a)) a.Say("거기 서!", UIKit.BubbleUrgent, 1.2f);
+                    return m;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>상담 손님 인내심 배율 (상담 보조 친절).</summary>
+        public float CounselPatienceBonus
+        {
+            get
+            {
+                var m = FirstOnJob(StaffJob.Counselor);
+                return m != null ? StaffRules.CounselPatience(m) : 1f;
+            }
+        }
+
+        /// <summary>상담 보조의 ★추천 (없으면 null). 정확도만큼 딱 맞는 걸, 아니면 아무거나 추천.</summary>
+        public ProductData CounselRecommendation(CounselRequest r, out string who)
+        {
+            who = null;
+            var m = FirstOnJob(StaffJob.Counselor);
+            if (m == null || r == null) return null;
+            who = m.name;
+            var shelved = ShelvedCounselProducts();
+            shelved.RemoveAll(p => p.retailPrice > r.budget);
+            if (shelved.Count == 0) return null;
+            if (UnityEngine.Random.value < StaffRules.RecommendAccuracy(m))
+            {
+                foreach (var p in shelved)
+                    if (CounselRequests.Judge(r, p) == CounselResult.Perfect) { GiveStaffExp(m, 1); return p; }
+                foreach (var p in shelved)
+                    if (CounselRequests.Judge(r, p) == CounselResult.Ok) { GiveStaffExp(m, 1); return p; }
+            }
+            return shelved[UnityEngine.Random.Range(0, shelved.Count)];
         }
 
         // ───────────── 돌발 사건 ─────────────
@@ -908,6 +1161,12 @@ namespace Munbanggu.Core
             Day = Mathf.Max(1, data.day);
             Money = data.money;
             // 업그레이드 먼저 (매대 칸 수·추가 진열대가 있어야 저장된 진열을 그대로 올릴 수 있음)
+            // 예전 "알바생" 업그레이드를 산 적 있으면 무료 직원으로 바꿔 준다 (직원 시스템으로 대체)
+            Staff = data.staff ?? new StaffState();
+            if (Staff.members.Count == 0 && data.upgrades != null)
+                foreach (var u in data.upgrades)
+                    if (u.id == UpgradeTable.Helper && u.level > 0)
+                        Staff.members.Add(new StaffMember { name = "알바생", seed = 424242, level = u.level * 2, speed = 3 + u.level * 2, kindness = 3, sharp = 2, job = StaffJob.Cashier });
             Upgrades.Load(data.upgrades);
             ApplyUpgrades();
             foreach (var e in data.backroom) AddStock(Catalog.Find(e.productId), e.count);
@@ -936,7 +1195,7 @@ namespace Munbanggu.Core
             {
                 day = Day, money = Money, trend = trends.State, regulars = regulars.Save(),
                 credits = ledger.Save(), seenEvents = new List<string>(seenEvents),
-                upgrades = Upgrades.Save(),
+                upgrades = Upgrades.Save(), staff = Staff,
                 reputation = Mathf.Max(1, Reputation), knownTraits = new List<string>(knownTraits)
             };
             foreach (var kv in stock)

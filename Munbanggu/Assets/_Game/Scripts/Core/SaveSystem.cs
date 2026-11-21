@@ -36,6 +36,8 @@ namespace Munbanggu.Core
         // ── 상담 손님 ── (0이면 예전 세이브 → 50으로 시작)
         public int reputation;
         public List<string> knownTraits = new List<string>();
+        // ── 직원 ──
+        public StaffState staff = new StaffState();
     }
 
     /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>

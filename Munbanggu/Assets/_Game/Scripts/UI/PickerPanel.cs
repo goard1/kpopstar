@@ -99,14 +99,15 @@ namespace Munbanggu.UI
                 if (Application.isPlaying) UnityEngine.Object.Destroy(child);
                 else UnityEngine.Object.DestroyImmediate(child);
             }
+            var rec = gm.CounselRecommendation(r, out string who); // 상담 보조 직원의 ★추천 (없으면 null)
             foreach (var p in gm.ShelvedCounselProducts())
-                BuildProductCard(p, r);
+                BuildProductCard(p, r, p == rec ? who : null);
 
             modal.SetActive(true);
             if (juice != null) juice.Punch(0.06f);
         }
 
-        void BuildProductCard(ProductData p, CounselRequest r)
+        void BuildProductCard(ProductData p, CounselRequest r, string recommendedBy)
         {
             bool affordable = p.retailPrice <= r.budget;
             var btn = UIKit.Button(p.id, grid, "", 28, UIKit.Card, UIKit.Ink, out var nameLabel);
@@ -115,6 +116,16 @@ namespace Munbanggu.UI
             btn.interactable = affordable;
             var product = p;
             btn.onClick.AddListener(() => Pick(product));
+
+            if (recommendedBy != null) // ★추천 딱지 (직원 이름)
+            {
+                var badge = UIKit.CardPanel("Recommend", btn.transform, UIKit.Yellow, 14, false, 3);
+                UIKit.Place(badge.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(6, -6), new Vector2(150, 40));
+                badge.rectTransform.localRotation = Quaternion.Euler(0, 0, 6f);
+                var t = UIKit.Label("Text", badge.transform, $"★ {recommendedBy} 추천", 20, UIKit.Ink, TextAnchor.MiddleCenter);
+                UIKit.Stretch(t.rectTransform, 2, 1, 2, 0);
+                t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            }
 
             var icon = UIKit.Rect("Icon", btn.transform).gameObject.AddComponent<Image>();
             icon.sprite = ProductIcons.Get(p);

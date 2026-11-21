@@ -148,6 +148,15 @@ namespace Munbanggu.EditorTools
                 hud.CloseModals();
                 Shot(hud, cam, rt, outDir, "8_upgraded_shop");
 
+                // 7) 직원: 지원자 고용 + 아이템 → 직원 창, 직원이 선 가게
+                foreach (var cand in gm.StaffCandidates()) gm.HireStaff(cand);
+                gm.BuyStaffItem("calculator");
+                if (gm.Staff.members.Count > 0) gm.CycleStaffItem(gm.Staff.members[0]);
+                hud.OpenStaff();
+                Shot(hud, cam, rt, outDir, "9_staff");
+                hud.CloseModals();
+                Shot(hud, cam, rt, outDir, "10_staff_shop");
+
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
             }
             finally
