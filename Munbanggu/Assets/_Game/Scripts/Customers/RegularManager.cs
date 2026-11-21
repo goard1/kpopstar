@@ -14,6 +14,12 @@ namespace Munbanggu.Customers
         public int visits;        // 방문 횟수
         public int served;        // 계산까지 한 횟수
         public int lastVisitDay;
+        // ── 성장 (docs/08) ──
+        public int metDay;        // 처음 만난 날 (학년 계산)
+        public int completedDay;  // 이야기를 다 본 날
+        public bool graduated;    // 졸업(이사)해서 더는 안 옴
+        public int graduatedDay;
+        public bool adultVisited; // 어른이 되어 한 번 찾아옴
     }
 
     /// <summary>
@@ -31,6 +37,21 @@ namespace Munbanggu.Customers
 
         readonly Dictionary<string, RegularState> states = new Dictionary<string, RegularState>();
         readonly List<(RegularProfile profile, float at)> planned = new List<(RegularProfile, float)>();
+        readonly HashSet<string> adultToday = new HashSet<string>();
+
+        /// <summary>졸업 인사까지 이야기 완성 뒤 며칠, 어른이 되어 오기까지 졸업 뒤 며칠.</summary>
+        public const int FarewellAfterDays = 8, AdultAfterDays = 14;
+
+        /// <summary>학년 (처음 만날 때 3학년, 10일마다 한 학년, 최대 6학년).</summary>
+        public int Grade(RegularProfile r, int day)
+        {
+            var s = StateOf(r);
+            if (s.metDay <= 0) return 3;
+            return Math.Min(6, 3 + (day - s.metDay) / 10);
+        }
+
+        /// <summary>오늘 오는 이 단골이 어른이 되어 오는 것인지.</summary>
+        public bool IsAdultVisit(RegularProfile r) => r != null && adultToday.Contains(r.id);
         readonly Random rng = new Random();
 
         public void Load(List<RegularState> saved)
@@ -60,9 +81,21 @@ namespace Munbanggu.Customers
         public void PlanDay(int day, Func<RegularProfile, ProductData> unlockedFavorite)
         {
             planned.Clear();
+            adultToday.Clear();
             foreach (var r in RegularRoster.All)
             {
                 if (day < r.minDay || unlockedFavorite(r) == null) continue;
+                var st = StateOf(r);
+                if (st.graduated)
+                {
+                    // 졸업한 아이는 안 오다가, 한참 뒤 어른이 되어 딱 한 번 찾아온다
+                    if (!st.adultVisited && day >= st.graduatedDay + AdultAfterDays && !string.IsNullOrEmpty(r.adultLine))
+                    {
+                        adultToday.Add(r.id);
+                        planned.Add((r, 0.3f + (float)rng.NextDouble() * 0.3f));
+                    }
+                    continue;
+                }
                 float chance = r.visitChance + (IsComplete(r) ? CompletedVisitBonus : 0f);
                 // 아직 안 만난 단골은 조건이 되는 첫날 반드시 온다 (첫 만남을 놓치지 않게)
                 if (StateOf(r).visits == 0) chance = 1f;
@@ -91,6 +124,8 @@ namespace Munbanggu.Customers
             var s = StateOf(r);
             s.visits++;
             s.lastVisitDay = day;
+            if (s.metDay <= 0) s.metDay = day;
+            if (adultToday.Contains(r.id)) return null; // 어른 방문 대사는 계산 때
             if (s.seen == 0 && r.story != null && r.story.Length > 0)
             {
                 s.seen = 1;
@@ -100,16 +135,40 @@ namespace Munbanggu.Customers
         }
 
         /// <summary>계산 완료. 새 이야기 단계가 열리면 그 대사를, 방금 이야기를 다 봤으면 completed=true.</summary>
-        public (string line, bool completed) OnServed(RegularProfile r, ProductData bought)
+        public (string line, bool completed) OnServed(RegularProfile r, ProductData bought) => OnServed(r, bought, 0, out _);
+
+        /// <summary>
+        /// 계산 완료 (성장 포함). moment: 0 보통, 1 졸업 인사(이번이 마지막 방문), 2 어른이 되어 찾아옴.
+        /// </summary>
+        public (string line, bool completed) OnServed(RegularProfile r, ProductData bought, int day, out int moment)
         {
+            moment = 0;
             var s = StateOf(r);
+            if (adultToday.Contains(r.id))
+            {
+                adultToday.Remove(r.id);
+                s.adultVisited = true;
+                moment = 2;
+                return (r.adultLine, false);
+            }
+            if (IsComplete(r) && s.completedDay <= 0 && day > 0) s.completedDay = day; // 예전 세이브: 오늘부터 셈
+            if (IsComplete(r) && !s.graduated && day > 0 && s.completedDay > 0 && day >= s.completedDay + FarewellAfterDays
+                && !string.IsNullOrEmpty(r.farewellLine))
+            {
+                s.graduated = true;
+                s.graduatedDay = day;
+                moment = 1;
+                return (r.farewellLine, false);
+            }
             s.served++;
             s.affection += bought != null && bought.id == r.favoriteId ? AffectionFavorite : AffectionOther;
             if (r.story == null || s.seen >= r.story.Length) return (null, false);
             var beat = r.story[s.seen];
             if (s.affection < beat.affection) return (null, false);
             s.seen++;
-            return (beat.line, s.seen >= r.story.Length);
+            bool done = s.seen >= r.story.Length;
+            if (done && day > 0) s.completedDay = day;
+            return (beat.line, done);
         }
 
         public void OnUnhappy(RegularProfile r)

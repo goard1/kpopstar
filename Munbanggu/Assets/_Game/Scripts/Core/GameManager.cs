@@ -44,13 +44,15 @@ namespace Munbanggu.Core
         public int reputationDelta;
         public int salary;         // 직원 월급 (정산 때 빠짐)
         public int counselSpawned; // 오늘 나온 고민 손님 수 (하루 CounselPerDay명까지)
+        public string tournament;  // 오늘 연 동네 대회 이름
+        public int comicReaders;   // 오늘 2층 만화방 손님
         public int upkeep;         // 가게 관리비 (증축 단계, 정산 때 빠짐)
         public int comic;          // 2층 만화방 수입 (정산 때 들어옴, revenue에 포함)
         public int Profit => revenue - cost;
     }
 
     /// <summary>하루 루프, 돈, 창고 재고, 손님 생성을 관리.</summary>
-    public class GameManager : MonoBehaviour
+    public partial class GameManager : MonoBehaviour
     {
         [Header("밸런스 (나중에 Remote Config로 옮길 값)")]
         public int startMoney = 6000;
@@ -178,6 +180,7 @@ namespace Munbanggu.Core
         void AddSettlementLines(GameManager gm, List<SettlementLine> lines)
         {
             if (gm != this) return;
+            AddTownSettlementLines(lines);
             if (Stats.regularsVisited > 0) lines.Add(SettlementLine.Count("단골 방문", Stats.regularsVisited));
             if (Stats.tips > 0) lines.Add(SettlementLine.Money("그중 단골 팁", Stats.tips));
             if (Stats.caught > 0) lines.Add(SettlementLine.Count("몰래 나가던 아이 잡음", Stats.caught));
@@ -329,6 +332,7 @@ namespace Munbanggu.Core
             rushAnnounced = false;
             events.Plan(Day);
             friendsPending = 0;
+            TownOpen();
             Hud.CloseModals();
             Save();
             GameEvents.RaisePhaseChanged(Phase);
@@ -352,6 +356,7 @@ namespace Munbanggu.Core
             restockTargets.Clear();
             foreach (var ag in staffAgents.Values) if (ag != null) ag.GoHome();
             Stats = new DayStats();
+            TownMorning();
             trends.Advance(Day, (p, d) => p.unlockDay <= d);
             regulars.PlanDay(Day, UnlockedFavorite);
             // 외상 정리는 저장 전에 (다시 켜도 두 번 받지 않게)
@@ -368,6 +373,7 @@ namespace Munbanggu.Core
         void ShowMorningNews()
         {
             Dialogue.Clear();
+            TownMorningNews();
             foreach (var line in creditNews) Dialogue.Show("외상 장부", line, UIKit.Accent, "외");
             if (IsNew(Catalog.Find(BoardProductId)))
                 Dialogue.Show("도매상", "번호 뽑기가 들어왔어요! 사서 가게 앞 뽑기판에 걸어 두면 아이들이 와서 한 판씩 뽑아요. 1등이 나오면 동네에 소문이 나요!", UIKit.Blue);
@@ -399,7 +405,9 @@ namespace Munbanggu.Core
             // 월세·관리비 (동네·증축할수록) · 2층 만화방/오락실 수입
             int upkeep = ExpansionTable.Upkeep(District, Expansion);
             if (upkeep > 0) { Money -= upkeep; Stats.upkeep = upkeep; }
-            int comic = ExpansionTable.UpstairsIncome(District, Expansion, Stats.visitors, out upstairsLabel);
+            int townIncome = TownSettle();
+            int comic = HasComicRoom ? townIncome : ExpansionTable.UpstairsIncome(District, Expansion, Stats.visitors, out upstairsLabel);
+            if (HasComicRoom) upstairsLabel = "2층 만화방 수입";
             if (comic > 0) { Money += comic; Stats.revenue += comic; Stats.comic = comic; }
             Save();
             GameEvents.RaisePhaseChanged(Phase);
@@ -416,6 +424,7 @@ namespace Munbanggu.Core
             {
                 openTimer += Time.deltaTime;
                 TickArcade();
+                TickTown();
                 if (IsRush && !rushAnnounced)
                 {
                     rushAnnounced = true;
@@ -466,23 +475,24 @@ namespace Munbanggu.Core
             }
 
             float rate = IsRush ? rushSpawnPerSec : baseSpawnPerSec;
-            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign)) * ReputationSpawnMultiplier * (1f + DecorAppeal) * ExpansionTable.SpawnMultiplier(District, Expansion);
+            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign)) * ReputationSpawnMultiplier * (1f + DecorAppeal) * ExpansionTable.SpawnMultiplier(District, Expansion) * TownSpawnMultiplier;
             spawnAcc += rate * Time.deltaTime;
             if (spawnAcc < 1f) return;
             spawnAcc -= 1f;
             SpawnCustomer(null);
         }
 
-        void SpawnCustomer(RegularProfile regular, CustomerKind kind = CustomerKind.Normal)
+        void SpawnCustomer(RegularProfile regular, CustomerKind kind = CustomerKind.Normal, ProductData forced = null, string askOverride = null, string dexKey = null)
         {
             ProductData wanted = null;
-            if (regular != null && UnityEngine.Random.value < regular.favoriteChance)
+            if (regular != null && (regulars.IsAdultVisit(regular) || UnityEngine.Random.value < regular.favoriteChance))
                 wanted = UnlockedFavorite(regular);
+            if (forced != null) wanted = forced;
             if (wanted == null) wanted = RollWanted();
 
             // 상담 손님: 매대로 가지 않고 계산대로 와서 고민을 말한다 (docs/05)
             CounselRequest request = null;
-            if (regular == null && kind == CustomerKind.Normal && RollCounsel())
+            if (regular == null && forced == null && kind == CustomerKind.Normal && RollCounsel())
             {
                 request = CounselRequests.Roll(UnlockedCounselable());
                 if (request != null) kind = CustomerKind.Counsel;
@@ -497,9 +507,14 @@ namespace Munbanggu.Core
             if (regular != null)
             {
                 Stats.regularsVisited++;
+                bool adult = regulars.IsAdultVisit(regular);
                 string intro = regulars.OnEnter(regular, Day);
-                if (intro != null) Dialogue.Show($"{regular.name} · {regular.title}", intro, regular.color);
+                if (adult) go.transform.localScale = Vector3.one * 1.3f; // 어른이 되어 찾아옴
+                if (intro != null) Dialogue.Show(RegularTitle(regular), intro, regular.color);
+                RecordCustomer((adult ? "adult_" : "regular_") + regular.id);
             }
+            if (regular == null) RecordCustomer(dexKey ?? (kind == CustomerKind.Counsel ? "counsel" : kind == CustomerKind.Sneaky ? "sneaky" : kind == CustomerKind.Credit ? "credit" : kind == CustomerKind.Crying ? "crying" : "normal"));
+            c.AskOverride = askOverride;
             c.Init(this, wanted, Hud.CreateBubble(go.transform), regular, kind, request);
         }
 
@@ -999,6 +1014,7 @@ namespace Munbanggu.Core
             { var drop = new List<int>(); foreach (var k in placements.Keys) if (k > Layout.Board.Index) drop.Add(k); foreach (var k in drop) placements.Remove(k); }
 
             District++;
+            Town.districtSinceDay = Day;
             Expansion = 0;
             Reputation = Mathf.Clamp(50 + (Reputation - 50) / 2, 40, 100);
             ApplyDistrictLook();
@@ -1614,6 +1630,7 @@ namespace Munbanggu.Core
             Stats.credits++;
             Stats.creditValue += price;
             Stats.served++;
+            RecordSold(c.Carried);
             Notify();
         }
 
@@ -1675,16 +1692,34 @@ namespace Munbanggu.Core
             if (r != null)
             {
                 tip = r.tip;
-                var (line, completed) = regulars.OnServed(r, c.Carried);
-                if (line != null) Dialogue.Show($"{r.name} · {r.title}", line, r.color);
-                if (completed && !string.IsNullOrEmpty(r.completeToast))
-                    Dialogue.Show("단골 이야기 완성!", r.completeToast, UIKit.Green, "★");
+                string title = RegularTitle(r);
+                var (line, completed) = regulars.OnServed(r, c.Carried, Day, out int moment);
+                if (moment == 2)
+                {
+                    // 어른이 되어 찾아옴: 반 친구들 몫까지 한가득 + 넉넉한 마음
+                    tip += AdultGift;
+                    Dialogue.Show($"{r.name} · {r.adultTitle}", line, r.color);
+                    Dialogue.Show("추억", $"{Josa.I(r.name)} 반 아이들 몫이라며 {UIKit.Won(AdultGift)}을 더 내고 갔어요. 할머니 가게가 누군가의 추억이 됐어요.", UIKit.Accent, "♥");
+                    AddReputation(5);
+                }
+                else if (moment == 1)
+                {
+                    Dialogue.Show(title, line, r.color);
+                    Dialogue.Show("졸업", $"{Josa.I(r.name)} 이제 안 와요… 언젠가 어른이 되어 다시 찾아올지도 몰라요.", UIKit.Muted, "졸");
+                }
+                else
+                {
+                    if (line != null) Dialogue.Show(title, line, r.color);
+                    if (completed && !string.IsNullOrEmpty(r.completeToast))
+                        Dialogue.Show("단골 이야기 완성!", r.completeToast, UIKit.Green, "★");
+                }
             }
 
             Money += price + tip;
             Stats.revenue += price + tip;
             Stats.tips += tip;
             Stats.served++;
+            RecordSold(c.Carried);
             Notify();
             return tip;
         }
@@ -1740,7 +1775,7 @@ namespace Munbanggu.Core
 
         ProductData ActiveTrend() => IsUnlocked(Trend) ? Trend : null;
 
-        float BaseWeight(ProductData p) => p.popularity * trends.PopularityMultiplier(p) * regulars.FavoriteBoost(p) * BoardAppeal(p) * ComboDemand(p) * DistrictDemand(p);
+        float BaseWeight(ProductData p) => p.popularity * trends.PopularityMultiplier(p) * regulars.FavoriteBoost(p) * BoardAppeal(p) * ComboDemand(p) * DistrictDemand(p) * TownDemand(p);
 
         // ───────────── 번호 뽑기판 ─────────────
 
@@ -1761,6 +1796,7 @@ namespace Munbanggu.Core
             Money += price;
             Stats.revenue += price;
             Stats.served++;
+            RecordSold(c.Carried);
             Stats.pulls++;
             int tier = board.RollPrize();
             if (tier == 1)
@@ -1828,6 +1864,7 @@ namespace Munbanggu.Core
             knownTraits.Clear();
             if (data.knownTraits != null) foreach (var t in data.knownTraits) knownTraits.Add(t);
             seenEvents.Clear();
+            LoadTown(data.town);
             if (data.seenEvents != null) foreach (var s in data.seenEvents) seenEvents.Add(s);
         }
 
@@ -1847,7 +1884,8 @@ namespace Munbanggu.Core
                 upgrades = Upgrades.Save(), staff = Staff, facilities = Facilities,
                 reputation = Mathf.Max(1, Reputation), knownTraits = new List<string>(knownTraits),
                 district = District, expansion = Expansion, slotGroups = new List<string>(Layout.Groups),
-                placements = new List<SlotPlacement>(placements.Values)
+                placements = new List<SlotPlacement>(placements.Values),
+                town = Town
             };
             foreach (var kv in stock)
                 if (kv.Value > 0) data.backroom.Add(new StockEntry { productId = kv.Key.id, count = kv.Value });

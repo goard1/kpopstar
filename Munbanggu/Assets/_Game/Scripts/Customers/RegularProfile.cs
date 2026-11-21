@@ -39,6 +39,11 @@ namespace Munbanggu.Customers
         public StoryBeat[] story;            // [0] = 첫 만남 (입장 때), 나머지는 계산 때
         public string completeToast;         // 이야기를 다 보면 한 번
 
+        [Header("성장 (docs/08)")]
+        public string farewellLine;          // 이야기를 끝내고 며칠 뒤, 졸업하며 하는 인사
+        public string adultLine;             // 한참 뒤 어른이 되어 다시 찾아왔을 때
+        public string adultTitle;            // 어른이 된 뒤 별명
+
         /// <summary>항상 같은 외형이 나오도록 id로 만든 고정 seed.</summary>
         public int Seed
         {
@@ -75,6 +80,9 @@ namespace Munbanggu.Customers
                     new StoryBeat(13, "대회 우승했어요! 이거 제가 접은 왕딱지예요. 가게에 걸어 주세요!"),
                 },
                 completeToast = "철수가 동네에 소문냈어요! 딱지 찾는 애들이 늘어요",
+                farewellLine = "할머니… 저 이제 중학교 가요. 딱지는 졸업이래요. 그래도 왕딱지는 여기 걸어 두고 갈게요!",
+                adultLine = "할머니! 저 철수예요, 기억하세요? 이제 체육 선생님 됐어요. 우리 반 애들 딱지 사 주러 왔어요. 거스름돈은 넣어 두세요!",
+                adultTitle = "체육 선생님",
             },
             new RegularProfile
             {
@@ -92,6 +100,9 @@ namespace Munbanggu.Customers
                     new StoryBeat(13, "미술대회에서 상 받았어요! 사장님이 늘 예쁜 걸 갖다 놔 주셔서예요."),
                 },
                 completeToast = "영희 친구들이 종이인형을 찾으러 와요!",
+                farewellLine = "저 이사 가요… 서울로요. 사장님 가게 종이인형은 하나도 안 버리고 다 가져갈 거예요.",
+                adultLine = "사장님, 저 영희예요. 정말 옷 만드는 사람이 됐어요! 첫 패션쇼 옷 무늬, 여기 종이인형에서 따왔어요.",
+                adultTitle = "디자이너",
             },
             new RegularProfile
             {
@@ -110,6 +121,9 @@ namespace Munbanggu.Customers
                     new StoryBeat(13, "사장님, 이거 철수랑 같이 쓴 감사 편지예요. 앞으로도 자주 올게요!"),
                 },
                 completeToast = "민수가 친구들을 데려와요! 미니카가 더 잘 팔려요",
+                farewellLine = "아빠 회사 때문에 미국 간대요. 철수한테 제 미니카 트랙 맡겨 놨어요. 꼭 다시 올게요!",
+                adultLine = "할머니, 민수예요! 장난감 회사 차렸어요. 첫 제품, 제일 먼저 할머니 가게에 놓고 싶어서 왔어요.",
+                adultTitle = "장난감 회사 사장님",
             },
         };
 

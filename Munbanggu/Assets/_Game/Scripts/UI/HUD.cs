@@ -107,7 +107,9 @@ namespace Munbanggu.UI
         readonly Dictionary<ProductData, InvItem> invByProduct = new Dictionary<ProductData, InvItem>();
         readonly List<InvItem> invOrder = new List<InvItem>();
         GameObject actionRow;
-        Button wholesaleButton, openButton, speedButton, upgradeButton, staffButton;
+        Button wholesaleButton, openButton, speedButton, upgradeButton, staffButton, townButton;
+        TownPanel townPanel;
+        public TownPanel Town => townPanel;
         StaffPanel staffPanel;
         UpgradePanel upgradePanel;
         Text speedLabel;
@@ -194,6 +196,7 @@ namespace Munbanggu.UI
             { var m = Modal("Upgrade Modal", out var upCard, 1640, out var upJuice); upgradePanel = UpgradePanel.Build(gm, m, upCard, upJuice, EnterDecorMode, EnterMoveMode); }
             { var m = Modal("Decor Modal", out var dcCard, 1500, out var dcJuice); decorPanel = DecorPanel.Build(gm, m, dcCard, dcJuice); }
             { var m = Modal("Staff Modal", out var sfCard, 1640, out var sfJuice); staffPanel = StaffPanel.Build(gm, m, sfCard, sfJuice); }
+            { var m = Modal("Town Modal", out var twCard, 1640, out var twJuice); townPanel = TownPanel.Build(gm, m, twCard, twJuice); }
             BuildSettlementModal();
 
             // 모달 위에 뜨는 것들: 토스트·배너·튜토리얼·동전
@@ -325,30 +328,37 @@ namespace Munbanggu.UI
             UIKit.Bottom(row, ActionHeight, ActionY, 22);
             actionRow = row.gameObject;
 
-            wholesaleButton = UIKit.Button("Wholesale", row, "도매상", 40, UIKit.Blue, Color.white, out _);
+            wholesaleButton = UIKit.Button("Wholesale", row, "도매상", 36, UIKit.Blue, Color.white, out _);
             wholesaleButton.onClick.AddListener(() => OpenModal(wholesaleModal, wholesaleCardJuice));
             var shopRt = (RectTransform)wholesaleButton.transform;
-            shopRt.anchorMin = new Vector2(0, 0); shopRt.anchorMax = new Vector2(0.24f, 1);
+            shopRt.anchorMin = new Vector2(0, 0); shopRt.anchorMax = new Vector2(0.2f, 1);
             shopRt.offsetMin = new Vector2(0, 8); shopRt.offsetMax = new Vector2(-10, 0);
 
             // 가게 꾸미기 (업그레이드 상점)
-            upgradeButton = UIKit.Button("Upgrade", row, "꾸미기", 38, UIKit.Yellow, UIKit.Ink, out _);
+            upgradeButton = UIKit.Button("Upgrade", row, "꾸미기", 36, UIKit.Yellow, UIKit.Ink, out _);
             upgradeButton.onClick.AddListener(() => upgradePanel.Open());
             var upRt = (RectTransform)upgradeButton.transform;
-            upRt.anchorMin = new Vector2(0.24f, 0); upRt.anchorMax = new Vector2(0.46f, 1);
+            upRt.anchorMin = new Vector2(0.2f, 0); upRt.anchorMax = new Vector2(0.38f, 1);
             upRt.offsetMin = new Vector2(8, 8); upRt.offsetMax = new Vector2(-8, 0);
 
             // 직원 관리
-            staffButton = UIKit.Button("Staff", row, "직원", 38, UIKit.Green, Color.white, out _);
+            staffButton = UIKit.Button("Staff", row, "직원", 36, UIKit.Green, Color.white, out _);
             staffButton.onClick.AddListener(() => staffPanel.Open());
             var stRt = (RectTransform)staffButton.transform;
-            stRt.anchorMin = new Vector2(0.46f, 0); stRt.anchorMax = new Vector2(0.66f, 1);
+            stRt.anchorMin = new Vector2(0.38f, 0); stRt.anchorMax = new Vector2(0.53f, 1);
             stRt.offsetMin = new Vector2(8, 8); stRt.offsetMax = new Vector2(-8, 0);
 
-            openButton = UIKit.Button("Open", row, "문 열기!", 44, UIKit.Red, Color.white, out _);
+            // 동네 (달력·대회·라이벌·만화방·도감)
+            townButton = UIKit.Button("Town", row, "동네", 36, new Color(0.56f, 0.40f, 0.80f), Color.white, out _);
+            townButton.onClick.AddListener(() => townPanel.Open());
+            var twRt = (RectTransform)townButton.transform;
+            twRt.anchorMin = new Vector2(0.53f, 0); twRt.anchorMax = new Vector2(0.68f, 1);
+            twRt.offsetMin = new Vector2(8, 8); twRt.offsetMax = new Vector2(-8, 0);
+
+            openButton = UIKit.Button("Open", row, "문 열기!", 42, UIKit.Red, Color.white, out _);
             openButton.onClick.AddListener(gm.OpenShop);
             var openRt = (RectTransform)openButton.transform;
-            openRt.anchorMin = new Vector2(0.66f, 0); openRt.anchorMax = new Vector2(1, 1);
+            openRt.anchorMin = new Vector2(0.68f, 0); openRt.anchorMax = new Vector2(1, 1);
             openRt.offsetMin = new Vector2(10, 8); openRt.offsetMax = Vector2.zero;
             UIKit.TapeStrip(openButton.transform, new Vector2(1, 1), new Vector2(-46, -6), -18, 96);
 
@@ -1183,6 +1193,7 @@ namespace Munbanggu.UI
             upgradePanel.Close();
             staffPanel.Close();
             decorPanel.Close();
+            townPanel.Close();
             ExitDecorMode();
             ExitMoveMode();
             StopSettlementAnim();

@@ -221,6 +221,23 @@ namespace Munbanggu.EditorTools
                 Shot(hud, cam, rt, outDir, "26_move_mode");
                 hud.CloseModals();
 
+                // 12) 동네: 달력·대회·라이벌·만화방·도감
+                gm.DebugDistrict(0, 3);
+                gm.DebugTownForCapture();
+                if (gm.Dialogue != null) gm.Dialogue.Clear();
+                hud.Town.Open();
+                Shot(hud, cam, rt, outDir, "27_town_main");
+                hud.Town.OpenComic();
+                Shot(hud, cam, rt, outDir, "28_comic_room");
+                hud.Town.OpenDex(0);
+                Shot(hud, cam, rt, outDir, "29_dex_products");
+                hud.Town.OpenDex(2);
+                Shot(hud, cam, rt, outDir, "30_dex_combos");
+                hud.CloseModals();
+                gm.DebugComicReaders(5);
+                Shot(hud, cam, rt, outDir, "31_comic_readers");
+                for (int d = 1; d <= 30; d++) { var info = Munbanggu.Core.SchoolCalendar.For(d); Debug.Log($"[UIScreenshot] 달력 {d}일 {info.WeekName} {info.WeatherIcon} {info.Title}"); }
+
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
             }
             finally

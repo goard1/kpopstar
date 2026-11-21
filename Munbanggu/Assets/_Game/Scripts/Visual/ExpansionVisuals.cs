@@ -288,5 +288,35 @@ namespace Munbanggu.Visual
                 k.Pop();
             }
         }
+
+        // ───────────── 만화방 손님 (2층 창문에 보이는 아이들) ─────────────
+
+        static readonly MeshKit readerKit = new MeshKit();
+
+        /// <summary>2층 창문 두 개에 count명(최대 6) 아이 머리를 그린다. 만화책을 든 손도 살짝.</summary>
+        public static GameObject BuildReaders(Transform parent, MaterialCache mats, int count)
+        {
+            var root = new GameObject("Comic Readers");
+            root.transform.SetParent(parent, false);
+            readerKit.Clear();
+            float x0 = AnnexX0 - 0.15f, w = -4.05f - x0;
+            float z0 = ShopLayout.BayBack(1) - 0.8f;
+            float wy = ShopDecor.WallH + 0.12f + 1.35f * 0.52f;
+            Color[] hair = { new Color(0.15f, 0.12f, 0.1f), new Color(0.3f, 0.2f, 0.12f), new Color(0.1f, 0.1f, 0.12f) };
+            Color[] books = { ShopDecor.Red, ShopDecor.Blue, ShopDecor.Yellow, ShopDecor.Green, ShopDecor.Pink };
+            var skin = new Color(0.98f, 0.82f, 0.68f);
+            for (int i = 0; i < count; i++)
+            {
+                float wx = x0 + w * (i % 2 == 0 ? 0.28f : 0.72f);
+                int slot = i / 2; // 창문마다 왼·가운데·오른
+                var c = new Vector3(wx - 0.2f + slot * 0.2f, wy - 0.1f, z0 - 0.05f);
+                readerKit.Sphere(c, new Vector3(0.075f, 0.08f, 0.06f), 8, 4, skin);
+                readerKit.Sphere(c + new Vector3(0f, 0.04f, 0.01f), new Vector3(0.08f, 0.06f, 0.065f), 8, 3, hair[i % hair.Length]);
+                // 펼친 만화책 (얼굴 앞)
+                readerKit.Box(c + new Vector3(0f, -0.09f, -0.04f), new Vector3(0.14f, 0.09f, 0.01f), books[i % books.Length], ShopDecor.Paper);
+            }
+            readerKit.Build("Readers", root.transform, mats.VertexColor);
+            return root;
+        }
     }
 }

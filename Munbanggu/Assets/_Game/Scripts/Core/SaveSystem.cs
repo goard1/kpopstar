@@ -46,6 +46,8 @@ namespace Munbanggu.Core
         public List<string> slotGroups = new List<string>();
         // ── 진열대 옮기기 ── (옮긴 진열대만)
         public List<SlotPlacement> placements = new List<SlotPlacement>();
+        // ── 동네 살이 (만화방·대회·라이벌·도감) ──
+        public TownSave town = new TownSave();
     }
 
     /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>
