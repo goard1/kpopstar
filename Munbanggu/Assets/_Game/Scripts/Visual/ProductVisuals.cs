@@ -25,7 +25,7 @@ namespace Munbanggu.Visual
         {
             if (p == null) return null;
             if (cache.TryGetValue(p, out var data)) return data;
-            string id = string.IsNullOrEmpty(p.id) ? p.name : p.id;
+            string id = !string.IsNullOrEmpty(p.visualOf) ? p.visualOf : string.IsNullOrEmpty(p.id) ? p.name : p.id;
             kit.Clear();
             BuildShape(kit, id, p.color);
             data = kit.ToData();

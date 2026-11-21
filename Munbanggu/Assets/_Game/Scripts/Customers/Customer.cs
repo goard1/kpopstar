@@ -62,6 +62,8 @@ namespace Munbanggu.Customers
         bool guardChecked;
         /// <summary>찾는 물건 말 대신 할 말 (만화방에서 내려온 아이 등). Init 전에 넣는다.</summary>
         public string AskOverride;
+        /// <summary>깜짝 손님 종류 (SpecialVisitors id, 보통 손님이면 null).</summary>
+        public string SpecialId;
         int exitDoorIdx;   // 나가는 길에서 "문 안쪽" 경유점 순서 (앞에 옆칸 경유점이 붙으면 늘어남)
 
         public CustomerKind Kind { get; private set; }

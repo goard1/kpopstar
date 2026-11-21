@@ -39,7 +39,7 @@ namespace Munbanggu.Core
         }
 
         /// <summary>달력·대회·라이벌이 손님 수에 주는 배율.</summary>
-        float TownSpawnMultiplier => Today.SpawnMultiplier * (TournamentToday != null ? TournamentTable.SpawnMultiplier : 1f) * RivalSpawnMultiplier;
+        float TownSpawnMultiplier => Today.SpawnMultiplier * (TournamentToday != null ? TournamentTable.SpawnMultiplier : 1f) * RivalSpawnMultiplier * DiscoverySpawnMultiplier;
 
         // ───────────── 하루 흐름 ─────────────
 
@@ -47,7 +47,9 @@ namespace Munbanggu.Core
         {
             Today = SchoolCalendar.For(Day);
             UpdateRival();
+            if (Day >= 30) UnlockAlbum("day30");
             GrandmaMorning();
+            CatMorning();
             hasComicReaders = false;
             RefreshComicReaders(0);
         }
@@ -75,6 +77,8 @@ namespace Munbanggu.Core
         void TownOpen()
         {
             tournamentResolved = false;
+            PlanVisitor();
+            if (Today.weather == Weather.Rain) UnlockAlbum("rainy");
             PlanComicDay();
             if (TournamentToday != null) Hud.Toast($"오늘은 {TournamentToday.name}! 아이들이 몰려와요");
         }
@@ -83,6 +87,7 @@ namespace Munbanggu.Core
         {
             TickTournament();
             TickComic();
+            TickVisitor();
         }
 
         /// <summary>정산 때: 만화방 수입(들어온 돈 반환), 대회 평판, 라이벌 힘 변화, 도감 보상.</summary>
@@ -151,6 +156,7 @@ namespace Munbanggu.Core
             if (t == null || tournamentResolved || OpenProgress < 0.65f) return;
             tournamentResolved = true;
             Stats.tournament = t.name;
+            UnlockAlbum("tournament");
             AddReputation(TournamentTable.Reputation);
             rivalHit += 10;
             string winner = TournamentTable.Winner(Day);
@@ -219,6 +225,7 @@ namespace Munbanggu.Core
             if (r.strength <= 0)
             {
                 r.closed = true;
+                UnlockAlbum("rival_closed");
                 AddReputation(10);
                 Dialogue.Show("동네 소식", $"「{RivalTable.Name(District)}」이(가) 문을 닫았어요! 아이들이 다 할머니 가게로 돌아왔어요. (평판 +10)", UIKit.Green, "★");
             }
@@ -357,6 +364,7 @@ namespace Munbanggu.Core
                 if (Town.comic.Owned(s.id) >= s.total && !Town.comic.completed.Contains(s.id))
                 {
                     Town.comic.completed.Add(s.id);
+                    UnlockAlbum("comic_complete");
                     AddReputation(3);
                     rivalHit += 5;
                     Dialogue.Show("만화방", $"「{s.name}」 전권을 다 모았어요! 완결까지 본 아이들이 감동했대요. (평판 +3)", UIKit.Accent, "만");
@@ -514,6 +522,7 @@ namespace Munbanggu.Core
             Town.rival ??= new RivalState();
             Town.collection ??= new CollectionState();
             Town.grandmaSkills ??= new List<string>();
+            LoadDiscovery();
             Today = SchoolCalendar.For(Day);
         }
 

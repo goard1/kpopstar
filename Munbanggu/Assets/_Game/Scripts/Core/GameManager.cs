@@ -147,7 +147,8 @@ namespace Munbanggu.Core
 
         public void Init(ProductCatalog catalog, Material baseMaterial)
         {
-            Catalog = catalog;
+            Catalog = Instantiate(catalog); // 복제본에 특제 상품(레시피)을 더한다 (에셋은 그대로)
+            AddSpecialProducts();
             trends = new TrendSystem(trendConfig, catalog);
             Materials = new MaterialCache(baseMaterial);
             Visual.ShopDecor.ApplyPalette(ExpansionTable.Districts[0].palette); // static 색이 이전 실행 값으로 남지 않게
@@ -220,7 +221,7 @@ namespace Munbanggu.Core
         // ───────────── 해금 ─────────────
 
         /// <summary>도매상에서 살 수 있는 상품인지 (unlockDay가 오늘 이하).</summary>
-        public bool IsUnlocked(ProductData p) => p != null && p.unlockDay <= Day;
+        public bool IsUnlocked(ProductData p) => p != null && (p.special ? SpecialUnlocked(p) : p.unlockDay <= Day || EarlyUnlocked(p));
 
         /// <summary>오늘 새로 들어온 상품인지 ("NEW" 표시용).</summary>
         public bool IsNew(ProductData p) => p != null && Day > 1 && p.unlockDay == Day;
@@ -410,6 +411,7 @@ namespace Munbanggu.Core
             // 월세·관리비 (동네·증축할수록) · 2층 만화방/오락실 수입
             int upkeep = ExpansionTable.Upkeep(District, Expansion);
             if (upkeep > 0) { Money -= upkeep; Stats.upkeep = upkeep; }
+            UnlockAlbum("first_day");
             int townIncome = TownSettle();
             int comic = HasComicRoom ? townIncome : ExpansionTable.UpstairsIncome(District, Expansion, Stats.visitors, out upstairsLabel);
             if (HasComicRoom) upstairsLabel = "2층 만화방 수입";
@@ -487,7 +489,7 @@ namespace Munbanggu.Core
             SpawnCustomer(null);
         }
 
-        void SpawnCustomer(RegularProfile regular, CustomerKind kind = CustomerKind.Normal, ProductData forced = null, string askOverride = null, string dexKey = null)
+        Customer SpawnCustomer(RegularProfile regular, CustomerKind kind = CustomerKind.Normal, ProductData forced = null, string askOverride = null, string dexKey = null)
         {
             ProductData wanted = null;
             if (regular != null && (regulars.IsAdultVisit(regular) || UnityEngine.Random.value < regular.favoriteChance))
@@ -517,10 +519,12 @@ namespace Munbanggu.Core
                 if (adult) go.transform.localScale = Vector3.one * 1.3f; // 어른이 되어 찾아옴
                 if (intro != null) Dialogue.Show(RegularTitle(regular), intro, regular.color);
                 RecordCustomer((adult ? "adult_" : "regular_") + regular.id);
+                UnlockAlbum("first_regular");
             }
             if (regular == null) RecordCustomer(dexKey ?? (kind == CustomerKind.Counsel ? "counsel" : kind == CustomerKind.Sneaky ? "sneaky" : kind == CustomerKind.Credit ? "credit" : kind == CustomerKind.Crying ? "crying" : "normal"));
             c.AskOverride = askOverride;
             c.Init(this, wanted, Hud.CreateBubble(go.transform), regular, kind, request);
+            return c;
         }
 
         // ───────────── 상담 손님 (아이 마음 읽기) ─────────────
@@ -598,6 +602,7 @@ namespace Munbanggu.Core
                 case CounselResult.Perfect:
                     Stats.counselPerfect++;
                     rep = 2 + GrandmaCounselRepBonus;
+                    UnlockAlbum("first_perfect");
                     if (given != null)
                         tip = Mathf.Max(10, Mathf.RoundToInt(given.retailPrice * UnityEngine.Random.Range(0.3f, 0.5f) / 10f) * 10);
                     break;
@@ -967,6 +972,7 @@ namespace Munbanggu.Core
             ApplyUpgrades();
             RebuildDecor();
             Hud.Toast($"가게 증축: {next.name} 완료!");
+            UnlockAlbum("first_expand");
             GameEvents.RaiseRushStarted();
             Dialogue.Show("할머니", next.celebrate, UIKit.Accent);
             Save();
@@ -1020,6 +1026,7 @@ namespace Munbanggu.Core
 
             District++;
             Town.districtSinceDay = Day;
+            UnlockAlbum("first_move");
             Expansion = 0;
             Reputation = Mathf.Clamp(50 + (Reputation - 50) / 2, 40, 100);
             ApplyDistrictLook();
@@ -1202,6 +1209,7 @@ namespace Munbanggu.Core
         {
             if (Facilities.discovered.Contains(id) || !initialized) return;
             Facilities.discovered.Add(id);
+            UnlockAlbum("first_combo");
             Hud.Toast($"콤보 발견! {name}", 2.4f);
             Dialogue.Show("콤보 발견!", $"{name} — {flavor}", UIKit.Yellow, "★");
             GameEvents.RaiseRushStarted(); // 경쾌한 효과음 재사용
@@ -1763,10 +1771,12 @@ namespace Munbanggu.Core
                     Dialogue.Show($"{r.name} · {r.adultTitle}", line, r.color);
                     Dialogue.Show("추억", $"{Josa.I(r.name)} 반 아이들 몫이라며 {UIKit.Won(AdultGift)}을 더 내고 갔어요. 할머니 가게가 누군가의 추억이 됐어요.", UIKit.Accent, "♥");
                     AddReputation(5);
+                    UnlockAlbum("adult");
                 }
                 else if (moment == 1)
                 {
                     Dialogue.Show(title, line, r.color);
+                    UnlockAlbum("graduation");
                     Dialogue.Show("졸업", $"{Josa.I(r.name)} 이제 안 와요… 언젠가 어른이 되어 다시 찾아올지도 몰라요.", UIKit.Muted, "졸");
                 }
                 else
@@ -1784,6 +1794,7 @@ namespace Munbanggu.Core
             Stats.tips += tip;
             Stats.served++;
             RecordSold(c.Carried);
+            if (c.SpecialId != null) OnSpecialServed(c, c.Carried);
             Notify();
             return tip;
         }

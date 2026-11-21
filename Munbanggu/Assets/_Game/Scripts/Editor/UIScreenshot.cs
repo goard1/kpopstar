@@ -245,6 +245,38 @@ namespace Munbanggu.EditorTools
                 gm.DebugComicReaders(5);
                 Shot(hud, cam, rt, outDir, "31_comic_readers");
 
+                // 14) 발견: 작업대·앨범·고양이 룰렛
+                gm.DebugDistrict(0, 3);
+                gm.DebugMorningForCapture();
+                gm.DebugDiscoveryForCapture();
+                if (gm.Dialogue != null) gm.Dialogue.Clear();
+                var crafted = gm.Craft(gm.Catalog.Find("ddakji"), gm.Catalog.Find("sticker"), out string craftMsg);
+                var failed = gm.Craft(gm.Catalog.Find("jjondeugi"), gm.Catalog.Find("marble"), out string failMsg);
+                Debug.Log($"[UIScreenshot] 작업대: {(crafted != null ? crafted.name : "없음")} / {craftMsg} | 틀린 조합: {(failed == null)} / {failMsg} | 반짝 딱지 해금: {gm.IsUnlocked(gm.Catalog.Find("sp_shinyddakji"))}, 창고 {gm.Stock(gm.Catalog.Find("sp_shinyddakji"))}");
+                if (gm.Dialogue != null) gm.Dialogue.Clear();
+                hud.Town.OpenWorkbench();
+                Shot(hud, cam, rt, outDir, "34_workbench");
+                hud.Town.OpenAlbum();
+                Shot(hud, cam, rt, outDir, "35_album");
+                hud.Town.Open();
+                Shot(hud, cam, rt, outDir, "35b_town_discovery");
+                hud.OpenRoulette();
+                Shot(hud, cam, rt, outDir, "36_roulette");
+                int slice = gm.SpinCatRoulette(out string prize);
+                Debug.Log($"[UIScreenshot] 룰렛: 칸 {slice} → {prize} / 또 돌리기 가능? {gm.CatGiftReady}");
+                hud.CloseModals();
+                if (gm.Dialogue != null) gm.Dialogue.Clear();
+                Shot(hud, cam, rt, outDir, "37_cat_on_counter");
+                {
+                    var sc = cam.GetComponent<ShopCamera>();
+                    var catW = gm.Layout.Root.TransformPoint(new Vector3(1.55f, 0.3f, -1.25f));
+                    float prevSize = cam.orthographicSize; var prevPos = cam.transform.position;
+                    cam.orthographicSize = 1.1f; cam.transform.position = catW - cam.transform.forward * 30f;
+
+                    Shot(hud, cam, rt, outDir, "38_cat_zoom");
+                    cam.orthographicSize = prevSize; cam.transform.position = prevPos; sc.Fit();
+                }
+
                 // 13) 할머니 스킬: 동네 창 목록 + 영업 중 버튼 줄
                 gm.DebugGrandmaForCapture();
                 hud.Town.Open();

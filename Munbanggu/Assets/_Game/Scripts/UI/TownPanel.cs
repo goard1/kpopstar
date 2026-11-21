@@ -13,7 +13,9 @@ namespace Munbanggu.UI
     /// </summary>
     public sealed class TownPanel
     {
-        enum View { Main, Comic, Dex }
+        enum View { Main, Comic, Dex, Workbench, Album }
+        ProductData benchA, benchB;
+        string benchMsg;
 
         readonly GameManager gm;
         readonly GameObject modal;
@@ -44,6 +46,8 @@ namespace Munbanggu.UI
         public void Open() => Open(View.Main);
         public void OpenComic() => Open(View.Comic);
         public void OpenDex(int tab = 0) { dexTab = tab; Open(View.Dex); }
+        public void OpenWorkbench() { benchMsg = null; Open(View.Workbench); }
+        public void OpenAlbum() => Open(View.Album);
 
         void Open(View v)
         {
@@ -121,6 +125,8 @@ namespace Munbanggu.UI
             {
                 case View.Comic: title.text = "2층 만화방"; BuildComic(); break;
                 case View.Dex: title.text = "도감"; BuildDex(); break;
+                case View.Workbench: title.text = "할머니 작업대"; BuildWorkbench(); break;
+                case View.Album: title.text = "추억 앨범"; BuildAlbum(); break;
                 default: title.text = "동네"; BuildMain(); break;
             }
         }
@@ -137,6 +143,40 @@ namespace Munbanggu.UI
                 if (t.Hint != null) Label(c, t.Hint, 23, UIKit.Muted, 26, 66, 26, 140);
                 var tm = gm.Tomorrow;
                 Label(c, $"내일: {tm.WeekName}요일 · {tm.WeatherIcon} · {tm.Title}", 23, UIKit.Blue, 26, t.Hint != null ? 180 : 70, 26, 34);
+            }
+
+            // 발견: 작업대 · 고양이 · 앨범
+            Header("또 뭐가 나올까?");
+            {
+                int found = 0;
+                foreach (var r in RecipeTable.All) if (gm.Disc.recipes.Contains(r.id)) found++;
+                var c = Card(120);
+                Label(c, $"할머니 작업대  (특제 {found}/{RecipeTable.All.Length})", 30, UIKit.Ink, 26, 14, 250, 44);
+                Label(c, "창고 물건 두 개를 합치면… ??? 가 나와요", 22, UIKit.Muted, 26, 62, 250, 40);
+                Side(c, -1, "작업대", new Color(1f, 0.6f, 0.3f), true, OpenWorkbench);
+            }
+            {
+                var cat = gm.Disc.cat;
+                var c = Card(140);
+                string state = !cat.met ? "아직 안 보여요… (며칠 뒤 문 앞에?)"
+                    : !cat.adopted ? $"문 앞 고양이: 밥을 주면 가까워져요 ({cat.affection}/{CatRules.AdoptAfter})"
+                    : gm.CatGiftReady ? "치즈가 선물을 물어 왔어요! 룰렛을 돌려요" : $"치즈 (친밀도 {cat.affection}) · 밥을 주면 내일 아침 선물";
+                Label(c, cat.adopted ? "고양이 치즈" : cat.met ? "문 앞 고양이" : "???", 30, UIKit.Ink, 26, 14, 250, 44);
+                Label(c, state, 22, gm.CatGiftReady ? UIKit.Red : UIKit.Muted, 26, 62, 250, 60);
+                if (gm.CatGiftReady)
+                    Side(c, 0, "선물 룰렛!", new Color(1f, 0.6f, 0.3f), true, () => gm.Hud.OpenRoulette());
+                else
+                    Side(c, 0, "룰렛", UIKit.Muted, false, () => { });
+                bool fedToday = cat.lastFedDay == gm.Day;
+                Side(c, 1, fedToday ? "밥 먹었어요" : $"밥 주기 {UIKit.Won(CatRules.FeedCost)}", UIKit.Green, cat.met && !fedToday && gm.Money >= CatRules.FeedCost, () => gm.FeedCat());
+            }
+            {
+                int have = 0;
+                foreach (var p in Album.Pages) if (gm.HasAlbum(p.id)) have++;
+                var c = Card(110);
+                Label(c, $"할머니 추억 앨범  ({have}/{Album.Pages.Length})", 30, UIKit.Ink, 26, 14, 250, 44);
+                Label(c, "특별한 순간마다 사진이 한 장씩 꽂혀요", 22, UIKit.Muted, 26, 60, 250, 36);
+                Side(c, -1, "앨범", UIKit.Accent, true, OpenAlbum);
             }
 
             Header("동네 대회 (하루 손님 ×1.4, 그 물건 ×3, 평판 +3)");
@@ -346,6 +386,117 @@ namespace Munbanggu.UI
                         Label(c, owned > 0 ? s.blurb : "만화방에 들여놓으면 알 수 있어요.", 21, UIKit.Muted, 26, 56, 26, 46);
                     }
                     break;
+            }
+        }
+
+        // ───────────── 작업대 ─────────────
+
+        void BuildWorkbench()
+        {
+            {
+                var c = Card(230);
+                Label(c, "재료 두 개를 골라 합쳐 봐요", 26, UIKit.Muted, 26, 12, 26, 34);
+                for (int i = 0; i < 2; i++)
+                {
+                    var p = i == 0 ? benchA : benchB;
+                    var slot = UIKit.CardPanel("Slot", c.transform, p != null ? UIKit.Cream : new Color(0.95f, 0.93f, 0.9f), 20, false, 4);
+                    var rt = slot.rectTransform;
+                    rt.anchorMin = new Vector2(i == 0 ? 0f : 0.36f, 0f); rt.anchorMax = new Vector2(i == 0 ? 0.32f : 0.68f, 1f);
+                    rt.offsetMin = new Vector2(i == 0 ? 26 : 0, 20); rt.offsetMax = new Vector2(0, -56);
+                    if (p != null) { Icon(slot, p); }
+                    var t = UIKit.Label("Name", slot.transform, p != null ? p.displayName : "재료 " + (i + 1), 24, p != null ? UIKit.Ink : UIKit.Muted, TextAnchor.LowerCenter);
+                    UIKit.Stretch(t.rectTransform, 6, 8, 6, 0);
+                    int idx = i;
+                    var clear = slot.gameObject.AddComponent<Button>();
+                    clear.transition = Selectable.Transition.None;
+                    clear.onClick.AddListener(() => { if (idx == 0) benchA = null; else benchB = null; Rebuild(); });
+                }
+                var plus = UIKit.Label("Plus", c.transform, "+", 50, UIKit.Accent, TextAnchor.MiddleCenter);
+                var prt = plus.rectTransform;
+                prt.anchorMin = new Vector2(0.32f, 0f); prt.anchorMax = new Vector2(0.36f, 1f);
+                prt.offsetMin = new Vector2(0, 20); prt.offsetMax = new Vector2(0, -56);
+                var go = UIKit.Button("Craft", c.transform, "합치기!", 34, new Color(1f, 0.6f, 0.3f), Color.white, out _);
+                var grt = (RectTransform)go.transform;
+                grt.anchorMin = new Vector2(0.71f, 0f); grt.anchorMax = new Vector2(1f, 1f);
+                grt.offsetMin = new Vector2(0, 20); grt.offsetMax = new Vector2(-26, -56);
+                go.interactable = benchA != null && benchB != null;
+                go.onClick.AddListener(() =>
+                {
+                    var r = gm.Craft(benchA, benchB, out string msg);
+                    benchMsg = msg;
+                    if (r != null) { benchA = null; benchB = null; }
+                    Rebuild();
+                });
+            }
+            if (!string.IsNullOrEmpty(benchMsg)) Note(benchMsg, UIKit.Red);
+
+            Header($"창고 재료 ({RecipeTable.Need}개 이상 있는 것 · 맞는 짝이면 특제 {RecipeTable.Yield}개)");
+            bool any = false;
+            foreach (var p in gm.Catalog.products)
+            {
+                if (p.special || gm.Stock(p) < RecipeTable.Need) continue;
+                any = true;
+                var c = Card(100);
+                Icon(c, p);
+                Label(c, $"{p.displayName}  · 창고 {gm.Stock(p)}개", 27, UIKit.Ink, 110, 30, 250, 40);
+                var prod = p;
+                bool picked = benchA == p || benchB == p;
+                Side(c, -1, picked ? "골랐음" : "넣기", UIKit.Blue, !picked && (benchA == null || benchB == null), () =>
+                {
+                    if (benchA == null) benchA = prod; else if (benchB == null) benchB = prod;
+                    benchMsg = null;
+                    Rebuild();
+                });
+            }
+            if (!any) Note("창고에 같은 물건이 3개 이상 있어야 재료로 쓸 수 있어요. 도매상에서 사 와요!", UIKit.Muted);
+
+            Header("레시피 노트");
+            foreach (var r in RecipeTable.All)
+            {
+                bool found = gm.Disc.recipes.Contains(r.id);
+                bool hint = gm.Disc.hints.Contains(r.id);
+                var pa = gm.Catalog.Find(r.a);
+                var pb = gm.Catalog.Find(r.b);
+                var c = Card(110);
+                Label(c, found ? $"{r.name} = {pa?.displayName} + {pb?.displayName}" : "??? = ? + ?", 27, found ? UIKit.Ink : UIKit.Muted, 26, 12, 26, 40);
+                Label(c, found ? r.blurb : hint ? "힌트: " + r.hint : "힌트 없음 (고양이 룰렛·단골 이야기·만화책에서 찾아요)", 21, hint && !found ? UIKit.Blue : UIKit.Muted, 26, 56, 26, 46);
+            }
+        }
+
+        // ───────────── 추억 앨범 ─────────────
+
+        void BuildAlbum()
+        {
+            int have = 0;
+            foreach (var p in Album.Pages) if (gm.HasAlbum(p.id)) have++;
+            Note($"모은 사진 {have}/{Album.Pages.Length} · 마지막 장은 다 모으면 열려요", UIKit.Muted);
+            foreach (var page in Album.Pages)
+            {
+                bool got = gm.HasAlbum(page.id);
+                bool ending = page.id == "ending";
+                var c = Card(ending && got ? 300 : 220);
+                var frame = UIKit.CardPanel("Photo", c.transform, got ? Color.white : new Color(0.92f, 0.9f, 0.88f), 8, false, 3);
+                var frt = frame.rectTransform;
+                frt.anchorMin = new Vector2(0, 0.5f); frt.anchorMax = new Vector2(0, 0.5f);
+                frt.pivot = new Vector2(0, 0.5f);
+                frt.sizeDelta = new Vector2(120, 180);
+                frt.anchoredPosition = new Vector2(24, 0);
+                var tex = got ? gm.AlbumPhoto(page.id) : null;
+                if (tex != null)
+                {
+                    var raw = new GameObject("Img", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+                    raw.transform.SetParent(frame.transform, false);
+                    raw.texture = tex;
+                    raw.raycastTarget = false;
+                    UIKit.Stretch(raw.rectTransform, 6, 6, 6, 6);
+                }
+                else
+                {
+                    var q = UIKit.Label("Q", frame.transform, got ? "♥" : "?", 60, got ? UIKit.Red : UIKit.Muted, TextAnchor.MiddleCenter);
+                    UIKit.Stretch(q.rectTransform);
+                }
+                Label(c, ending && !got ? "???" : page.title, 30, got ? UIKit.Ink : UIKit.Muted, 166, 16, 26, 44);
+                Label(c, got ? page.line : "아직 빈칸이에요…", 22, UIKit.Muted, 166, 64, 26, ending && got ? 220 : 140);
             }
         }
 

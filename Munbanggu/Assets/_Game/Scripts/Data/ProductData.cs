@@ -39,6 +39,10 @@ namespace Munbanggu.Data
         [Header("그레이박스 표시")]
         public Color color = Color.white;
 
+        // ── 숨은 레시피로 만드는 특제 상품 (실행 중에 만들어짐, docs/09) ──
+        [HideInInspector] public bool special;      // 특제 상품 (레시피로 발견해야 도매상에 나옴)
+        [HideInInspector] public string visualOf;   // 모양을 빌려 쓸 원래 상품 id
+
         public int BoxCost => wholesalePrice * boxSize;
         public int Margin => retailPrice - wholesalePrice;
     }

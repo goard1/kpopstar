@@ -112,6 +112,9 @@ namespace Munbanggu.UI
         readonly System.Collections.Generic.List<(Button btn, Text label, Image bg)> skillButtons = new System.Collections.Generic.List<(Button, Text, Image)>();
         Button wholesaleButton, openButton, speedButton, upgradeButton, staffButton, townButton;
         TownPanel townPanel;
+        RoulettePanel roulette;
+        public void OpenRoulette() { if (townPanel != null) townPanel.Close(); roulette.Open(); }
+        public bool IsRouletteOpen => roulette != null && roulette.IsOpen;
         public TownPanel Town => townPanel;
         StaffPanel staffPanel;
         UpgradePanel upgradePanel;
@@ -200,6 +203,7 @@ namespace Munbanggu.UI
             { var m = Modal("Decor Modal", out var dcCard, 1500, out var dcJuice); decorPanel = DecorPanel.Build(gm, m, dcCard, dcJuice); }
             { var m = Modal("Staff Modal", out var sfCard, 1640, out var sfJuice); staffPanel = StaffPanel.Build(gm, m, sfCard, sfJuice); }
             { var m = Modal("Town Modal", out var twCard, 1640, out var twJuice); townPanel = TownPanel.Build(gm, m, twCard, twJuice); }
+            { var m = Modal("Roulette Modal", out var ruCard, 1300, out var ruJuice); roulette = RoulettePanel.Build(gm, m, ruCard, ruJuice); }
             BuildSettlementModal();
 
             // 모달 위에 뜨는 것들: 토스트·배너·튜토리얼·동전
@@ -1243,6 +1247,7 @@ namespace Munbanggu.UI
             staffPanel.Close();
             decorPanel.Close();
             townPanel.Close();
+            roulette.Close();
             ExitDecorMode();
             ExitMoveMode();
             StopSettlementAnim();
