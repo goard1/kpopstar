@@ -486,6 +486,30 @@ namespace Munbanggu.Customers
             gm.ShowEventTip(Kind);
         }
 
+        // ───── 할머니 스킬용 ─────
+
+        /// <summary>몰래 나가는 중이면 붙잡는다 (할머니 호통).</summary>
+        public bool GrandmaCatch(string line)
+        {
+            if (state != State.Sneaking || Carried == null) return false;
+            CatchSneak(line);
+            return true;
+        }
+
+        /// <summary>줄 선 손님 인내심을 가득 채운다.</summary>
+        public void RefillPatience()
+        {
+            if (state == State.Queued) patience = maxPatience;
+        }
+
+        /// <summary>줄 서서 물건을 든 손님이면 바로 계산하고 보낸다 (번개 계산). 외상·상담 손님은 빼고.</summary>
+        public bool InstantCheckout(string line)
+        {
+            if (state != State.Queued || Carried == null || Kind == CustomerKind.Credit) return false;
+            PayAndLeave(line);
+            return true;
+        }
+
         /// <summary>문 나가기 전에 잡았다 → 제값 받고 보냄.</summary>
         void CatchSneak(string byLine)
         {
@@ -559,7 +583,7 @@ namespace Munbanggu.Customers
                 return;
             }
             bubble.SetIcon(ProductIcons.Get(gift));
-            gm.ScheduleFriends(Random.Range(2, 4));
+            gm.ScheduleComfortFriends(Random.Range(2, 4));
             Leave("고맙습니다!! 친구들 데려올게요!", UIKit.BubbleMoney, 2f);
         }
 

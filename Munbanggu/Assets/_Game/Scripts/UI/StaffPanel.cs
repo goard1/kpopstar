@@ -116,28 +116,104 @@ namespace Munbanggu.UI
             if (candidates.Count == 0) Note("오늘은 지원자가 더 없어요. 내일 또 와요.");
             foreach (var c in candidates) CandidateCard(c, full);
 
-            Header("직원 아이템 (한 번 사면 계속, 한 명에게 하나씩)");
-            foreach (var item in StaffRules.Items) ItemCard(item);
+            // 보따리 상인 (3일마다 와서 3가지만, 하나씩)
+            var offer = gm.MerchantOfferToday();
+            if (offer.Count > 0)
+            {
+                Header("보따리 상인이 왔어요! (오늘만, 하나씩)");
+                foreach (var item in offer) MerchantCard(item);
+            }
+            else
+            {
+                Header("보따리 상인");
+                int d = StaffRules.DaysToMerchant(gm.Day);
+                Note($"직원 물건 파는 상인은 {StaffRules.MerchantEvery}일마다 와요. 다음 방문: {d}일 뒤");
+            }
+
+            // 가진 아이템
+            if (staff.ownedItems.Count > 0)
+            {
+                var counts = new System.Collections.Generic.List<string>();
+                foreach (var def in StaffRules.Items)
+                {
+                    int n = staff.OwnedCount(def.id);
+                    if (n > 0) counts.Add(n > 1 ? $"{def.name} ×{n}" : def.name);
+                }
+                Header("가진 직원 아이템 (직원 카드의 「아이템 바꾸기」로 달아요)");
+                Note(string.Join(" · ", counts));
+            }
         }
 
         // ───── 카드들 ─────
 
         void MemberCard(StaffMember m)
         {
-            var card = Card(m.name, 268);
+            bool perk = m.perkChoices > 0;
+            float h = 400 + (perk ? 120 : 0);
+            var card = Card(m.name, h);
             var apron = UIKit.Panel("Apron", card.transform, StaffAgent.ApronColor(m.job), false);
             UIKit.Round(apron, 14);
             UIKit.Place(apron.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(26, -24), new Vector2(28, 28));
 
             Text(card, $"{m.name}  Lv{m.level}", 36, UIKit.Ink, 66, 18, 300, 70, TextAnchor.UpperLeft);
             Text(card, $"{StaffRules.JobName(m.job)} · 월급 {UIKit.Won(StaffRules.DailySalary(m))}/일", 26, UIKit.Muted, 300, 22, 26, 70, TextAnchor.UpperRight);
-            Text(card, StatLine(m), 27, UIKit.Ink, 26, 66, 26, 34, TextAnchor.UpperLeft);
+
+            // 능력치 2×2 (포인트가 있으면 + 버튼)
+            var member = m;
+            StaffStat[] stats = { StaffStat.Speed, StaffStat.Walk, StaffStat.Kindness, StaffStat.Sharp };
+            for (int i = 0; i < 4; i++)
+            {
+                var s = stats[i];
+                int b = StaffRules.Base(m, s), e = StaffRules.Effective(m, s);
+                int col = i % 2, row = i / 2;
+                float left = 26 + col * 0.5f, top = 66 + row * 52;
+                var t = UIKit.Label("Stat", card.transform, $"{StaffRules.StatName(s)} {Bar(b)} {(e != b ? $"{e}(+{e - b})" : e.ToString())}", 25, UIKit.Ink, TextAnchor.MiddleLeft);
+                var rt = t.rectTransform;
+                rt.anchorMin = new Vector2(col * 0.5f, 1); rt.anchorMax = new Vector2(col * 0.5f + 0.5f, 1);
+                rt.pivot = new Vector2(0.5f, 1);
+                rt.offsetMin = new Vector2(26, -top - 46); rt.offsetMax = new Vector2(m.points > 0 ? -70 : -10, -top);
+                if (m.points > 0)
+                {
+                    var plus = UIKit.Button("Plus", card.transform, "+", 30, UIKit.Green, Color.white, out _);
+                    var prt = (RectTransform)plus.transform;
+                    prt.anchorMin = prt.anchorMax = new Vector2(col * 0.5f + 0.5f, 1);
+                    prt.pivot = new Vector2(1, 1);
+                    prt.sizeDelta = new Vector2(56, 44);
+                    prt.anchoredPosition = new Vector2(-14, -top - 1);
+                    plus.interactable = b < StaffRules.StatCap;
+                    plus.onClick.AddListener(() => { gm.AllocateStaffStat(member, s); Rebuild(); });
+                }
+            }
+
             string exp = m.level >= StaffRules.MaxLevel ? "최고 레벨!" : $"경험치 {m.exp}/{StaffRules.ExpToNext(m.level)}";
             var item = StaffRules.FindItem(m.item);
-            Text(card, $"{exp}  ·  아이템: {(item != null ? item.name : "없음")}", 24, UIKit.Muted, 26, 106, 26, 34, TextAnchor.UpperLeft);
+            string pts = m.points > 0 ? $"  ·  <color=#2e9e5b>포인트 {m.points} (+로 올려요)</color>" : "";
+            var line = Text(card, $"{exp}  ·  아이템: {(item != null ? item.name : "없음")}{pts}", 23, UIKit.Muted, 26, 172, 26, 34, TextAnchor.UpperLeft);
+            line.supportRichText = true;
+            string perkText = m.perks != null && m.perks.Count > 0
+                ? "특기: " + string.Join(", ", m.perks.ConvertAll(id => StaffRules.FindPerk(id)?.name ?? id))
+                : "특기: 없음 (Lv3·6·9에 하나씩 골라요)";
+            Text(card, $"{perkText}  ·  걷는 속도 {StaffRules.WalkSpeed(m):0.0}m/s", 23, UIKit.Muted, 26, 208, 26, 34, TextAnchor.UpperLeft);
+
+            if (perk)
+            {
+                var offer = StaffRules.PerkOffer(m);
+                Text(card, "★ 특기를 하나 골라요!", 25, UIKit.Red, 26, 248, 26, 30, TextAnchor.UpperLeft);
+                for (int i = 0; i < offer.Count; i++)
+                {
+                    var p = offer[i];
+                    var btn = UIKit.Button("Perk", card.transform, $"{p.name}\n<size=20>{p.desc}</size>", 26, UIKit.Accent, Color.white, out var lbl);
+                    lbl.supportRichText = true;
+                    var brt = (RectTransform)btn.transform;
+                    brt.anchorMin = new Vector2(i * 0.5f, 1); brt.anchorMax = new Vector2(i * 0.5f + 0.5f, 1);
+                    brt.pivot = new Vector2(0.5f, 1);
+                    brt.offsetMin = new Vector2(i == 0 ? 20 : 6, -366); brt.offsetMax = new Vector2(i == 1 ? -20 : -6, -282);
+                    string pid = p.id;
+                    btn.onClick.AddListener(() => { gm.ChooseStaffPerk(member, pid); Rebuild(); });
+                }
+            }
 
             // 버튼 줄: 일 바꾸기 / 아이템 / 교육 / 내보내기
-            var member = m;
             RowButton(card, 0, 4, $"일: {StaffRules.JobName(m.job)}", UIKit.Blue, Color.white, true, () => { gm.CycleStaffJob(member); Rebuild(); });
             RowButton(card, 1, 4, "아이템 바꾸기", UIKit.Card, UIKit.Ink, gm.Staff.ownedItems.Count > 0, () => { gm.CycleStaffItem(member); Rebuild(); });
             bool maxed = m.level >= StaffRules.MaxLevel;
@@ -147,6 +223,12 @@ namespace Munbanggu.UI
             RowButton(card, 3, 4, "내보내기", UIKit.Muted, Color.white, true, () => { gm.FireStaff(member); Rebuild(); });
         }
 
+        static string Bar(int v)
+        {
+            int n = Mathf.Clamp(v, 0, 10);
+            return new string('●', n / 2) + (n % 2 == 1 ? "◐" : "") + new string('○', (10 - n) / 2);
+        }
+
         void CandidateCard(StaffMember c, bool full)
         {
             var card = Card("Candidate " + c.name, 176);
@@ -154,28 +236,31 @@ namespace Munbanggu.UI
             UIKit.Round(apron, 14);
             UIKit.Place(apron.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(26, -24), new Vector2(28, 28));
             Text(card, $"{c.name}  ({StaffRules.JobName(c.job)} 지원)", 34, UIKit.Ink, 66, 18, 260, 70, TextAnchor.UpperLeft);
-            Text(card, StatLine(c), 26, UIKit.Ink, 26, 64, 260, 34, TextAnchor.UpperLeft);
+            Text(card, StatLine(c), 24, UIKit.Ink, 26, 64, 260, 34, TextAnchor.UpperLeft);
             Text(card, $"월급 {UIKit.Won(StaffRules.DailySalary(c))}/일 · {StaffRules.JobDesc(c.job)}", 21, UIKit.Muted, 26, 104, 260, 20, TextAnchor.UpperLeft);
             var cand = c;
             SideButton(card, full ? "자리 없음" : "고용", UIKit.Green, !full, () => { gm.HireStaff(cand); Rebuild(); });
         }
 
-        void ItemCard(StaffItemDef item)
+        static readonly Color[] RarityColors = { new Color(0.55f, 0.55f, 0.6f), new Color(0.35f, 0.55f, 0.95f), new Color(0.95f, 0.6f, 0.15f) };
+
+        void MerchantCard(StaffItemDef item)
         {
-            var card = Card("Item " + item.id, 118);
-            Text(card, item.name, 34, UIKit.Ink, 26, 14, 260, 54, TextAnchor.UpperLeft);
-            Text(card, item.desc, 24, UIKit.Muted, 26, 62, 260, 16, TextAnchor.UpperLeft);
-            bool owned = gm.Staff.ownedItems.Contains(item.id);
+            var card = Card("Item " + item.id, 124);
+            var tag = UIKit.CardPanel("Rarity", card.transform, RarityColors[item.rarity], 12, false, 3);
+            UIKit.Place(tag.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -18), new Vector2(76, 36));
+            var tl = UIKit.Label("Text", tag.transform, item.RarityName, 22, Color.white, TextAnchor.MiddleCenter);
+            UIKit.Stretch(tl.rectTransform);
+            Text(card, item.name, 32, UIKit.Ink, 114, 14, 260, 48, TextAnchor.UpperLeft);
+            Text(card, $"{item.desc}  ·  가진 것 {gm.Staff.OwnedCount(item.id)}개", 22, UIKit.Muted, 26, 66, 260, 40, TextAnchor.UpperLeft);
+            bool sold = gm.MerchantSold(item.id);
             var id = item.id;
-            SideButton(card, owned ? "있음" : UIKit.Won(item.price), owned ? UIKit.Muted : UIKit.Green,
-                !owned && gm.Money >= item.price, () => { gm.BuyStaffItem(id); Rebuild(); });
+            SideButton(card, sold ? "산 물건" : UIKit.Won(item.price), sold ? UIKit.Muted : UIKit.Green,
+                !sold && gm.Money >= item.price, () => { gm.BuyMerchantItem(id); Rebuild(); });
         }
 
-        static string StatLine(StaffMember m)
-        {
-            string S(int baseV, int eff) => eff != baseV ? $"{eff}(+{eff - baseV})" : eff.ToString();
-            return $"손 빠르기 {S(m.speed, StaffRules.Speed(m))}   친절 {S(m.kindness, StaffRules.Kindness(m))}   눈썰미 {S(m.sharp, StaffRules.Sharp(m))}";
-        }
+        static string StatLine(StaffMember m) =>
+            $"손 {StaffRules.Speed(m)}  걸음 {StaffRules.Walk(m)}  친절 {StaffRules.Kindness(m)}  눈썰미 {StaffRules.Sharp(m)}";
 
         // ───── 작은 도우미 ─────
 

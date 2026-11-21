@@ -178,6 +178,24 @@ namespace Munbanggu.UI
                     Label(c, "아직 조용해요. 장사가 잘되면 누군가 길 건너에 가게를 낼지도…", 23, UIKit.Muted, 26, 16, 26, 140);
             }
 
+            Header("할머니 스킬 (배우면 계속 · 보라색 버튼은 영업 중에 눌러 써요)");
+            foreach (var s in GrandmaSkills.All)
+            {
+                string blocker = gm.GrandmaSkillBlocker(s);
+                bool learned = gm.HasGrandmaSkill(s.id);
+                bool locked = !learned && blocker != null;
+                var c = Card(130);
+                var tag = UIKit.CardPanel("Kind", c.transform, s.active ? new Color(0.56f, 0.40f, 0.80f) : UIKit.Green, 12, false, 3);
+                UIKit.Place(tag.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -18), new Vector2(84, 34));
+                var tl = UIKit.Label("Text", tag.transform, s.active ? "버튼" : "늘 켜짐", 20, Color.white, TextAnchor.MiddleCenter);
+                UIKit.Stretch(tl.rectTransform);
+                Label(c, locked && gm.Day < s.minDay - 2 ? "???" : s.name, 30, learned ? UIKit.Green : UIKit.Ink, 122, 14, 250, 40);
+                Label(c, locked && gm.Day < s.minDay - 2 ? $"{s.minDay}일차쯤 알 수 있어요" : (learned ? "✓ " : "") + s.desc, 21, locked ? UIKit.Muted : UIKit.Muted, 26, 60, 250, 60);
+                string id = s.id;
+                Side(c, -1, learned ? "배움" : blocker != null ? "아직" : $"배우기\n{UIKit.Won(s.cost)}", UIKit.Accent,
+                    !learned && blocker == null && gm.Money >= s.cost, () => gm.BuyGrandmaSkill(id));
+            }
+
             Header("2층 만화방");
             if (!gm.HasComicRoom)
                 Note("증축으로 2층 만화방을 지으면 열려요. 만화책을 모으고 자리·요금을 정해 운영해요.", UIKit.Muted);

@@ -15,7 +15,9 @@ namespace Munbanggu.Customers
     /// </summary>
     public class StaffAgent : MonoBehaviour
     {
-        const float Speed = 2.3f;
+        float Speed => Member != null ? StaffRules.WalkSpeed(Member) : 1.5f; // 걸음 능력치 (처음엔 느림)
+        float workTimer;
+        Action onWorkDone;
 
         public StaffMember Member { get; private set; }
         Vector3 home;
@@ -114,13 +116,32 @@ namespace Munbanggu.Customers
         }
         bool goingHome;
 
+        /// <summary>그 자리에서 seconds초 동안 일한 뒤 done() (물건 채우기 등).</summary>
+        public void Work(float seconds, Action done)
+        {
+            busy = true;
+            workTimer = Mathf.Max(0.05f, seconds);
+            onWorkDone = done;
+        }
+
         /// <summary>point까지 갔다가 arrive() 후 쉬는 자리로 돌아온다.</summary>
         public void Errand(Vector3 point, Action arrive) => GoTo(point, () => { arrive?.Invoke(); GoHome(); });
 
         void Update()
         {
             moving = false;
-            if (busy)
+            if (busy && onWorkDone != null)
+            {
+                workTimer -= Time.deltaTime;
+                if (workTimer <= 0f)
+                {
+                    busy = false;
+                    var done = onWorkDone;
+                    onWorkDone = null;
+                    done();
+                }
+            }
+            else if (busy)
             {
                 if (MoveTo(target))
                 {

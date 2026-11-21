@@ -9,6 +9,8 @@ namespace Munbanggu.Shop
     {
         readonly List<Vector3> spots;
         readonly List<Customer> line = new List<Customer>();
+        /// <summary>지금 줄 선 손님들 (앞에서부터).</summary>
+        public IReadOnlyList<Customer> Line => line;
 
         /// <summary>줄 선 손님이 바라보는 방향 (계산대 쪽).</summary>
         public Vector3 Facing { get; }

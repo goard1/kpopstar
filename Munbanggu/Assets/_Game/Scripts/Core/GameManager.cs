@@ -374,6 +374,11 @@ namespace Munbanggu.Core
         {
             Dialogue.Clear();
             TownMorningNews();
+            if (StaffRules.IsMerchantDay(Day))
+            {
+                var offer = MerchantOfferToday();
+                Dialogue.Show("보따리 상인", "직원 물건 팔러 왔어요~ 오늘은 딱 세 가지! " + string.Join(", ", offer.ConvertAll(i => i.name + "(" + i.RarityName + ")")) + "\n(직원 창에서 사요. " + StaffRules.MerchantEvery + "일마다 와요)", new Color(0.7f, 0.5f, 0.3f), "상");
+            }
             foreach (var line in creditNews) Dialogue.Show("외상 장부", line, UIKit.Accent, "외");
             if (IsNew(Catalog.Find(BoardProductId)))
                 Dialogue.Show("도매상", "번호 뽑기가 들어왔어요! 사서 가게 앞 뽑기판에 걸어 두면 아이들이 와서 한 판씩 뽑아요. 1등이 나오면 동네에 소문이 나요!", UIKit.Blue);
@@ -592,7 +597,7 @@ namespace Munbanggu.Core
             {
                 case CounselResult.Perfect:
                     Stats.counselPerfect++;
-                    rep = 2;
+                    rep = 2 + GrandmaCounselRepBonus;
                     if (given != null)
                         tip = Mathf.Max(10, Mathf.RoundToInt(given.retailPrice * UnityEngine.Random.Range(0.3f, 0.5f) / 10f) * 10);
                     break;
@@ -631,16 +636,16 @@ namespace Munbanggu.Core
 
         /// <summary>상자 값 (도매상 단골 할인 반영, 10원 단위).</summary>
         public int BoxCost(ProductData p) =>
-            p == null ? 0 : Mathf.RoundToInt(p.BoxCost * UpgradeTable.WholesaleMultiplier(Upgrades.Level(UpgradeTable.Wholesale)) / 10f) * 10;
+            p == null ? 0 : Mathf.RoundToInt(p.BoxCost * UpgradeTable.WholesaleMultiplier(Upgrades.Level(UpgradeTable.Wholesale)) * GrandmaBoxMultiplier / 10f) * 10;
 
         /// <summary>영업 시간 (영업시간 연장 반영).</summary>
         public float OpenDuration => openDuration + UpgradeTable.ExtraOpenSeconds(Upgrades.Level(UpgradeTable.Hours));
 
         /// <summary>계산 줄 인내심 (선풍기·의자 반영).</summary>
-        public float QueuePatience => queuePatience * UpgradeTable.PatienceMultiplier(Upgrades.Level(UpgradeTable.Fan)) * ExpansionTable.PatienceMultiplier(District, Expansion);
+        public float QueuePatience => queuePatience * UpgradeTable.PatienceMultiplier(Upgrades.Level(UpgradeTable.Fan)) * ExpansionTable.PatienceMultiplier(District, Expansion) * GrandmaPatienceMultiplier;
 
         /// <summary>몰래 나가는 아이 속도 배율 (방범 거울 반영).</summary>
-        public float SneakSpeed => UpgradeTable.SneakSpeedMultiplier(Upgrades.Level(UpgradeTable.Mirror));
+        public float SneakSpeed => UpgradeTable.SneakSpeedMultiplier(Upgrades.Level(UpgradeTable.Mirror)) * GrandmaSneakMultiplier;
 
         /// <summary>업그레이드 사기 (아침에만). 성공하면 바로 가게에 반영.</summary>
         public bool BuyUpgrade(string id)
@@ -1343,37 +1348,90 @@ namespace Munbanggu.Core
             return true;
         }
 
-        public bool BuyStaffItem(string id)
+        // ── 보따리 상인 (3일마다, 3가지만) ──
+
+        /// <summary>오늘 상인이 왔으면 파는 물건 (안 왔으면 빈 목록).</summary>
+        public List<StaffItemDef> MerchantOfferToday()
+        {
+            if (!StaffRules.IsMerchantDay(Day)) return new List<StaffItemDef>();
+            if (Staff.merchantDay != Day) { Staff.merchantDay = Day; Staff.merchantBought.Clear(); }
+            return StaffRules.MerchantOffer(Day);
+        }
+
+        public bool MerchantSold(string id) => Staff.merchantDay == Day && Staff.merchantBought.Contains(id);
+
+        public bool BuyMerchantItem(string id)
         {
             var def = StaffRules.FindItem(id);
-            if (def == null || !MorningOnly("아이템 사기")) return false;
-            if (Staff.ownedItems.Contains(id)) { Fail("이미 있는 아이템이에요"); return false; }
+            if (def == null || !MorningOnly("상인에게 사기")) return false;
+            var offer = MerchantOfferToday();
+            if (!offer.Contains(def)) { Fail("오늘 상인은 그 물건이 없어요"); return false; }
+            if (MerchantSold(id)) { Fail("그건 벌써 샀어요 (하나씩만 팔아요)"); return false; }
             if (Money < def.price) { Fail("돈이 부족해요"); return false; }
             Money -= def.price;
             Stats.invested += def.price;
             Staff.ownedItems.Add(id);
+            Staff.merchantBought.Add(id);
             Hud.Toast($"{def.name} 샀어요! 직원에게 달아 주세요");
             Save();
             Notify();
             return true;
         }
 
-        /// <summary>장착할 아이템을 다음 것으로 (없음 → 가진 아이템 중 다른 직원이 안 쓰는 것 …).</summary>
+        /// <summary>예전 방식(바로 사기) — 스크린샷 도구용으로만 남김.</summary>
+        public bool BuyStaffItem(string id)
+        {
+            var def = StaffRules.FindItem(id);
+            if (def == null) return false;
+            Staff.ownedItems.Add(id);
+            Notify();
+            return true;
+        }
+
+        /// <summary>장착할 아이템을 다음 것으로 (없음 → 가진 아이템 중 남는 것 …). 같은 아이템을 여러 개 가질 수 있음.</summary>
         public void CycleStaffItem(StaffMember m)
         {
             if (m == null || !MorningOnly("아이템 달기")) return;
             var free = new List<string> { "" };
             foreach (var id in Staff.ownedItems)
             {
-                bool usedByOther = Staff.members.Exists(o => o != m && o.item == id);
-                if (!usedByOther) free.Add(id);
+                if (free.Contains(id)) continue;
+                int used = Staff.members.FindAll(o => o != m && o.item == id).Count;
+                if (Staff.OwnedCount(id) > used) free.Add(id);
             }
             int idx = free.IndexOf(m.item ?? "");
             m.item = free[(idx + 1) % free.Count];
+            RebuildStaffAgents();
             Save();
             Notify();
         }
 
+        /// <summary>능력 포인트 하나를 나눠 준다 (아침).</summary>
+        public void AllocateStaffStat(StaffMember m, StaffStat s)
+        {
+            if (m == null || !MorningOnly("능력 올리기")) return;
+            if (!StaffRules.Allocate(m, s)) { Fail(m.points <= 0 ? "포인트가 없어요" : "그 능력은 최고예요"); return; }
+            if (s == StaffStat.Walk) RebuildStaffAgents();
+            Save();
+            Notify();
+        }
+
+        /// <summary>특기 하나를 고른다 (Lv3·6·9).</summary>
+        public void ChooseStaffPerk(StaffMember m, string perkId)
+        {
+            if (m == null || m.perkChoices <= 0 || !MorningOnly("특기 고르기")) return;
+            var offer = StaffRules.PerkOffer(m);
+            if (!offer.Exists(p => p.id == perkId)) return;
+            m.perks ??= new List<string>();
+            m.perks.Add(perkId);
+            m.perkChoices--;
+            Hud.Toast($"{Josa.I(m.name)} 「{StaffRules.FindPerk(perkId).name}」 특기를 익혔어요!");
+            RebuildStaffAgents();
+            Save();
+            Notify();
+        }
+
+        /// <summary>경험치 → 레벨업 (포인트·특기).</summary>
         void GiveStaffExp(StaffMember m, int amount)
         {
             if (m.level >= StaffRules.MaxLevel) return;
@@ -1381,7 +1439,7 @@ namespace Munbanggu.Core
             if (m.exp < StaffRules.ExpToNext(m.level)) return;
             m.exp = 0;
             StaffRules.LevelUp(m, staffRng);
-            Hud.Toast($"{m.name} 레벨업! Lv{m.level}");
+            Hud.Toast(m.perkChoices > 0 ? $"{m.name} Lv{m.level}! 특기를 고를 수 있어요 (아침 직원 창)" : $"{m.name} 레벨업! Lv{m.level} · 능력 포인트 +{m.points}");
             if (staffAgents.TryGetValue(m, out var a)) a.Say($"레벨업! Lv{m.level}", UIKit.BubbleMoney, 1.6f);
         }
 
@@ -1506,8 +1564,12 @@ namespace Munbanggu.Core
                 if (slot == null) { restockTargets.Remove(slot); return; }
                 a.GoTo(slot.StandPoint, () =>
                 {
-                    restockTargets.Remove(slot);
-                    RestockSlot(member, slot);
+                    // 매대 앞에서 손 빠르기만큼 시간을 들여 채운다
+                    a.Work(StaffRules.RestockTime(member), () =>
+                    {
+                        restockTargets.Remove(slot);
+                        RestockSlot(member, slot);
+                    });
                 }, slot != null ? slot.transform.position : (Vector3?)null);
             });
         }
@@ -1691,7 +1753,7 @@ namespace Munbanggu.Core
             var r = c.Regular;
             if (r != null)
             {
-                tip = r.tip;
+                tip = r.tip * GrandmaRegularTipMultiplier;
                 string title = RegularTitle(r);
                 var (line, completed) = regulars.OnServed(r, c.Carried, Day, out int moment);
                 if (moment == 2)
@@ -1715,6 +1777,8 @@ namespace Munbanggu.Core
                 }
             }
 
+            int bonus = GrandmaBonusSale(c.Carried); // 할머니 "덤 하나 더"
+            price += bonus;
             Money += price + tip;
             Stats.revenue += price + tip;
             Stats.tips += tip;
@@ -1837,6 +1901,9 @@ namespace Munbanggu.Core
             // 업그레이드 먼저 (매대 칸 수·추가 진열대가 있어야 저장된 진열을 그대로 올릴 수 있음)
             // 예전 "알바생" 업그레이드를 산 적 있으면 무료 직원으로 바꿔 준다 (직원 시스템으로 대체)
             Staff = data.staff ?? new StaffState();
+            // 예전 세이브: 걸음 능력이 없던 직원은 레벨에 맞춰 채움, 특기 목록 준비
+            foreach (var sm in Staff.members) { if (sm.walk <= 0) sm.walk = Mathf.Min(StaffRules.StatCap, 2 + sm.level / 2); sm.perks ??= new List<string>(); }
+            Staff.merchantBought ??= new List<string>();
             if (Staff.members.Count == 0 && data.upgrades != null)
                 foreach (var u in data.upgrades)
                     if (u.id == UpgradeTable.Helper && u.level > 0)

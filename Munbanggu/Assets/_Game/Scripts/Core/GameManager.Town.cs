@@ -47,6 +47,7 @@ namespace Munbanggu.Core
         {
             Today = SchoolCalendar.For(Day);
             UpdateRival();
+            GrandmaMorning();
             hasComicReaders = false;
             RefreshComicReaders(0);
         }
@@ -512,6 +513,7 @@ namespace Munbanggu.Core
             Town.comic ??= new ComicState();
             Town.rival ??= new RivalState();
             Town.collection ??= new CollectionState();
+            Town.grandmaSkills ??= new List<string>();
             Today = SchoolCalendar.For(Day);
         }
 

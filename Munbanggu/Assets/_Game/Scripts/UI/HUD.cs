@@ -107,6 +107,9 @@ namespace Munbanggu.UI
         readonly Dictionary<ProductData, InvItem> invByProduct = new Dictionary<ProductData, InvItem>();
         readonly List<InvItem> invOrder = new List<InvItem>();
         GameObject actionRow;
+        // 영업 중 할머니 스킬 버튼 줄 (아침 버튼 줄 자리)
+        GameObject skillRow;
+        readonly System.Collections.Generic.List<(Button btn, Text label, Image bg)> skillButtons = new System.Collections.Generic.List<(Button, Text, Image)>();
         Button wholesaleButton, openButton, speedButton, upgradeButton, staffButton, townButton;
         TownPanel townPanel;
         public TownPanel Town => townPanel;
@@ -327,6 +330,7 @@ namespace Munbanggu.UI
             var row = UIKit.Rect("Action Row", parent);
             UIKit.Bottom(row, ActionHeight, ActionY, 22);
             actionRow = row.gameObject;
+            BuildSkillRow(parent);
 
             wholesaleButton = UIKit.Button("Wholesale", row, "도매상", 36, UIKit.Blue, Color.white, out _);
             wholesaleButton.onClick.AddListener(() => OpenModal(wholesaleModal, wholesaleCardJuice));
@@ -1067,6 +1071,51 @@ namespace Munbanggu.UI
             }
         }
 
+        // ───────────── 할머니 스킬 버튼 (영업 중) ─────────────
+
+        void BuildSkillRow(Transform parent)
+        {
+            var row = UIKit.Rect("Skill Row", parent);
+            UIKit.Bottom(row, ActionHeight, ActionY, 22);
+            skillRow = row.gameObject;
+            for (int i = 0; i < 4; i++)
+            {
+                var b = UIKit.Button("Skill " + i, row, "", 26, new Color(0.56f, 0.40f, 0.80f), Color.white, out var label);
+                var rt = (RectTransform)b.transform;
+                rt.anchorMin = new Vector2(i / 4f, 0); rt.anchorMax = new Vector2((i + 1) / 4f, 1);
+                rt.offsetMin = new Vector2(i == 0 ? 0 : 6, 8); rt.offsetMax = new Vector2(i == 3 ? 0 : -6, 0);
+                label.supportRichText = true;
+                int idx = i;
+                b.onClick.AddListener(() =>
+                {
+                    var list = gm.ActiveGrandmaSkills();
+                    if (idx < list.Count) gm.UseGrandmaSkill(list[idx].id);
+                });
+                skillButtons.Add((b, label, (Image)b.targetGraphic));
+            }
+            skillRow.SetActive(false);
+        }
+
+        void RefreshSkillRow()
+        {
+            if (skillRow == null) return;
+            bool open = gm.Phase == DayPhase.Open || gm.Phase == DayPhase.Closing;
+            var list = gm.ActiveGrandmaSkills();
+            skillRow.SetActive(open && list.Count > 0);
+            if (!skillRow.activeSelf) return;
+            for (int i = 0; i < skillButtons.Count; i++)
+            {
+                var (btn, label, bg) = skillButtons[i];
+                bool has = i < list.Count;
+                btn.gameObject.SetActive(has);
+                if (!has) continue;
+                int left = gm.GrandmaUsesLeft(list[i]);
+                label.text = $"{list[i].name}\n<size=20>{(left > 0 ? $"{left}번 남음" : "오늘 다 씀")}</size>";
+                btn.interactable = left > 0;
+                bg.color = left > 0 ? new Color(0.56f, 0.40f, 0.80f) : UIKit.Muted;
+            }
+        }
+
         // ───────────── 진열대 옮기기 모드 ─────────────
 
         bool moveMode;
@@ -1440,6 +1489,7 @@ namespace Munbanggu.UI
             if (upgradePanel.IsOpen) upgradePanel.Refresh();
             RefreshTrend();
             actionRow.SetActive(gm.Phase == DayPhase.Morning);
+            RefreshSkillRow();
 
             invHint.text = gm.Selected != null
                 ? $"<color={RedHex}>{gm.Selected.displayName}</color> 고름! 매대를 탭해서 진열"

@@ -154,6 +154,14 @@ namespace Munbanggu.EditorTools
                 if (gm.Staff.members.Count > 0) gm.CycleStaffItem(gm.Staff.members[0]);
                 hud.OpenStaff();
                 Shot(hud, cam, rt, outDir, "9_staff");
+                // 7-1) 보따리 상인이 오는 날 + 레벨업 포인트·특기 고르기
+                while (!Munbanggu.Core.StaffRules.IsMerchantDay(gm.Day)) gm.DebugMorningForCapture();
+                if (gm.Staff.members.Count > 0) { var m0 = gm.Staff.members[0]; m0.level = 3; m0.points = 2; m0.perkChoices = 1; }
+                if (gm.Dialogue != null) gm.Dialogue.Clear();
+                hud.CloseModals();
+                hud.OpenStaff();
+                Shot(hud, cam, rt, outDir, "9b_staff_merchant");
+                hud.CloseModals();
                 hud.CloseModals();
                 Shot(hud, cam, rt, outDir, "10_staff_shop");
 
@@ -236,6 +244,15 @@ namespace Munbanggu.EditorTools
                 hud.CloseModals();
                 gm.DebugComicReaders(5);
                 Shot(hud, cam, rt, outDir, "31_comic_readers");
+
+                // 13) 할머니 스킬: 동네 창 목록 + 영업 중 버튼 줄
+                gm.DebugGrandmaForCapture();
+                hud.Town.Open();
+                Shot(hud, cam, rt, outDir, "32_grandma_skills");
+                hud.CloseModals();
+                gm.OpenShop();
+                if (gm.Dialogue != null) gm.Dialogue.Clear();
+                Shot(hud, cam, rt, outDir, "33_skill_row");
                 for (int d = 1; d <= 30; d++) { var info = Munbanggu.Core.SchoolCalendar.For(d); Debug.Log($"[UIScreenshot] 달력 {d}일 {info.WeekName} {info.WeatherIcon} {info.Title}"); }
 
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
