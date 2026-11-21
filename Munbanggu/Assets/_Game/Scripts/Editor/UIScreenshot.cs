@@ -157,6 +157,19 @@ namespace Munbanggu.EditorTools
                 hud.CloseModals();
                 Shot(hud, cam, rt, outDir, "10_staff_shop");
 
+                // 8) 장식·콤보: 배치 모드 표시, 진열대 장식 창
+                gm.DebugMorningForCapture();
+                gm.DebugDecorForCapture();
+                hud.CloseModals();
+                Shot(hud, cam, rt, outDir, "11_decor_shop");
+                hud.EnterDecorMode();
+                Shot(hud, cam, rt, outDir, "12_decor_mode");
+                hud.OpenDecor(0);
+                Shot(hud, cam, rt, outDir, "13_decor_panel");
+                hud.CloseModals();
+                hud.OpenUpgrades();
+                Shot(hud, cam, rt, outDir, "14_upgrades_combos");
+
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
             }
             finally

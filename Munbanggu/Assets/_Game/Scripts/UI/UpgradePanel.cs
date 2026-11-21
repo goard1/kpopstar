@@ -42,9 +42,12 @@ namespace Munbanggu.UI
 
         public bool IsOpen => modal != null && modal.activeSelf;
 
-        public static UpgradePanel Build(GameManager gm, GameObject modal, RectTransform card, UIJuice juice)
+        System.Action onDecorate;
+        Text comboText;
+
+        public static UpgradePanel Build(GameManager gm, GameObject modal, RectTransform card, UIJuice juice, System.Action onDecorate = null)
         {
-            var p = new UpgradePanel(gm, modal, juice);
+            var p = new UpgradePanel(gm, modal, juice) { onDecorate = onDecorate };
             p.BuildCard(card);
             return p;
         }
@@ -104,6 +107,22 @@ namespace Munbanggu.UI
             scroll.movementType = ScrollRect.MovementType.Elastic;
             scroll.decelerationRate = 0.12f;
 
+            // 진열대 장식 & 콤보 (배치 모드로 들어가기)
+            {
+                var header = UIKit.Label("Header", content, "진열대 장식 & 콤보", 32, UIKit.Accent, TextAnchor.LowerLeft);
+                UIKit.Layout(header, -1, 56);
+                var row = UIKit.CardPanel("Decor", content, UIKit.Card, 24, true, 6);
+                UIKit.Layout(row, -1, 170);
+                comboText = UIKit.Label("Combos", row.transform, "", 24, UIKit.Muted, TextAnchor.UpperLeft);
+                UIKit.Stretch(comboText.rectTransform, 28, 16, 250, 18);
+                var go = UIKit.Button("Go", row.transform, "장식하기", 32, UIKit.Blue, Color.white, out _);
+                var grt = (RectTransform)go.transform;
+                grt.anchorMin = new Vector2(1, 0); grt.anchorMax = new Vector2(1, 1);
+                grt.pivot = new Vector2(1, 0.5f);
+                grt.offsetMin = new Vector2(-226, 26); grt.offsetMax = new Vector2(-16, -20);
+                go.onClick.AddListener(() => { Close(); onDecorate?.Invoke(); });
+            }
+
             UpgradeCategory? lastCat = null;
             foreach (var def in UpgradeTable.All)
             {
@@ -148,6 +167,13 @@ namespace Munbanggu.UI
         public void Refresh()
         {
             money.text = UIKit.Won(gm.Money);
+            if (comboText != null)
+            {
+                var found = gm.DiscoveredComboNames();
+                comboText.text = "진열대 위에 장식을 놓아 \"○○ 코너\"를, 옆 진열대에 짝 상품을 놓아 \"세트\"를 만들어요.\n"
+                    + $"발견한 콤보 {found.Count}/{GameManager.TotalComboCount}"
+                    + (found.Count > 0 ? ": " + string.Join(", ", found) : "");
+            }
             var up = gm.Upgrades;
             foreach (var r in rows)
             {

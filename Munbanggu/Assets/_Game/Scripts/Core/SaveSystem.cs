@@ -38,6 +38,8 @@ namespace Munbanggu.Core
         public List<string> knownTraits = new List<string>();
         // ── 직원 ──
         public StaffState staff = new StaffState();
+        // ── 시설(장식)·콤보 ──
+        public FacilityState facilities = new FacilityState();
     }
 
     /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>

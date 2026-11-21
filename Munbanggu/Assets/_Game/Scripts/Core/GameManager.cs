@@ -156,6 +156,7 @@ namespace Munbanggu.Core
             HUD.CollectSettlementLines += AddSettlementLines;
             LoadOrNew();
             RebuildStaffAgents();
+            RebuildDecor();
             Speed = Mathf.Clamp(PlayerPrefs.GetInt(SpeedPref, 1), 1, MaxSpeed);
             initialized = true;
             StartMorning();
@@ -448,7 +449,7 @@ namespace Munbanggu.Core
             }
 
             float rate = IsRush ? rushSpawnPerSec : baseSpawnPerSec;
-            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign)) * ReputationSpawnMultiplier;
+            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign)) * ReputationSpawnMultiplier * (1f + DecorAppeal);
             spawnAcc += rate * Time.deltaTime;
             if (spawnAcc < 1f) return;
             spawnAcc -= 1f;
@@ -630,6 +631,27 @@ namespace Munbanggu.Core
             Notify();
         }
 
+        /// <summary>스크린샷 도구용: 0·1번 진열대에 세트 짝(쫀드기+아폴로)을 놓고 장식 몇 개 배치.</summary>
+        public void DebugDecorForCapture()
+        {
+            Money = Mathf.Max(Money, 30000);
+            var a = Catalog.products.Find(p => p.id == "jjondeugi");
+            var b = Catalog.products.Find(p => p.id == "apollo");
+            if (a != null) Layout.Slots[0].Load(a, Layout.Slots[0].Capacity);
+            if (b != null) Layout.Slots[1].Load(b, Layout.Slots[1].Capacity);
+            PlaceDecor(0, "candyjar");
+            LevelUpDecor(0);
+            LevelUpDecor(0);
+            PlaceDecor(2, "plant");
+            foreach (var s in Layout.Slots)
+            {
+                if (s.IsBoard || s.Product == null || s.Index < 3) continue;
+                var match = Array.Find(FacilityTable.Decors, d => d.affinity == s.Product.category);
+                if (match != null && Facilities.At(s.Index) == null) { PlaceDecor(s.Index, match.id); break; }
+            }
+            Notify();
+        }
+
         /// <summary>스크린샷 도구용: 다음 날 아침으로 (돈 넉넉히).</summary>
         public void DebugMorningForCapture()
         {
@@ -670,6 +692,152 @@ namespace Munbanggu.Core
             Hud.Fx.CoinBurst(Layout.Root.TransformPoint(Visual.UpgradeVisuals.ArcadePosition(which)) + Vector3.up * 1.4f, coin);
             Notify();
         }
+
+        // ───────────── 시설 배치·콤보 (docs/06 2장) ─────────────
+
+        public FacilityState Facilities { get; private set; } = new FacilityState();
+        GameObject decorRoot;
+        readonly Dictionary<ProductData, float> comboBoost = new Dictionary<ProductData, float>();
+        readonly Dictionary<int, string> slotCombo = new Dictionary<int, string>();
+        float decorAppeal;
+
+        /// <summary>장식이 끌어오는 손님 보너스 합 (0.06 = +6%).</summary>
+        public float DecorAppeal => decorAppeal;
+
+        /// <summary>그 상품이 콤보로 받는 수요 배율 (없으면 1).</summary>
+        float ComboDemand(ProductData p) => p != null && comboBoost.TryGetValue(p, out var v) ? v : 1f;
+
+        /// <summary>그 진열대가 속한 콤보 이름 (없으면 null). 진열대 이름표 표시용.</summary>
+        public string SlotCombo(int slotIndex) => slotCombo.TryGetValue(slotIndex, out var n) ? n : null;
+
+        public int DiscoveredComboCount => Facilities.discovered.Count;
+        public static int TotalComboCount => FacilityTable.Sets.Length + 4; // 세트 + 코너 4종
+
+        /// <summary>발견한 콤보 이름 목록 (꾸미기 창 도감용).</summary>
+        public List<string> DiscoveredComboNames()
+        {
+            var list = new List<string>();
+            foreach (var id in Facilities.discovered)
+            {
+                var set = System.Array.Find(FacilityTable.Sets, s => s.id == id);
+                if (set != null) { list.Add(set.name); continue; }
+                foreach (ProductCategory c in System.Enum.GetValues(typeof(ProductCategory)))
+                    if (FacilityTable.CornerId(c) == id) list.Add(FacilityTable.CornerName(c));
+            }
+            return list;
+        }
+
+        /// <summary>장식·진열 상태로 콤보를 다시 계산. 처음 이루어진 콤보는 알림.</summary>
+        void RecomputeCombos()
+        {
+            if (Layout == null) return;
+            comboBoost.Clear();
+            slotCombo.Clear();
+            decorAppeal = 0f;
+            var slots = Layout.Slots;
+
+            foreach (var d in Facilities.decor)
+            {
+                var def = FacilityTable.FindDecor(d.id);
+                if (def == null || d.slot < 0 || d.slot >= slots.Count) continue;
+                decorAppeal += FacilityTable.AppealPerLevel(def) * d.level;
+                var p = slots[d.slot].Product;
+                if (p == null || def.affinity == null || p.category != def.affinity.Value) continue;
+                Boost(p, FacilityTable.CornerBoost(d.level));
+                slotCombo[d.slot] = FacilityTable.CornerName(p.category);
+                Discover(FacilityTable.CornerId(p.category), FacilityTable.CornerName(p.category),
+                    $"{def.name} 덕분에 {Josa.I(p.displayName)} 더 잘 팔려요!");
+            }
+
+            foreach (var (a, b) in FacilityTable.Neighbors)
+            {
+                if (a >= slots.Count || b >= slots.Count) continue;
+                var pa = slots[a].Product;
+                var pb = slots[b].Product;
+                if (pa == null || pb == null || pa == pb) continue;
+                foreach (var set in FacilityTable.Sets)
+                {
+                    if (!set.Matches(pa.id, pb.id)) continue;
+                    Boost(pa, FacilityTable.SetBoost);
+                    Boost(pb, FacilityTable.SetBoost);
+                    slotCombo[a] = set.name;
+                    slotCombo[b] = set.name;
+                    Discover(set.id, set.name, set.flavor);
+                }
+            }
+        }
+
+        void Boost(ProductData p, float mul) => comboBoost[p] = ComboDemand(p) * mul;
+
+        void Discover(string id, string name, string flavor)
+        {
+            if (Facilities.discovered.Contains(id) || !initialized) return;
+            Facilities.discovered.Add(id);
+            Hud.Toast($"콤보 발견! {name}", 2.4f);
+            Dialogue.Show("콤보 발견!", $"{name} — {flavor}", UIKit.Yellow, "★");
+            GameEvents.RaiseRushStarted(); // 경쾌한 효과음 재사용
+        }
+
+        /// <summary>진열대에 장식 놓기 (이미 있으면 바꾸기, 이전 것은 절반 환불).</summary>
+        public bool PlaceDecor(int slot, string id)
+        {
+            var def = FacilityTable.FindDecor(id);
+            if (def == null || !MorningOnly("장식")) return false;
+            int cost = def.costs[0];
+            if (Money < cost) { Fail("돈이 부족해요"); return false; }
+            RemoveDecorInternal(slot, refund: true);
+            Money -= cost;
+            Stats.invested += cost;
+            Facilities.decor.Add(new DecorPlacement { slot = slot, id = id, level = 1 });
+            AfterDecorChange($"{Josa.Eul(def.name)} 놓았어요!");
+            return true;
+        }
+
+        public bool LevelUpDecor(int slot)
+        {
+            var d = Facilities.At(slot);
+            var def = d != null ? FacilityTable.FindDecor(d.id) : null;
+            if (def == null || !MorningOnly("장식 레벨업")) return false;
+            if (d.level >= def.MaxLevel) { Fail("이미 최고 레벨이에요"); return false; }
+            int cost = def.costs[d.level];
+            if (Money < cost) { Fail("돈이 부족해요"); return false; }
+            Money -= cost;
+            Stats.invested += cost;
+            d.level++;
+            AfterDecorChange($"{def.name} Lv{d.level}!");
+            return true;
+        }
+
+        public void RemoveDecor(int slot)
+        {
+            if (!MorningOnly("장식 치우기")) return;
+            if (RemoveDecorInternal(slot, refund: true)) AfterDecorChange("장식을 치웠어요 (절반 돌려받음)");
+        }
+
+        bool RemoveDecorInternal(int slot, bool refund)
+        {
+            var d = Facilities.At(slot);
+            if (d == null) return false;
+            var def = FacilityTable.FindDecor(d.id);
+            if (refund && def != null)
+            {
+                int spent = 0;
+                for (int i = 0; i < d.level && i < def.costs.Length; i++) spent += def.costs[i];
+                Money += Mathf.RoundToInt(spent * FacilityTable.RefundRate / 10f) * 10;
+            }
+            Facilities.decor.Remove(d);
+            return true;
+        }
+
+        void AfterDecorChange(string toast)
+        {
+            RebuildDecor();
+            Hud.Toast(toast);
+            Save();
+            Notify();
+        }
+
+        void RebuildDecor() => decorRoot = Visual.DecorVisuals.Rebuild(Layout, Materials, Facilities, decorRoot);
 
         // ───────────── 직원 (docs/06) ─────────────
 
@@ -1102,7 +1270,7 @@ namespace Munbanggu.Core
 
         ProductData ActiveTrend() => IsUnlocked(Trend) ? Trend : null;
 
-        float BaseWeight(ProductData p) => p.popularity * trends.PopularityMultiplier(p) * regulars.FavoriteBoost(p) * BoardAppeal(p);
+        float BaseWeight(ProductData p) => p.popularity * trends.PopularityMultiplier(p) * regulars.FavoriteBoost(p) * BoardAppeal(p) * ComboDemand(p);
 
         // ───────────── 번호 뽑기판 ─────────────
 
@@ -1168,6 +1336,7 @@ namespace Munbanggu.Core
                     if (u.id == UpgradeTable.Helper && u.level > 0)
                         Staff.members.Add(new StaffMember { name = "알바생", seed = 424242, level = u.level * 2, speed = 3 + u.level * 2, kindness = 3, sharp = 2, job = StaffJob.Cashier });
             Upgrades.Load(data.upgrades);
+            Facilities = data.facilities ?? new FacilityState();
             ApplyUpgrades();
             foreach (var e in data.backroom) AddStock(Catalog.Find(e.productId), e.count);
             for (int i = 0; i < Layout.Slots.Count && i < data.shelves.Count; i++)
@@ -1195,7 +1364,7 @@ namespace Munbanggu.Core
             {
                 day = Day, money = Money, trend = trends.State, regulars = regulars.Save(),
                 credits = ledger.Save(), seenEvents = new List<string>(seenEvents),
-                upgrades = Upgrades.Save(), staff = Staff,
+                upgrades = Upgrades.Save(), staff = Staff, facilities = Facilities,
                 reputation = Mathf.Max(1, Reputation), knownTraits = new List<string>(knownTraits)
             };
             foreach (var kv in stock)
@@ -1218,6 +1387,10 @@ namespace Munbanggu.Core
             GameEvents.RaiseInvalidAction();
         }
 
-        void Notify() => Changed?.Invoke();
+        void Notify()
+        {
+            RecomputeCombos();
+            Changed?.Invoke();
+        }
     }
 }

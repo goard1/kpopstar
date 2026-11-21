@@ -69,6 +69,7 @@ namespace Munbanggu.UI
             public ProductData product;
             public int count = -1;
             public bool shown, morning;
+            public string combo;
         }
 
         class SettlementRow
@@ -190,7 +191,8 @@ namespace Munbanggu.UI
             BuildBottom(safe);
             BuildSlotLabels();
             BuildWholesaleModal();
-            { var m = Modal("Upgrade Modal", out var upCard, 1640, out var upJuice); upgradePanel = UpgradePanel.Build(gm, m, upCard, upJuice); }
+            { var m = Modal("Upgrade Modal", out var upCard, 1640, out var upJuice); upgradePanel = UpgradePanel.Build(gm, m, upCard, upJuice, EnterDecorMode); }
+            { var m = Modal("Decor Modal", out var dcCard, 1500, out var dcJuice); decorPanel = DecorPanel.Build(gm, m, dcCard, dcJuice); }
             { var m = Modal("Staff Modal", out var sfCard, 1640, out var sfJuice); staffPanel = StaffPanel.Build(gm, m, sfCard, sfJuice); }
             BuildSettlementModal();
 
@@ -525,13 +527,15 @@ namespace Munbanggu.UI
         void UpdateSlotLabel(ShelfSlot slot, SlotLabel l)
         {
             bool morning = gm.Phase == DayPhase.Morning;
-            if (l.shown && l.product == slot.Product && l.count == slot.Count && l.morning == morning) return;
+            string combo = gm.SlotCombo(slot.Index);
+            if (l.shown && l.product == slot.Product && l.count == slot.Count && l.morning == morning && l.combo == combo) return;
+            l.combo = combo;
             l.shown = true;
             l.product = slot.Product;
             l.count = slot.Count;
             l.morning = morning;
             // 빈 매대 표시는 진열하는 아침에만 (영업 중엔 가게가 덜 복잡하게)
-            bool visible = slot.Product != null || morning;
+            bool visible = (slot.Product != null || morning) && !decorMode; // 장식 모드에선 장식 표시가 대신
             // 뽑기판은 번호 뽑기가 해금되기 전엔 이름표를 숨김 ("빈 매대"로 헷갈리지 않게)
             if (slot.IsBoard && !gm.IsUnlocked(gm.Catalog.Find(GameManager.BoardProductId))) visible = false;
             if (l.bg.gameObject.activeSelf != visible) l.bg.gameObject.SetActive(visible);
@@ -553,7 +557,8 @@ namespace Munbanggu.UI
             {
                 l.text.text = $"{slot.Product.displayName} <color={RedHex}>{slot.Count}</color>";
                 l.text.color = UIKit.Ink;
-                l.bg.color = UIKit.Cream;
+                l.bg.color = combo != null ? UIKit.Yellow : UIKit.Cream; // 콤보 중인 진열대는 노란 이름표
+                if (combo != null) l.text.text = $"★{l.text.text}";
             }
             // 아이콘은 이름표 왼쪽 끝에 걸쳐 붙고, 글자는 그만큼 오른쪽으로
             var sprite = ProductIcons.Get(slot.Product);
@@ -941,11 +946,106 @@ namespace Munbanggu.UI
         public void OpenUpgrades() => upgradePanel.Open();
         public void OpenStaff() => staffPanel.Open();
 
+        // ───────────── 장식 배치 모드 ─────────────
+
+        DecorPanel decorPanel;
+        bool decorMode;
+        GameObject decorModeRoot;
+        readonly List<(ShelfSlot slot, Text label, Image bg)> decorMarkers = new List<(ShelfSlot, Text, Image)>();
+
+        public bool InDecorMode => decorMode;
+
+        public void OpenDecor(int slotIndex) => decorPanel.Open(slotIndex);
+
+        /// <summary>
+        /// 장식 배치 모드: 진열대마다 위에 "＋ 장식" 표시가 뜨고, 탭하면 그 진열대 장식 창이 열린다.
+        /// 위쪽 띠의 "완료"로 끝. 아침에만.
+        /// </summary>
+        public void EnterDecorMode()
+        {
+            if (gm.Phase != DayPhase.Morning) return;
+            ExitDecorMode();
+            decorMode = true;
+            foreach (var l in slotLabels.Values) l.shown = false;
+            // 위쪽 안내 띠 + 완료 버튼
+            var banner = UIKit.CardPanel("Decor Mode Banner", overlaySafe, UIKit.Blue, 28, true, 6);
+            decorModeRoot = banner.gameObject;
+            UIKit.Place(banner.rectTransform, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -214), new Vector2(980, 120));
+            var t = UIKit.Label("Text", banner.transform, "장식할 진열대를 탭하세요", 36, Color.white, TextAnchor.MiddleLeft);
+            UIKit.Stretch(t.rectTransform, 36, 4, 260, 0);
+            var done = UIKit.Button("Done", banner.transform, "완료", 38, UIKit.Yellow, UIKit.Ink, out _);
+            var drt = (RectTransform)done.transform;
+            drt.anchorMin = new Vector2(1, 0); drt.anchorMax = new Vector2(1, 1);
+            drt.pivot = new Vector2(1, 0.5f);
+            drt.offsetMin = new Vector2(-220, 16); drt.offsetMax = new Vector2(-20, -16);
+            done.onClick.AddListener(ExitDecorMode);
+
+            // 진열대 위 표시 (뽑기판 제외)
+            foreach (var slot in gm.Layout.Slots)
+            {
+                if (slot.IsBoard) continue;
+                var s = slot;
+                var btn = UIKit.Button($"Decor Marker {slot.Index}", worldLayer, "", 21, UIKit.Cream, UIKit.Ink, out var label);
+                var rt = (RectTransform)btn.transform;
+                rt.SetParent(worldLayer, false);
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.sizeDelta = new Vector2(164, 66);
+                label.lineSpacing = 0.9f;
+                var follower = btn.gameObject.AddComponent<WorldFollower>();
+                follower.target = slot.transform;
+                follower.worldOffset = new Vector3(0, 1.75f, 0);
+                follower.cam = cam;
+                label.horizontalOverflow = HorizontalWrapMode.Overflow;
+                btn.onClick.AddListener(() => decorPanel.Open(s.Index));
+                decorMarkers.Add((slot, label, (Image)btn.targetGraphic));
+            }
+            UpdateDecorMarkers();
+        }
+
+        public void ExitDecorMode()
+        {
+            decorMode = false;
+            foreach (var l in slotLabels.Values) l.shown = false;
+            foreach (var (_, _, bg) in decorMarkers)
+                if (bg != null) Kill(bg.gameObject);
+            decorMarkers.Clear();
+            if (decorModeRoot != null) Kill(decorModeRoot);
+            decorModeRoot = null;
+        }
+
+        static void Kill(GameObject go)
+        {
+            if (Application.isPlaying) Destroy(go);
+            else DestroyImmediate(go);
+        }
+
+        void UpdateDecorMarkers()
+        {
+            if (gm.Phase != DayPhase.Morning) { ExitDecorMode(); return; }
+            // 장식 창이 열려 있으면 띠·표시를 숨겨 창 제목을 가리지 않게
+            bool panelOpen = decorPanel.IsOpen;
+            if (decorModeRoot != null && decorModeRoot.activeSelf == panelOpen) decorModeRoot.SetActive(!panelOpen);
+            foreach (var (slot, label, bg) in decorMarkers)
+            {
+                if (bg.gameObject.activeSelf == panelOpen) bg.gameObject.SetActive(!panelOpen);
+                var placed = gm.Facilities.At(slot.Index);
+                var def = placed != null ? FacilityTable.FindDecor(placed.id) : null;
+                string top = slot.Product != null ? slot.Product.displayName : "빈 매대";
+                string mark = gm.SlotCombo(slot.Index) != null ? "★" : "";
+                string text = $"<size=17>{mark}{top}</size>\n" + (def != null ? $"{def.name} Lv{placed.level}" : "＋ 장식");
+                if (label.text != text) label.text = text;
+                var color = gm.SlotCombo(slot.Index) != null ? UIKit.Yellow : def != null ? UIKit.Card : UIKit.Cream;
+                if (bg.color != color) bg.color = color;
+            }
+        }
+
         public void CloseModals()
         {
             wholesaleModal.SetActive(false);
             upgradePanel.Close();
             staffPanel.Close();
+            decorPanel.Close();
+            ExitDecorMode();
             StopSettlementAnim();
             settlementModal.SetActive(false);
         }
@@ -1279,6 +1379,7 @@ namespace Munbanggu.UI
         {
             // 손님이 물건을 집어가는 건 Changed 이벤트가 없으므로 가격표만 가볍게 매 프레임 확인 (바뀔 때만 문자열 생성)
             foreach (var kv in slotLabels) UpdateSlotLabel(kv.Key, kv.Value);
+            if (decorMode) UpdateDecorMarkers();
 
             phaseText.text = gm.Phase switch
             {
