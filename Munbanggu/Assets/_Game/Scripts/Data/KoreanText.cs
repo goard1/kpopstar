@@ -11,7 +11,7 @@ namespace Munbanggu.Data
             return (c - 0xAC00) % 28 != 0;
         }
 
-        static string Pick(string word, string withBatchim, string without) => Munbanggu.Core.L.Zh ? word :
+        static string Pick(string word, string withBatchim, string without) => Munbanggu.Core.L.Translated ? word :
             word + (HasBatchim(word) ? withBatchim : without);
 
         public static string Eul(string w) => Pick(w, "을", "를");

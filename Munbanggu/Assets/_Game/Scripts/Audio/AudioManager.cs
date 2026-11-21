@@ -326,6 +326,11 @@ namespace Munbanggu.Audio
         // ───────────── BGM API ─────────────
 
         /// <summary>BGM 트랙 전환 (크로스페이드). gain은 트랙 상대 볼륨 (정산 때 작게 등).</summary>
+        /// <summary>지금 틀고 있는(틀려는) BGM. 컷신이 끝나면 되돌리려고.</summary>
+        public bool HasBgm => hasWanted;
+        public BgmTrack CurrentBgm => wantedTrack;
+        public float CurrentBgmGain => wantedGain;
+
         public void PlayBgm(BgmTrack track, float fadeSec = 1.5f, float gain = 1f)
         {
             hasWanted = true;
@@ -476,11 +481,25 @@ namespace Munbanggu.Audio
 
         void OnItemPicked(Customer c, ShelfSlot s) => Play(SoundId.ItemPick, 0.7f);
 
+        float lastCheckoutSfx = -10f;
+
+        /// <summary>
+        /// 계산 소리: 금전등록기 + 동전. 전엔 너무 커서(폰 테스트) 절반쯤으로 줄이고,
+        /// 계산이 연달아 몰리면(0.5초 안) 금전등록기는 빼고 작은 동전 소리만 낸다.
+        /// </summary>
         void OnCheckedOut(Customer c, int price)
         {
-            Play(SoundId.Register, 0.9f, 1f, 0f, 0.02f);
+            float now = Time.unscaledTime;
+            bool burst = now - lastCheckoutSfx < 0.5f;
+            lastCheckoutSfx = now;
             var coin = price <= 150 ? SoundId.CoinSmall : price <= 400 ? SoundId.CoinMedium : SoundId.CoinLarge;
-            Play(coin, 1f, 1f, 0.16f, 0.05f);
+            if (burst)
+            {
+                Play(SoundId.CoinSmall, 0.22f, 0.95f, 0f, 0.05f);
+                return;
+            }
+            Play(SoundId.Register, 0.4f, 1f, 0f, 0.02f);
+            Play(coin, 0.4f, 0.95f, 0.14f, 0.05f);
         }
 
         void OnCustomerLeftUnhappy(Customer c) => Play(SoundId.Unhappy, 0.8f, 1f, 0f, 0.03f);

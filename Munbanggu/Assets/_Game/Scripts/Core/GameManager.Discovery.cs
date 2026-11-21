@@ -222,7 +222,7 @@ namespace Munbanggu.Core
                     break;
                 }
                 case "neighbor":
-                    Dialogue.Show("옆집 할아버지", "\"이거 자네 영감이랑 찍은 사진이야. 이 가게 처음 열던 날이지…\" 앨범에 꽂아 두래요.", UIKit.Muted, "옛");
+                    Dialogue.Show("옆집 할아버지", "\"이거 자네 할머니랑 할아버지 젊을 적 사진이야. 두 분이 이 골목에서 처음 만난 날이지…\" 앨범에 꽂아 두래요.", UIKit.Muted, "옛");
                     break;
             }
             Notify();

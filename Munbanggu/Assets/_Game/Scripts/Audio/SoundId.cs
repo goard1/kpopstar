@@ -32,5 +32,6 @@ namespace Munbanggu.Audio
         Calm,   // 아침·마감·정산: 오르골 + 하프 (느림)
         Shop,   // 영업: 토이피아노 + 베이스 + 셰이커
         Rush,   // 하교 러시: 빠른 템포, 칩튠 리드 + 드럼
+        Story,  // 이야기 컷신: 66 BPM 오르골 자장가 + 하프 + 패드 (docs/11)
     }
 }

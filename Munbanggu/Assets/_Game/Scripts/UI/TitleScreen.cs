@@ -93,6 +93,9 @@ namespace Munbanggu.UI
             var title = UIKit.Label("Title", card.transform, "추억의 문방구", 112, UIKit.Red, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Top(title.rectTransform, 150, 130, 20);
             UIKit.AddShadow(title, UIKit.WithAlpha(UIKit.GoldDark, 0.55f), 6f);
+            // 언어마다 제목 길이가 달라서 (영어 "Grandma's Stationery Shop") 칸에 맞게 줄인다
+            title.resizeTextForBestFit = true; title.resizeTextMinSize = 40; title.resizeTextMaxSize = 112;
+            title.verticalOverflow = VerticalWrapMode.Truncate;
             var sub = UIKit.Label("Sub", card.transform, "할머니가 남긴 골목 가게 이야기", 36, UIKit.Muted, TextAnchor.MiddleCenter);
             UIKit.Top(sub.rectTransform, 54, 290, 20);
             var hint = UIKit.Label("Hint", card.transform, "저장 슬롯을 골라요", 30, UIKit.Ink, TextAnchor.MiddleCenter);
@@ -245,17 +248,17 @@ namespace Munbanggu.UI
         {
             var label = UIKit.Label("Lang Label", safe, "언어", 30, UIKit.Cream, TextAnchor.MiddleCenter, FontStyle.Bold);
             UIKit.Bottom(label.rectTransform, 44, 190, 70);
-            var langs = new[] { Lang.Ko, Lang.ZhTW };
+            var langs = new[] { Lang.Ko, Lang.ZhTW, Lang.En };
             for (int i = 0; i < langs.Length; i++)
             {
                 var l = langs[i];
                 bool on = L.Current == l;
                 // 언어 이름은 그 언어 글자로 (SafeText는 한글만 바꾸므로 "한국어"는 번역표에 넣지 않는다)
-                var b = UIKit.Button("Lang " + l, safe, L.Name(l), 34, on ? UIKit.Red : UIKit.Cream, on ? Color.white : UIKit.Ink, out _);
+                var b = UIKit.Button("Lang " + l, safe, L.Name(l), 28, on ? UIKit.Red : UIKit.Cream, on ? Color.white : UIKit.Ink, out _);
                 var rt = (RectTransform)b.transform;
-                rt.anchorMin = new Vector2(i * 0.5f, 0); rt.anchorMax = new Vector2((i + 1) * 0.5f, 0);
+                rt.anchorMin = new Vector2(i / 3f, 0); rt.anchorMax = new Vector2((i + 1) / 3f, 0);
                 rt.pivot = new Vector2(0.5f, 0);
-                rt.offsetMin = new Vector2(i == 0 ? 70 : 12, 70); rt.offsetMax = new Vector2(i == 0 ? -12 : -70, 170);
+                rt.offsetMin = new Vector2(i == 0 ? 50 : 8, 70); rt.offsetMax = new Vector2(i == 2 ? -50 : -8, 170);
                 b.onClick.AddListener(() =>
                 {
                     if (L.Current == l) return;

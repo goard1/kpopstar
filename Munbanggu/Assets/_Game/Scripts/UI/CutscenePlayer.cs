@@ -24,6 +24,7 @@ namespace Munbanggu.UI
         Transform world;
         float baseSize;
         readonly List<Canvas> hidden = new List<Canvas>();
+        bool hadBgm; Munbanggu.Audio.BgmTrack prevBgm; float prevBgmGain = 1f;
 
         Image bg, barTop, barBottom;
         RectTransform artCard, textCard, artLayer;
@@ -58,6 +59,12 @@ namespace Munbanggu.UI
             p.baseSize = cam != null ? cam.orthographicSize : 5f;
             foreach (var c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
                 if (c != canvas && c.isRootCanvas && c.enabled) { c.enabled = false; p.hidden.Add(c); }
+            var au = Munbanggu.Audio.AudioManager.Instance;
+            if (au != null)
+            {
+                p.hadBgm = au.HasBgm; p.prevBgm = au.CurrentBgm; p.prevBgmGain = au.CurrentBgmGain;
+                au.PlayBgm(Munbanggu.Audio.BgmTrack.Story, 1.5f, 0.95f); // 컷신 전용 오르골 자장가
+            }
             p.Build();
             p.Next();
             return p;
@@ -164,6 +171,8 @@ namespace Munbanggu.UI
             if (this == null) return;
             if (shopCam != null) shopCam.Fit();
             foreach (var c in hidden) if (c != null) c.enabled = true;
+            var au = Munbanggu.Audio.AudioManager.Instance;
+            if (au != null && hadBgm) au.PlayBgm(prevBgm, 1.5f, prevBgmGain);
             hidden.Clear();
             var cb = onDone; onDone = null;
             Kill(gameObject);
@@ -287,6 +296,9 @@ namespace Munbanggu.UI
             var t = UIKit.Label("Text", parent, text, size, c, align);
             UIKit.Place(t.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(x, y), new Vector2(w, h));
             t.lineSpacing = 1.2f;
+            // 언어마다 길이가 달라서 (영어가 길다) 칸에 맞게 줄인다
+            t.resizeTextForBestFit = true; t.resizeTextMinSize = 20; t.resizeTextMaxSize = size;
+            t.verticalOverflow = VerticalWrapMode.Truncate;
             return t;
         }
 

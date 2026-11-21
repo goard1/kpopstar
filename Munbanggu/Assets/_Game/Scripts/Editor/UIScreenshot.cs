@@ -27,14 +27,21 @@ namespace Munbanggu.EditorTools
 
         /// <summary>대만판(繁體中文)으로 찍기 → Logs/ui-shots-zh. 못 바꾼 문구는 Logs/loc-missing-zh.txt.</summary>
         [MenuItem("문방구/UI 스크린샷 찍기 (中文)")]
-        public static void CaptureZh()
+        public static void CaptureZh() => CaptureLang(Lang.ZhTW, "zh-TW", "../Logs/ui-shots-zh");
+
+        /// <summary>영어판으로 찍기 → Logs/ui-shots-en. 못 바꾼 문구는 Logs/loc-missing-en.txt.</summary>
+        [MenuItem("문방구/UI 스크린샷 찍기 (English)")]
+        public static void CaptureEn() => CaptureLang(Lang.En, "en", "../Logs/ui-shots-en");
+
+        static void CaptureLang(Lang lang, string table, string outRel)
         {
             var before = L.Current;
-            string miss = Path.GetFullPath(Path.Combine(Application.dataPath, "../Logs/loc-missing-zh.txt"));
+            string miss = Path.GetFullPath(Path.Combine(Application.dataPath, $"../Logs/loc-missing-{table}.txt"));
             if (File.Exists(miss)) File.Delete(miss);
-            L.Set(Lang.ZhTW); UIKit.ResetFont();
-            try { CaptureTo("../Logs/ui-shots-zh"); }
-            finally { L.Set(before); UIKit.ResetFont(); }
+            L.Set(lang); UIKit.ResetFont();
+            Hero.Set(Hero.Girl, ""); // 그 언어의 기본 이름으로
+            try { CaptureTo(outRel); }
+            finally { L.Set(before); UIKit.ResetFont(); Hero.Set(Hero.Girl, ""); }
         }
 
         static void CaptureTo(string rel)

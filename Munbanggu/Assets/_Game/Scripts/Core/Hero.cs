@@ -15,10 +15,11 @@ namespace Munbanggu.Core
         public static bool Girl = true;
         public static string Name = "";
 
-        public static string DefaultName(bool girl) => L.Zh ? (girl ? "小雯" : "阿傑") : (girl ? "지은" : "준호");
+        public static string DefaultName(bool girl) => L.Zh ? (girl ? "小雯" : "阿傑") : L.En ? (girl ? "Jieun" : "Junho") : (girl ? "지은" : "준호");
         public static string DisplayName => string.IsNullOrWhiteSpace(Name) ? DefaultName(Girl) : Name.Trim();
-        public static string Call => L.Zh ? (Girl ? "姊姊" : "哥哥") : (Girl ? "누나" : "형");
-        public static string CallG => L.Zh ? (Girl ? "姊姊" : "哥哥") : (Girl ? "언니" : "오빠");
+        // 영어판은 아이들이 이름으로 부른다
+        public static string Call => L.Zh ? (Girl ? "姊姊" : "哥哥") : L.En ? DisplayName : (Girl ? "누나" : "형");
+        public static string CallG => L.Zh ? (Girl ? "姊姊" : "哥哥") : L.En ? DisplayName : (Girl ? "언니" : "오빠");
 
         public static void Set(bool girl, string name)
         {

@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Munbanggu.Core
 {
-    public enum Lang { Ko = 0, ZhTW = 1 }
+    public enum Lang { Ko = 0, ZhTW = 1, En = 2 }
 
     /// <summary>
     /// 언어 (docs/10). 게임 글은 한국어로 쓰고, 화면에 나갈 때(SafeText) 지금 언어로 바꾼다.
@@ -31,8 +31,13 @@ namespace Munbanggu.Core
         }
 
         public static bool Zh => Current == Lang.ZhTW;
+        public static bool En => Current == Lang.En;
+        /// <summary>한국어가 아니면 (번역표를 쓰는 언어).</summary>
+        public static bool Translated => Current != Lang.Ko;
 
-        public static string Name(Lang l) => l == Lang.ZhTW ? "繁體中文 (台灣)" : "한국어";
+        public static string Name(Lang l) => l == Lang.ZhTW ? "繁體中文 (台灣)" : l == Lang.En ? "English" : "한국어";
+
+        static string TableName(Lang l) => l == Lang.ZhTW ? "zh-TW" : l == Lang.En ? "en" : null;
 
         public static void Set(Lang l)
         {
@@ -58,9 +63,10 @@ namespace Munbanggu.Core
         static void Load()
         {
             exact.Clear(); templates.Clear(); glossary.Clear(); cache.Clear(); missing.Clear();
-            if (current != Lang.ZhTW) return;
-            var ta = Resources.Load<TextAsset>("Loc/zh-TW");
-            if (ta == null) { Debug.LogWarning("[Loc] Resources/Loc/zh-TW.txt 없음"); return; }
+            string table = TableName(current);
+            if (table == null) return;
+            var ta = Resources.Load<TextAsset>("Loc/" + table);
+            if (ta == null) { Debug.LogWarning("[Loc] Resources/Loc/" + table + ".txt 없음"); return; }
             foreach (var raw in ta.text.Split('\n'))
             {
                 string line = raw.TrimEnd('\r');
@@ -77,7 +83,8 @@ namespace Munbanggu.Core
                 }
                 string ko = Unescape(line.Substring(0, tab).TrimEnd(' '));
                 string zh = Unescape(line.Substring(tab + 1).Trim());
-                if (string.IsNullOrEmpty(zh)) continue;
+                if (zh == "∅") zh = "";                  // 일부러 비우는 번역 (영어판 단위 "명·개" 등)
+                else if (string.IsNullOrEmpty(zh)) continue;
                 if (Hole.IsMatch(ko)) AddTemplate(ko, zh);
                 else
                 {
@@ -121,7 +128,7 @@ namespace Munbanggu.Core
         /// <summary>화면에 보낼 글을 지금 언어로. 한국어면 그대로.</summary>
         public static string Tr(string s)
         {
-            if (string.IsNullOrEmpty(s) || !Zh || !HangulRe.IsMatch(s)) return s;
+            if (string.IsNullOrEmpty(s) || !Translated || !HangulRe.IsMatch(s)) return s;
             if (cache.TryGetValue(s, out var hit)) return hit;
             string r = TrCore(s, 0);
             if (HangulRe.IsMatch(r) && !exact.ContainsKey(s)) NoteMissing("» " + s); // 전체 문장 (어디서 왔는지 찾기 쉽게)
@@ -171,19 +178,31 @@ namespace Munbanggu.Core
             foreach (var kv in glossary)
                 if (w.Contains(kv.Key)) w = w.Replace(kv.Key, kv.Value);
             w = Regex.Replace(w, @"([\d,]+)원", mm => Yuan(mm.Groups[1].Value));
-            w = Regex.Replace(w, @"(\d+)위", "第$1名");
-            w = Regex.Replace(w, @"(\d+)권", "第$1集");
-            w = Regex.Replace(w, @"사인본 (\d+)", "簽名本$1");
-            w = Regex.Replace(w, @"초판 (\d+)", "初版$1");
-            // 中文 낱말 뒤에 남은 조사 (예: "四驅車를") 지우기
-            w = Regex.Replace(w, @"(?<=[一-鿿）」』》])(으로|을|를|이|가|은|는|과|와|로|에)(?![가-힣])", "");
+            if (Zh)
+            {
+                w = Regex.Replace(w, @"(\d+)위", "第$1名");
+                w = Regex.Replace(w, @"(\d+)권", "第$1集");
+                w = Regex.Replace(w, @"사인본 (\d+)", "簽名本$1");
+                w = Regex.Replace(w, @"초판 (\d+)", "初版$1");
+            }
+            else if (En)
+            {
+                w = Regex.Replace(w, @"(\d+)위", "#$1");
+                w = Regex.Replace(w, @"(\d+)권", "Vol. $1");
+                w = Regex.Replace(w, @"사인본 (\d+)", "Signed $1");
+                w = Regex.Replace(w, @"초판 (\d+)", "1st ed. $1");
+                w = Regex.Replace(w, @"(\d+)개", "$1");
+                w = Regex.Replace(w, @"(\d+)명", "$1");
+            }
+            // 번역된 낱말 뒤에 남은 조사 (예: "四驅車를", "Marbles를") 지우기
+            w = Regex.Replace(w, @"(?<=[一-鿿）」』》A-Za-z0-9)'])(으로|을|를|이|가|은|는|과|와|로|에)(?![가-힣])", "");
             if (HangulRe.IsMatch(w)) NoteMissing(s);
             return w;
         }
 
         // 한국어 곧은따옴표 → 대만식 「」
-        static string OpenQ(string s) => s.Replace("\"", "「");
-        static string CloseQ(string s) => s.Replace("\"", "」");
+        static string OpenQ(string s) => Zh ? s.Replace("\"", "「") : s;
+        static string CloseQ(string s) => Zh ? s.Replace("\"", "」") : s;
 
         const int GenericLiteral = 3; // 이보다 글자가 적은 틀은 "짧은 틀" (쉼표·가운뎃점으로 나누기)
 
@@ -217,6 +236,7 @@ namespace Munbanggu.Core
         /// <summary>돈 표시. 한국어 "1,000원", 대만판 "100元".</summary>
         public static string Money(int won)
         {
+            if (En) return "₩" + won.ToString("N0", CultureInfo.InvariantCulture);   // 영어판: 한국 동네 그대로, ₩1,000
             if (!Zh) return won.ToString("N0", CultureInfo.InvariantCulture) + "원";
             if (won % 10 == 0) return (won / 10).ToString("N0", CultureInfo.InvariantCulture) + "元";
             return (won / 10f).ToString("0.#", CultureInfo.InvariantCulture) + "元";
@@ -226,7 +246,7 @@ namespace Munbanggu.Core
         {
 #if UNITY_EDITOR
             if (missing.Add(s))
-                System.IO.File.AppendAllText(System.IO.Path.Combine(Application.dataPath, "../Logs/loc-missing-zh.txt"), s.Replace("\n", "\\n") + "\n");
+                System.IO.File.AppendAllText(System.IO.Path.Combine(Application.dataPath, "../Logs/loc-missing-" + (TableName(current) ?? "ko") + ".txt"), s.Replace("\n", "\\n") + "\n");
 #endif
         }
     }

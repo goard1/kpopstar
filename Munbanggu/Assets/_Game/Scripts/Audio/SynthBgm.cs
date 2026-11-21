@@ -46,7 +46,7 @@ namespace Munbanggu.Audio
 
         struct Note { public float beat; public float lenBeats; public int midi; }
 
-        public static float Bpm(BgmTrack track) => track == BgmTrack.Calm ? 80f : track == BgmTrack.Shop ? 96f : 120f;
+        public static float Bpm(BgmTrack track) => track == BgmTrack.Story ? 66f : track == BgmTrack.Calm ? 80f : track == BgmTrack.Shop ? 96f : 120f;
 
         public static float LengthSec(BgmTrack track) => Bars * 4f * 60f / Bpm(track);
 
@@ -62,11 +62,12 @@ namespace Munbanggu.Audio
             {
                 case BgmTrack.Calm: Calm(buf, sr, spb, melody, ref rng); break;
                 case BgmTrack.Shop: Shop(buf, sr, spb, melody, ref rng); break;
+                case BgmTrack.Story: Story(buf, sr, spb, ref rng); break;
                 default: Rush(buf, sr, spb, melody, ref rng); break;
             }
 
             // 잔향 (루프 모드: 끝의 잔향이 앞부분으로 이어짐)
-            float wet = track == BgmTrack.Calm ? 0.45f : track == BgmTrack.Shop ? 0.3f : 0.2f;
+            float wet = track == BgmTrack.Story ? 0.55f : track == BgmTrack.Calm ? 0.45f : track == BgmTrack.Shop ? 0.3f : 0.2f;
             Dsp.Reverb(buf, sr, wet, 0.05f, 0.8f, 0.4f, true);
             // 피크 정리: 살짝 소프트클립 후 정규화 (클리핑 없이 고른 음량)
             Dsp.Normalize(buf, 1.1f);
@@ -167,6 +168,75 @@ namespace Munbanggu.Audio
             }
         }
 
+        // ───────────── 이야기 (컷신) ─────────────
+
+        // 바장조 자장가. 화음: F C Dm Am | Bb F Gm C | F C Dm Am | Bb C F F
+        static readonly string[] StoryMelody =
+        {
+            "C5 - - A4 C5 - F5 -",
+            "E5 - - D5 C5 - G4 -",
+            "D5 - - C5 D5 - F5 -",
+            "E5 - - - - - . .",
+            "D5 - - C5 Bb4 - D5 -",
+            "C5 - - A4 F4 - A4 -",
+            "Bb4 - A4 G4 A4 - Bb4 -",
+            "C5 - - - - - . .",
+            "F5 - - E5 F5 - A5 -",
+            "G5 - - E5 C5 - E5 -",
+            "F5 - - E5 D5 - A4 -",
+            "C5 - - - E5 - - -",
+            "D5 - - F5 D5 - Bb4 -",
+            "C5 - E5 - G5 - E5 -",
+            "F5 - - - C5 - A4 -",
+            "F4 - - - - - . .",
+        };
+
+        static readonly (int root, bool minor)[] StoryChords =
+        {
+            (5, false), (0, false), (2, true), (9, true),
+            (10, false), (5, false), (7, true), (0, false),
+            (5, false), (0, false), (2, true), (9, true),
+            (10, false), (0, false), (5, false), (5, false),
+        };
+
+        /// <summary>느린 오르골 멜로디 + 4분 하프 아르페지오 + 은은한 사인 패드 + 마디 첫 박 저음.</summary>
+        static void Story(float[] buf, int sr, float spb, ref Rng rng)
+        {
+            foreach (var n in ParseMelody(StoryMelody))
+                Instruments.MusicBox(buf, sr, Human(n.beat * spb, ref rng), n.midi + 12, 0.36f * Vel(ref rng), ref rng, true);
+
+            for (int bar = 0; bar < Bars; bar++)
+            {
+                var (root, minor) = StoryChords[bar];
+                int[] tri = TriadOf(root, minor, 55);
+                float bt = bar * 4f * spb;
+                int[] pat = { 0, 1, 2, 1 };
+                for (int q = 0; q < 4; q++)
+                    Instruments.Pluck(buf, sr, Human(bt + q * spb, ref rng), tri[pat[q]], (q == 0 ? 0.16f : 0.11f) * Vel(ref rng), ref rng, true, 1.8f);
+                foreach (var m in tri)
+                {
+                    float f = Dsp.MidiToHz(m - 12);
+                    Instruments.Tone(buf, sr, bt, 4f * spb, f, f, Wave.Sine, 0.035f, 0.5f, 0.8f, 0f, 5f, 0f, true);
+                }
+                int low = root; while (low < 41) low += 12;
+                Instruments.Pluck(buf, sr, bt, low, 0.3f, ref rng, true, 2.4f);
+            }
+        }
+
+        static int[] TriadOf(int root, bool minor, int low)
+        {
+            int[] tones = { root, root + (minor ? 3 : 4), root + 7 };
+            var res = new int[3];
+            for (int i = 0; i < 3; i++)
+            {
+                int m = tones[i] % 12;
+                while (m < low) m += 12;
+                res[i] = m;
+            }
+            Array.Sort(res);
+            return res;
+        }
+
         static void Dsp_Lead(float[] buf, int sr, float t, float dur, int midi)
         {
             float f = Dsp.MidiToHz(midi);
@@ -211,7 +281,9 @@ namespace Munbanggu.Audio
             return m;
         }
 
-        static Note[] ParseMelody()
+        static Note[] ParseMelody() => ParseMelody(Melody);
+
+        static Note[] ParseMelody(string[] Melody)
         {
             var list = new System.Collections.Generic.List<Note>();
             for (int bar = 0; bar < Melody.Length; bar++)
