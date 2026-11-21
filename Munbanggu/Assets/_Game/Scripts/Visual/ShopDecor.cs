@@ -599,7 +599,7 @@ namespace Munbanggu.Visual
 
         static void Owner(MeshKit k, MeshKit blob)
         {
-            // 계산대 옆 의자에 앉은 문방구 할머니 (손님 줄 쪽을 반쯤 보며)
+            // 계산대 옆 의자에 앉은 주인 손주 (손님 줄 쪽을 반쯤 보며)
             var pos = new Vector3(-3.72f, 0f, -1.25f);
             Shadow(blob, pos, new Vector2(0.75f, 0.75f), 0f);
             k.Push(pos, Quaternion.Euler(0f, 160f, 0f));
@@ -607,7 +607,7 @@ namespace Munbanggu.Visual
             k.Cylinder(new Vector3(0f, 0.27f, 0f), 0.2f, 0.05f, 8, Red, Red);
             foreach (var p in new[] { new Vector3(0.12f, 0.125f, 0.12f), new Vector3(-0.12f, 0.125f, 0.12f), new Vector3(0.12f, 0.125f, -0.12f), new Vector3(-0.12f, 0.125f, -0.12f) })
                 k.Cylinder(p, 0.02f, 0.25f, 5, Metal);
-            CustomerVisual.BuildOwner(k);
+            CustomerVisual.BuildHeroOwner(k, Munbanggu.Core.Hero.Girl); // 주인 = 손주 (docs/11)
             k.Pop();
         }
 

@@ -25,16 +25,16 @@ namespace Munbanggu.Core
         public static readonly GrandmaSkillDef[] All =
         {
             // ── 늘 켜짐 ──
-            new GrandmaSkillDef("sixthsense", "눈치 백단", false, 0, 5000, 4, 0, "몰래 나가는 아이가 30% 더 느려져요", "할머니 눈은 못 속인다!"),
+            new GrandmaSkillDef("sixthsense", "눈치 백단", false, 0, 5000, 4, 0, "몰래 나가는 아이가 30% 더 느려져요", "이 가게 눈은 못 속인다!"),
             new GrandmaSkillDef("haggle", "흥정 9단", false, 0, 6000, 5, 0, "도매가 10% 더 깎아요", "아이고 사장님, 좀 깎아 줘~"),
-            new GrandmaSkillDef("storyteller", "이야기 할머니", false, 0, 7000, 6, 0, "줄 선 손님 인내심 +25% (옛날얘기 들으며 기다려요)", "옛날 옛적에~"),
-            new GrandmaSkillDef("warmheart", "정 많은 할머니", false, 0, 8000, 7, 55, "상담 딱 맞히면 평판 +1 더, 달래 준 아이가 친구를 2명 더 데려와요", "우리 강아지, 괜찮아~"),
+            new GrandmaSkillDef("storyteller", "할머니표 옛날이야기", false, 0, 7000, 6, 0, "줄 선 손님 인내심 +25% (할머니께 들은 옛날얘기를 들으며 기다려요)", "옛날 옛적에~"),
+            new GrandmaSkillDef("warmheart", "할머니 닮은 정", false, 0, 8000, 7, 55, "상담 딱 맞히면 평판 +1 더, 달래 준 아이가 친구를 2명 더 데려와요", "괜찮아, 괜찮아~"),
             new GrandmaSkillDef("memory", "단골 기억력", false, 0, 10000, 9, 60, "단골 팁 ×2", "철수 왔구나! 딱지 또 사러 왔지?"),
             // ── 영업 중 버튼 ──
-            new GrandmaSkillDef("shout", "할머니 호통!", true, 1, 4000, 3, 0, "몰래 나가는 아이를 전부 붙잡고, 줄 선 손님 인내심을 가득 채워요 (하루 1번)", "이 녀석들! 줄 똑바로 서!"),
+            new GrandmaSkillDef("shout", "호통 한 번!", true, 1, 4000, 3, 0, "몰래 나가는 아이를 전부 붙잡고, 줄 선 손님 인내심을 가득 채워요 (하루 1번)", "이 녀석들! 줄 똑바로 서!"),
             new GrandmaSkillDef("flash", "번개 계산", true, 1, 9000, 6, 0, "줄 선 손님을 전부 바로 계산해요 (하루 1번)", "자자, 빨리빨리~ 딸깍딸깍!"),
             new GrandmaSkillDef("megaphone", "동네 확성기", true, 1, 12000, 8, 60, "동네에 방송! 손님 6명이 바로 몰려와요 (하루 1번)", "아~ 아~ 문방구에 새 물건 들어왔어요~"),
-            new GrandmaSkillDef("bonus", "덤 하나 더", true, 2, 15000, 10, 65, "다음 손님 5명이 하나씩 더 사 가요 (매대에 있으면, 하루 2번)", "하나 더 가져가, 할머니가 깎아 줄게!"),
+            new GrandmaSkillDef("bonus", "덤 하나 더", true, 2, 15000, 10, 65, "다음 손님 5명이 하나씩 더 사 가요 (매대에 있으면, 하루 2번)", "하나 더 가져가, 서비스야!"),
         };
 
         public static GrandmaSkillDef Find(string id) => System.Array.Find(All, s => s.id == id);
@@ -59,14 +59,14 @@ namespace Munbanggu.Core
         public bool BuyGrandmaSkill(string id)
         {
             var s = GrandmaSkills.Find(id);
-            if (s == null || !MorningOnly("할머니 스킬 배우기")) return false;
+            if (s == null || !MorningOnly("할머니 비법 배우기")) return false;
             string b = GrandmaSkillBlocker(s);
             if (b != null) { Fail(b); return false; }
             if (Money < s.cost) { Fail("돈이 부족해요"); return false; }
             Money -= s.cost;
             Stats.invested += s.cost;
             Town.grandmaSkills.Add(id);
-            Dialogue.Show("할머니", $"「{s.name}」을 익혔어! {s.line}", UIKit.Accent, "할");
+            Dialogue.Show(Hero.NameTok, $"할머니 노트에서 「{s.name}」을 익혔어! {s.line}", UIKit.Accent, "비");
             Save();
             Notify();
             return true;
@@ -100,13 +100,13 @@ namespace Munbanggu.Core
                     foreach (var c in customers.ToArray())
                     {
                         if (c == null) continue;
-                        if (c.GrandmaCatch("할머니: 이 녀석!")) done++;
+                        if (c.GrandmaCatch("이 녀석!")) done++;
                         c.RefillPatience();
                     }
                     break;
                 case "flash":
                     foreach (var c in new List<Customer>(Layout.Queue.Line))
-                        if (c != null && c.InstantCheckout("할머니 번개 계산!")) done++;
+                        if (c != null && c.InstantCheckout("번개 계산!")) done++;
                     break;
                 case "megaphone":
                     ScheduleFriends(6);

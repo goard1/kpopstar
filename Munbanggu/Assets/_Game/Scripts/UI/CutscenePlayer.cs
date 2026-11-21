@@ -153,7 +153,7 @@ namespace Munbanggu.UI
             speakerBg.color = b.color;
 
             typingTarget = b.art == StoryArt.Black ? center : body;
-            full = L.Tr(b.text ?? "");
+            full = Hero.Fill(L.Tr(b.text ?? ""));
             typed = 0f;
             body.text = ""; center.text = "";
             // 편지 장면은 말 없이 편지만 (말 카드 숨김)
@@ -329,6 +329,21 @@ namespace Munbanggu.UI
             return r;
         }
 
+        static readonly Color HeroHair = new Color(0.36f, 0.24f, 0.18f);
+        static readonly Color HeroApron = new Color(1f, 0.78f, 0.30f);
+
+        /// <summary>주인공 손주 (손녀는 긴 머리 + 리본, 손자는 짧은 머리), 노란 가게 앞치마.</summary>
+        RectTransform HeroChibi(Transform p, float x, float y, float s, bool grown = false)
+        {
+            float bodyH = (grown ? 190f : 120f) * s;
+            float hy = y + 30 * s + bodyH + 64 * s;
+            if (Hero.Girl) Box(p, HeroHair, x, hy - 40 * s, 176 * s, 200 * s, 60 * s);   // 긴 머리 (뒤)
+            var r = Chibi(p, x, y, s, HeroHair, HeroApron, adult: grown);
+            Box(r, Color.white, 0, 30 * s + bodyH * 0.62f, 70 * s, 10 * s, 4 * s);          // 앞치마 주머니
+            if (Hero.Girl) Circle(r, new Color(0.95f, 0.42f, 0.5f), 62 * s, 30 * s + bodyH + 128 * s, 44 * s); // 리본
+            return r;
+        }
+
         void Fill(Color c) { var f = Box(artLayer, c, 0, 0, 2000, 2000); f.SetAsFirstSibling(); }
 
         void Drawer()
@@ -396,7 +411,7 @@ namespace Munbanggu.UI
                 var k = Chibi(artLayer, 300, -420, 1.15f, DarkHair, UIKit.Blue, wave: true);
                 bobbers.Add(k);
             }
-            Chibi(artLayer, -300, -420, 1.15f, GreyHair, GrandmaShirt, grandma: true);
+            HeroChibi(artLayer, -300, -420, 1.15f);
         }
 
         void PhotoArt()
@@ -486,7 +501,7 @@ namespace Munbanggu.UI
             Box(artLayer, UIKit.Kraft, 0, 230, 900, 26);
             Color[] goods = { UIKit.Red, UIKit.Yellow, UIKit.Blue, UIKit.Green };
             for (int i = 0; i < 12; i++) Box(artLayer, goods[i % 4], -390 + i * 71, 275, 50, 60, 8);
-            Chibi(artLayer, -330, -360, 1.0f, GreyHair, GrandmaShirt, grandma: true);
+            HeroChibi(artLayer, -330, -380, 0.95f, grown: true);
             Chibi(artLayer, -90, -380, 0.95f, DarkHair, UIKit.Blue, adult: true);                       // 철수: 체육복
             Box(artLayer, new Color(0.45f, 0.25f, 0.2f), 130, -95, 170, 190, 40);                           // 영희 긴 머리 (뒤)
             Chibi(artLayer, 130, -380, 0.95f, new Color(0.45f, 0.25f, 0.2f), new Color(0.95f, 0.5f, 0.7f), adult: true); // 영희

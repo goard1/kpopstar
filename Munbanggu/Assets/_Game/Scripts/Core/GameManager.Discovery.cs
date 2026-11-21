@@ -159,7 +159,7 @@ namespace Munbanggu.Core
                     if (next != null && !Disc.early.Exists(e => e.id == next.id))
                     {
                         Disc.early.Add(new SoldCount { id = next.id, count = Day + 1 });
-                        Dialogue.Show("전학생", $"\"서울에선 「{next.displayName}」 엄청 유행이에요!\"\n할머니가 도매상에 부탁해서 내일부터 들어온대요.", UIKit.Blue, "전");
+                        Dialogue.Show("전학생", $"\"서울에선 「{next.displayName}」 엄청 유행이에요!\"\n도매상에 부탁해 뒀더니 내일부터 들어온대요.", UIKit.Blue, "전");
                     }
                     break;
                 }
@@ -248,7 +248,7 @@ namespace Munbanggu.Core
             {
                 Disc.album.Add("ending");
                 var end = Album.Find("ending");
-                Dialogue.Show("할머니의 추억 앨범 · 마지막 장", end.line, UIKit.Accent, "♥");
+                Dialogue.Show("추억 앨범 · 마지막 장", end.line, UIKit.Accent, "♥");
                 if (Application.isPlaying) StartCoroutine(CapturePhoto("ending"));
             }
         }

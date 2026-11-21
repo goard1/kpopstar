@@ -87,7 +87,7 @@ namespace Munbanggu.Core
         {
             new AlbumPage("first_day", "첫 장사", "셔터를 올리던 손이 떨리더라. 첫 손님이 쫀드기 하나 사 갔지."),
             new AlbumPage("first_regular", "첫 단골", "매일 오는 아이가 생겼어. 이름을 불러 주니 얼마나 좋아하던지."),
-            new AlbumPage("first_perfect", "마음을 읽다", "\"할머니는 어떻게 알았어요?\" 아이 눈이 동그래졌지."),
+            new AlbumPage("first_perfect", "마음을 읽다", "\"〔CALL〕, 어떻게 알았어요?\" 아이 눈이 동그래졌지."),
             new AlbumPage("first_combo", "진열의 비밀", "옆에 나란히 놓았더니 둘 다 잘 팔리네. 물건에도 짝꿍이 있나 봐."),
             new AlbumPage("rainy", "비 오는 날의 문방구", "비가 오면 아이들이 처마 밑에 모여 딱지를 쳤어."),
             new AlbumPage("first_expand", "가게가 넓어진 날", "옆칸 벽을 허물던 날, 아이들이 구경하느라 장사가 안 됐어."),
@@ -96,16 +96,16 @@ namespace Munbanggu.Core
             new AlbumPage("first_recipe", "할머니표 특제", "이것저것 섞어 보다가 그만 대박이 났네!"),
             new AlbumPage("cat", "치즈가 온 날", "문 앞에 노란 고양이가 앉아 있었어. 그날부터 우리 식구야."),
             new AlbumPage("comic_complete", "만화 완결", "마지막 권을 덮은 아이들이 박수를 쳤어."),
-            new AlbumPage("comic_legend", "할머니의 문방구", "만화 속 할머니가 꼭 나 같대. 아이들이 그 만화를 들고 와서 웃더라."),
-            new AlbumPage("graduation", "첫 졸업", "\"할머니 안녕히 계세요.\" 가방 멘 뒷모습이 어찌나 컸는지."),
-            new AlbumPage("rival_closed", "골목을 지키다", "큰 가게가 와도 아이들은 할머니한테 왔어."),
+            new AlbumPage("comic_legend", "할머니의 문방구", "만화 속 할머니가 꼭 우리 할머니 같았어. 아이들이 그 만화를 들고 와서 웃더라."),
+            new AlbumPage("graduation", "첫 졸업", "\"〔CALL〕, 안녕히 계세요.\" 가방 멘 뒷모습이 어찌나 컸는지."),
+            new AlbumPage("rival_closed", "골목을 지키다", "큰 가게가 와도 아이들은 우리 가게로 왔어."),
             new AlbumPage("first_move", "이사 가는 날", "정든 골목을 떠나며 셔터를 쓰다듬었지."),
             new AlbumPage("adult", "어른이 되어 돌아온 아이", "그 꼬맹이가 양복을 입고 왔더라. 눈물이 다 나더라."),
             new AlbumPage("day30", "한 달", "하루하루 쌓이니 벌써 한 달이네."),
             new AlbumPage("ending", "할아버지의 편지",
                 "\"여보, 아이들 웃음소리 나는 가게를 하고 싶다던 당신 꿈… 내가 대신 이뤄 볼게.\"\n" +
-                "할아버지가 떠나기 전 남긴 편지야. 이 문방구는 할아버지의 꿈이었단다.\n" +
-                "이제 알겠지? 매일 너희가 와 준 덕분에, 그 꿈이 이뤄졌어. 고마워."),
+                "할아버지가 할머니께 남긴 편지. 이 문방구는 두 분의 꿈이었어.\n" +
+                "매일 너희가 와 준 덕분에, 그 꿈이 이뤄졌어. 고마워."),
         };
 
         public static AlbumPage Find(string id) => Array.Find(Pages, p => p.id == id);

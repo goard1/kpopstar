@@ -326,6 +326,77 @@ namespace Munbanggu.Visual
             }
         }
 
+        // ───────────── 주인공 손주 (가게 주인, docs/11) ─────────────
+
+        /// <summary>의자에 앉아 만화책을 읽는 2등신 손주 (손녀: 묶은 머리 + 리본, 손자: 짧은 머리). 노란 가게 앞치마.</summary>
+        public static void BuildHeroOwner(MeshKit k, bool girl)
+        {
+            Color skin = new Color(1.0f, 0.86f, 0.76f);
+            Color hair = new Color(0.36f, 0.24f, 0.18f);
+            Color shirt = girl ? new Color(0.98f, 0.64f, 0.70f) : new Color(0.48f, 0.68f, 0.95f);
+            Color apron = new Color(1.0f, 0.78f, 0.30f);
+            Color pants = new Color(0.36f, 0.42f, 0.62f);
+            Color shoe = new Color(0.96f, 0.96f, 0.96f);
+            Color ribbon = new Color(0.95f, 0.42f, 0.50f);
+            bool prevSmooth = k.SmoothSpheres;
+            float prevBias = k.SmoothUpBias;
+            k.SmoothUpBias = 0.55f;
+            k.SmoothSpheres = true;
+
+            // 다리 (앉은 자세)
+            foreach (float sx in new[] { -0.075f, 0.075f })
+            {
+                k.Push(new Vector3(sx, 0.31f, 0.1f), Quaternion.Euler(90f, 0f, 0f));
+                k.Cylinder(Vector3.zero, 0.055f, 0.16f, 8, pants);
+                k.Pop();
+                k.Cylinder(new Vector3(sx, 0.18f, 0.18f), 0.045f, 0.22f, 8, pants);
+                k.Sphere(new Vector3(sx, 0.05f, 0.21f), new Vector3(0.065f, 0.045f, 0.09f), 8, 4, shoe);
+            }
+            // 몸통 + 앞치마 + 주머니
+            k.Sphere(new Vector3(0f, 0.45f, 0f), new Vector3(0.165f, 0.17f, 0.15f), 12, 6, shirt);
+            k.Sphere(new Vector3(0f, 0.43f, 0.095f), new Vector3(0.13f, 0.13f, 0.07f), 10, 4, apron);
+            k.Box(new Vector3(0f, 0.38f, 0.165f), new Vector3(0.08f, 0.04f, 0.01f), Color.white, Color.white);
+            // 팔 + 펼친 만화책
+            foreach (float side in new[] { -1f, 1f })
+            {
+                k.Push(new Vector3(side * 0.14f, 0.5f, 0.05f), Quaternion.Euler(-65f, 0f, side * 15f));
+                k.Sphere(new Vector3(0f, -0.06f, 0f), new Vector3(0.048f, 0.09f, 0.048f), 8, 4, shirt);
+                k.Sphere(new Vector3(0f, -0.15f, 0f), Vector3.one * 0.042f, 8, 4, skin);
+                k.Pop();
+            }
+            k.Push(new Vector3(0f, 0.5f, 0.26f), Quaternion.Euler(-35f, 0f, 0f));
+            foreach (float side in new[] { -1f, 1f })
+            {
+                k.Push(new Vector3(side * 0.06f, 0f, 0f), Quaternion.Euler(0f, side * -15f, 0f));
+                k.Box(Vector3.zero, new Vector3(0.12f, 0.15f, 0.012f), new Color(0.98f, 0.96f, 0.9f), new Color(0.9f, 0.3f, 0.3f));
+                k.Pop();
+            }
+            k.Pop();
+
+            // 머리 + 머리카락
+            var head = new Vector3(0f, 0.78f, 0f);
+            var hr = new Vector3(0.24f, 0.22f, 0.22f);
+            Head(k, skin, head, hr, 1);
+            k.Sphere(head + new Vector3(0f, 0.04f, -0.03f), new Vector3(0.252f, 0.22f, 0.24f), 14, 7, hair);
+            k.Sphere(head + new Vector3(0f, 0.15f, 0.1f), new Vector3(0.22f, 0.075f, 0.12f), 12, 4, hair); // 앞머리
+            if (girl)
+            {
+                // 옆머리 + 뒤로 묶은 머리 + 리본
+                foreach (float sx in new[] { -1f, 1f })
+                    k.Sphere(head + new Vector3(sx * 0.2f, -0.12f, -0.02f), new Vector3(0.07f, 0.14f, 0.08f), 8, 5, hair);
+                k.Sphere(head + new Vector3(0f, 0.02f, -0.27f), new Vector3(0.08f, 0.13f, 0.08f), 8, 5, hair);
+                k.Sphere(head + new Vector3(0f, 0.13f, -0.24f), new Vector3(0.09f, 0.05f, 0.05f), 8, 4, ribbon);
+            }
+            else
+            {
+                // 삐죽 솟은 머리카락
+                for (int i = 0; i < 3; i++)
+                    k.Sphere(head + new Vector3(-0.06f + i * 0.06f, 0.22f, 0.02f), new Vector3(0.04f, 0.06f, 0.04f), 6, 4, hair);
+            }
+            k.SmoothSpheres = prevSmooth;
+            k.SmoothUpBias = prevBias;
+        }
+
         // ───────────── 주인 할머니 (가게 장식) ─────────────
 
         /// <summary>의자에 앉은 2등신 문방구 할머니. 원점 = 바닥, 앞 = +Z. 뜨개질 중.</summary>

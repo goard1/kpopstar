@@ -113,7 +113,7 @@ namespace Munbanggu.Customers
                 patience = maxPatience = maxPatience * 1.4f * gm.CounselPatienceBonus;
                 gm.Layout.Queue.Join(this);
                 bubble.SetIcon(null);
-                bubble.Flash("할머니~ 고민 있어요!", UIKit.BubbleNormal, 1.6f);
+                bubble.Flash("〔CALL〕~ 고민 있어요!", UIKit.BubbleNormal, 1.6f);
                 return;
             }
 
@@ -329,7 +329,7 @@ namespace Munbanggu.Customers
 
             if (arrived && queue.Front == this)
             {
-                string text = Kind == CustomerKind.Counsel ? "할머니, 고민 있어요!"
+                string text = Kind == CustomerKind.Counsel ? "〔CALL〕, 고민 있어요!"
                     : Kind == CustomerKind.Credit ? "외상 돼요? 내일 갚을게요!"
                     : $"{Carried.displayName} {UIKit.Won(Carried.retailPrice)}";
                 bubble.Show(text, ratio < UrgentRatio ? UIKit.BubbleUrgent : UIKit.BubbleReady, true, ratio);

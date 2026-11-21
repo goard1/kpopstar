@@ -346,6 +346,10 @@ namespace Munbanggu.EditorTools
                     var ts = tc.GetComponent<CanvasScaler>(); if (ts != null) ts.enabled = false;
                     tc.renderMode = RenderMode.ScreenSpaceCamera; tc.worldCamera = cam; tc.planeDistance = 0.5f; tc.scaleFactor = 1f;
                     Shot(hud, cam, rt, outDir, "0_title");
+                    title.DebugSetup(2, true);
+                    Shot(hud, cam, rt, outDir, "0b_title_hero_girl");
+                    title.DebugSetup(2, false);
+                    Shot(hud, cam, rt, outDir, "0c_title_hero_boy");
                     Object.DestroyImmediate(title.gameObject);
                 }
 

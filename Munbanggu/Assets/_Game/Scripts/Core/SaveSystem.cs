@@ -22,6 +22,8 @@ namespace Munbanggu.Core
 
         public int version = CurrentVersion;
         public int day = 1;
+        public bool heroGirl = true;  // 주인공 손녀/손자 (docs/11)
+        public string heroName;       // 비어 있으면 예전 세이브 → 기본 이름
         public int money;
         public List<StockEntry> backroom = new List<StockEntry>();
         public List<StockEntry> shelves = new List<StockEntry>(); // 인덱스 = 매대 번호

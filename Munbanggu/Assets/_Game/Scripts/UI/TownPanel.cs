@@ -174,7 +174,7 @@ namespace Munbanggu.UI
                 int have = 0;
                 foreach (var p in Album.Pages) if (gm.HasAlbum(p.id)) have++;
                 var c = Card(110);
-                Label(c, $"할머니 추억 앨범  ({have}/{Album.Pages.Length})", 30, UIKit.Ink, 26, 14, 250, 44);
+                Label(c, $"우리 가게 추억 앨범  ({have}/{Album.Pages.Length})", 30, UIKit.Ink, 26, 14, 250, 44);
                 Label(c, "특별한 순간마다 사진이 한 장씩 꽂혀요", 22, UIKit.Muted, 26, 60, 250, 36);
                 Side(c, -1, "앨범", UIKit.Accent, true, OpenAlbum);
             }
@@ -205,7 +205,7 @@ namespace Munbanggu.UI
                 if (r.closed && r.district == gm.District)
                 {
                     Label(c, $"{name} — 문 닫음!", 30, UIKit.Green, 26, 16, 26, 44);
-                    Label(c, "아이들이 전부 할머니 가게로 돌아왔어요.", 23, UIKit.Muted, 26, 66, 26, 80);
+                    Label(c, "아이들이 전부 우리 가게로 돌아왔어요.", 23, UIKit.Muted, 26, 66, 26, 80);
                 }
                 else if (r.active && r.district == gm.District)
                 {
@@ -218,7 +218,7 @@ namespace Munbanggu.UI
                     Label(c, "아직 조용해요. 장사가 잘되면 누군가 길 건너에 가게를 낼지도…", 23, UIKit.Muted, 26, 16, 26, 140);
             }
 
-            Header("할머니 스킬 (배우면 계속 · 보라색 버튼은 영업 중에 눌러 써요)");
+            Header("할머니의 비법 (할머니 노트에서 배워요 · 배우면 계속 · 보라색 버튼은 영업 중에 눌러 써요)");
             foreach (var s in GrandmaSkills.All)
             {
                 string blocker = gm.GrandmaSkillBlocker(s);

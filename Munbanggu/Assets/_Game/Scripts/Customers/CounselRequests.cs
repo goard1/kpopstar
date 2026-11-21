@@ -36,7 +36,7 @@ namespace Munbanggu.Customers
             new CounselRequest("학원 가기 전에 배고파요… 300원 있어요", T.Snack, T.Long, 300,
                 "오래 먹을 수 있어서 딱이에요!", "고맙습니다~ 냠", "이건 먹는 게 아니잖아요"),
             new CounselRequest("100원밖에 없어요. 맛있는 거요!", T.Snack, T.Sweet, 100,
-                "달콤해! 할머니 최고!", "냠냠, 괜찮네요", "이건 못 먹잖아요…"),
+                "달콤해! 〔CALL〕 최고!", "냠냠, 괜찮네요", "이건 못 먹잖아요…"),
             new CounselRequest("형한테 이길 수 있는 거요!", T.Cool, T.Skill, 1000,
                 "이걸로 형 이긴다!! 연습해야지", "멋있긴 하네요", "이걸로는 못 이겨요…"),
             new CounselRequest("운동장에서 놀 거요!", T.Outside, T.Friends, 500,

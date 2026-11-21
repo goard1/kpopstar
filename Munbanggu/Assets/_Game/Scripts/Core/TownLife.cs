@@ -281,7 +281,7 @@ namespace Munbanggu.Core
         public static readonly (string key, string name, string desc)[] Kinds =
         {
             ("normal", "동네 꼬마", "찾는 물건을 말하고 매대로 가요."),
-            ("counsel", "고민 많은 아이", "\"할머니, 고민 있어요!\" 마음을 읽어 골라 줘요."),
+            ("counsel", "고민 많은 아이", "\"〔CALL〕, 고민 있어요!\" 마음을 읽어 골라 줘요."),
             ("sneaky", "슬쩍 하는 아이", "보라 말풍선. 문 나가기 전에 잡아요."),
             ("credit", "외상 하는 아이", "\"내일 갚을게요…\" 믿어 줄까요?"),
             ("crying", "우는 아이", "돈을 잃어버렸대요. 달래 주면 친구를 데려와요."),

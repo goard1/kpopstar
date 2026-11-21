@@ -179,7 +179,7 @@ namespace Munbanggu.Core
             // 단골이 좋아하는 종목이면 단골이 우승
             foreach (var r in RegularRoster.All)
                 if (r.favoriteId == t.productId && regulars.StateOf(r).visits > 0 && !regulars.StateOf(r).graduated) winner = r.name;
-            Dialogue.Show(t.name, $"{t.line}\n우승은 {winner}! 동네에 할머니 가게 소문이 쫙 났어요. (평판 +{TournamentTable.Reputation})", UIKit.Green, "★");
+            Dialogue.Show(t.name, $"{t.line}\n우승은 {winner}! 동네에 우리 가게 소문이 쫙 났어요. (평판 +{TournamentTable.Reputation})", UIKit.Green, "★");
             GameEvents.RaiseRushStarted();
             ScheduleFriends(3);
             Notify();
@@ -243,7 +243,7 @@ namespace Munbanggu.Core
                 r.closed = true;
                 UnlockAlbum("rival_closed");
                 AddReputation(10);
-                Dialogue.Show("동네 소식", $"「{RivalTable.Name(District)}」이(가) 문을 닫았어요! 아이들이 다 할머니 가게로 돌아왔어요. (평판 +10)", UIKit.Green, "★");
+                Dialogue.Show("동네 소식", $"「{RivalTable.Name(District)}」이(가) 문을 닫았어요! 아이들이 다 우리 가게로 돌아왔어요. (평판 +10)", UIKit.Green, "★");
             }
         }
 

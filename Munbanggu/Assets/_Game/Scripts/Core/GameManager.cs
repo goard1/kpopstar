@@ -979,7 +979,7 @@ namespace Munbanggu.Core
             Hud.Toast($"가게 증축: {next.name} 완료!");
             UnlockAlbum("first_expand");
             GameEvents.RaiseRushStarted();
-            Dialogue.Show("할머니", next.celebrate, UIKit.Accent);
+            Dialogue.Show(Hero.NameTok, next.celebrate, UIKit.Accent);
             CheckStoryMilestones();
             Save();
             Notify();
@@ -1043,7 +1043,7 @@ namespace Munbanggu.Core
 
             Hud.Toast($"{next.name}(으)로 이사 완료!");
             GameEvents.RaiseRushStarted();
-            Dialogue.Show("할머니", $"{next.name}(으)로 이사 왔어! {next.blurb}\n옆칸 진열대 물건은 창고에 넣어 뒀어. 새 진열대부터 채워 볼까?", UIKit.Accent);
+            Dialogue.Show(Hero.NameTok, $"{next.name}(으)로 이사 왔어! {next.blurb}\n옆칸 진열대 물건은 창고에 넣어 뒀어. 새 진열대부터 채워 볼까?", UIKit.Accent);
             if (refund > 0) Dialogue.Show("이삿짐", $"옆칸에 있던 장식은 팔아서 {UIKit.Won(refund)} 돌려받았어요.", UIKit.Blue);
             CheckStoryMilestones();
             Save();
@@ -1776,7 +1776,7 @@ namespace Munbanggu.Core
                     // 어른이 되어 찾아옴: 반 친구들 몫까지 한가득 + 넉넉한 마음
                     tip += AdultGift;
                     Dialogue.Show($"{r.name} · {r.adultTitle}", line, r.color);
-                    Dialogue.Show("추억", $"{Josa.I(r.name)} 반 아이들 몫이라며 {UIKit.Won(AdultGift)}을 더 내고 갔어요. 할머니 가게가 누군가의 추억이 됐어요.", UIKit.Accent, "♥");
+                    Dialogue.Show("추억", $"{Josa.I(r.name)} 반 아이들 몫이라며 {UIKit.Won(AdultGift)}을 더 내고 갔어요. 이 가게가 누군가의 추억이 됐어요.", UIKit.Accent, "♥");
                     AddReputation(5);
                     UnlockAlbum("adult");
                 }
@@ -1916,6 +1916,7 @@ namespace Munbanggu.Core
                 return;
             }
             Day = Mathf.Max(1, data.day);
+            if (!string.IsNullOrEmpty(data.heroName)) Hero.Set(data.heroGirl, data.heroName);
             Money = data.money;
             // 업그레이드 먼저 (매대 칸 수·추가 진열대가 있어야 저장된 진열을 그대로 올릴 수 있음)
             // 예전 "알바생" 업그레이드를 산 적 있으면 무료 직원으로 바꿔 준다 (직원 시스템으로 대체)
@@ -1971,7 +1972,8 @@ namespace Munbanggu.Core
                 reputation = Mathf.Max(1, Reputation), knownTraits = new List<string>(knownTraits),
                 district = District, expansion = Expansion, slotGroups = new List<string>(Layout.Groups),
                 placements = new List<SlotPlacement>(placements.Values),
-                town = Town
+                town = Town,
+                heroGirl = Hero.Girl, heroName = Hero.DisplayName
             };
             foreach (var kv in stock)
                 if (kv.Value > 0) data.backroom.Add(new StockEntry { productId = kv.Key.id, count = kv.Value });
