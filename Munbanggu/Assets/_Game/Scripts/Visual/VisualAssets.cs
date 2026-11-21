@@ -22,7 +22,7 @@ namespace Munbanggu.Visual
         // 팔레트 — 따뜻한 형광등 아래 문방구
         public static readonly Color OutlineColor = new Color(0.27f, 0.17f, 0.14f);
         public static readonly Color RegularOutline = new Color(1.0f, 0.58f, 0.12f);
-        public static readonly Color Background = new Color(0.98f, 0.84f, 0.66f);
+        public static readonly Color Background = new Color(1.00f, 0.88f, 0.86f); // 연분홍
         public static readonly Color LightColor = new Color(1.0f, 0.96f, 0.88f);
         public const float LightIntensity = 0.78f;
 

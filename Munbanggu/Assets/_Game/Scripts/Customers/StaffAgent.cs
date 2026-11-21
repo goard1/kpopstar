@@ -71,10 +71,12 @@ namespace Munbanggu.Customers
 
             // 앞치마 (맡은 일 색) + 목끈
             kit.Clear();
+            kit.SmoothSpheres = true;
+            kit.SmoothUpBias = 0.55f;
             var apron = ApronColor(m.job);
-            kit.Box(new Vector3(0f, 0.38f, 0.135f), new Vector3(0.2f, 0.25f, 0.02f), apron, apron);
-            kit.FlatBox(new Vector3(0f, 0.53f, 0.1f), new Vector3(0.18f, 0.025f, 0.06f), apron);
-            kit.FlatBox(new Vector3(0f, 0.4f, 0.147f), new Vector3(0.09f, 0.05f, 0.004f), Color.white); // 명찰
+            kit.Sphere(new Vector3(0f, 0.25f, 0.095f), new Vector3(0.115f, 0.105f, 0.05f), 10, 4, apron); // 동글 앞치마
+            kit.Box(new Vector3(0f, 0.37f, 0.08f), new Vector3(0.14f, 0.02f, 0.05f), apron, apron);
+            kit.DiscFacing(new Vector3(0.045f, 0.29f, 0.147f), new Vector2(0.03f, 0.022f), Vector3.forward, 10, Color.white); // 명찰
             kit.Build("Apron", a.visual, mats.VertexColor);
 
             if (hud != null) a.bubble = hud.CreateBubble(go.transform);

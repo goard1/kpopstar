@@ -85,9 +85,9 @@ namespace Munbanggu.Core
                 traits: new string[0],
                 palette: new DistrictPalette
                 {
-                    floorA = new Color(0.96f, 0.90f, 0.77f), floorB = new Color(0.80f, 0.50f, 0.42f),
-                    wallUpper = new Color(0.98f, 0.93f, 0.81f), wainscot = new Color(0.56f, 0.78f, 0.70f),
-                    wainscotLine = new Color(0.46f, 0.67f, 0.60f), awning = new Color(0.89f, 0.27f, 0.24f),
+                    floorA = new Color(1.00f, 0.95f, 0.88f), floorB = new Color(1.00f, 0.78f, 0.78f),
+                    wallUpper = new Color(1.00f, 0.95f, 0.90f), wainscot = new Color(0.68f, 0.90f, 0.80f),
+                    wainscotLine = new Color(0.58f, 0.82f, 0.72f), awning = new Color(1.00f, 0.55f, 0.62f),
                 },
                 steps: new[]
                 {
@@ -108,9 +108,9 @@ namespace Munbanggu.Core
                 traits: new[] { "처음부터 옆칸이 붙은 큰 가게 (진열대 +3)", "손님 ×1.25", "학용품 ×1.3 · 장난감 ×1.2 잘 팔림", "직원 3명부터", "월세 하루 800원" },
                 palette: new DistrictPalette
                 {
-                    floorA = new Color(0.90f, 0.92f, 0.93f), floorB = new Color(0.58f, 0.70f, 0.82f),
-                    wallUpper = new Color(0.95f, 0.97f, 0.94f), wainscot = new Color(0.98f, 0.76f, 0.55f),
-                    wainscotLine = new Color(0.90f, 0.64f, 0.44f), awning = new Color(0.30f, 0.66f, 0.44f),
+                    floorA = new Color(0.94f, 0.97f, 1.00f), floorB = new Color(0.72f, 0.84f, 0.98f),
+                    wallUpper = new Color(0.95f, 1.00f, 0.96f), wainscot = new Color(1.00f, 0.82f, 0.70f),
+                    wainscotLine = new Color(0.95f, 0.72f, 0.60f), awning = new Color(0.50f, 0.84f, 0.70f),
                 },
                 steps: new[]
                 {
@@ -131,9 +131,9 @@ namespace Munbanggu.Core
                 traits: new[] { "처음부터 옆칸 2개 붙은 대형 가게 (진열대 +6)", "손님 ×1.5", "장난감·놀이 ×1.3 · 간식 ×1.2", "직원 4명부터", "월세 하루 2,000원" },
                 palette: new DistrictPalette
                 {
-                    floorA = new Color(0.95f, 0.92f, 0.86f), floorB = new Color(0.36f, 0.36f, 0.44f),
-                    wallUpper = new Color(0.98f, 0.92f, 0.88f), wainscot = new Color(0.32f, 0.40f, 0.64f),
-                    wainscotLine = new Color(0.26f, 0.32f, 0.54f), awning = new Color(0.22f, 0.42f, 0.80f),
+                    floorA = new Color(1.00f, 0.97f, 0.88f), floorB = new Color(0.82f, 0.74f, 0.98f),
+                    wallUpper = new Color(1.00f, 0.96f, 0.98f), wainscot = new Color(0.62f, 0.70f, 0.98f),
+                    wainscotLine = new Color(0.52f, 0.60f, 0.90f), awning = new Color(0.58f, 0.68f, 1.00f),
                 },
                 steps: new[]
                 {

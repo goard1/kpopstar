@@ -16,6 +16,11 @@ namespace Munbanggu.Visual
         readonly List<Color> colors = new List<Color>(1024);
         readonly List<Vector2> uvs = new List<Vector2>(1024);
         readonly List<int> tris = new List<int>(2048);
+
+        /// <summary>true면 Sphere를 꼭짓점 노멀로 매끈하게 (캐릭터처럼 동글한 것). 기본은 각진 로우폴리.</summary>
+        public bool SmoothSpheres;
+        /// <summary>매끈한 구의 노멀을 위로 기울이는 정도 (0~1). 얼굴에 그늘 선이 덜 지게 (캐릭터용).</summary>
+        public float SmoothUpBias;
         readonly Stack<Matrix4x4> stack = new Stack<Matrix4x4>();
         Matrix4x4 m = Matrix4x4.identity;
 
@@ -180,6 +185,17 @@ namespace Munbanggu.Visual
                     Vector3 v01 = center + Vector3.Scale(u01, radius);
                     Vector3 v10 = center + Vector3.Scale(u10, radius);
                     Vector3 v11 = center + Vector3.Scale(u11, radius);
+                    if (SmoothSpheres)
+                    {
+                        // 꼭짓점마다 타원면 노멀 → 동글동글 매끈한 음영 (캐릭터용)
+                        Vector3 N(Vector3 u) => (new Vector3(u.x / Mathf.Max(1e-4f, radius.x), u.y / Mathf.Max(1e-4f, radius.y), u.z / Mathf.Max(1e-4f, radius.z)).normalized + Vector3.up * SmoothUpBias).normalized;
+                        int a = V(v00, N(u00), u00, color), b = V(v10, N(u10), u10, color);
+                        int c = V(v11, N(u11), u11, color), d = V(v01, N(u01), u01, color);
+                        if (r == 0) { tris.Add(a); tris.Add(b); tris.Add(c); }
+                        else if (r == rings - 1) { tris.Add(a); tris.Add(b); tris.Add(d); }
+                        else { tris.Add(a); tris.Add(b); tris.Add(c); tris.Add(a); tris.Add(c); tris.Add(d); }
+                        continue;
+                    }
                     Vector3 n = Vector3.Cross(v10 - v00, v01 - v00);
                     if (n.sqrMagnitude < 1e-10f) n = Vector3.Cross(v11 - v10, v01 - v10);
                     n = n.normalized;
@@ -193,6 +209,30 @@ namespace Munbanggu.Visual
 
         static Vector3 Dir(float pitch, float yaw)
             => new Vector3(Mathf.Cos(pitch) * Mathf.Cos(yaw), Mathf.Sin(pitch), Mathf.Cos(pitch) * Mathf.Sin(yaw));
+
+        /// <summary>
+        /// normal 쪽을 보는 타원 판 (외곽선 없음). 얼굴의 눈·반짝이·볼터치·입처럼 둥근 면 위에 붙이는 용도.
+        /// radius.x = 가로(normal과 수직인 수평 방향), radius.y = 세로.
+        /// </summary>
+        public void DiscFacing(Vector3 center, Vector2 radius, Vector3 normal, int segments, Color color)
+        {
+            normal = normal.sqrMagnitude > 1e-6f ? normal.normalized : Vector3.forward;
+            Vector3 right = Vector3.Cross(Vector3.up, normal);
+            if (right.sqrMagnitude < 1e-6f) right = Vector3.right;
+            right.Normalize();
+            Vector3 up = Vector3.Cross(normal, right).normalized;
+            int c = V(center, normal, Vector3.zero, color, new Vector2(0.5f, 0.5f));
+            for (int i = 0; i < segments; i++)
+            {
+                float a0 = Mathf.PI * 2f * i / segments, a1 = Mathf.PI * 2f * (i + 1) / segments;
+                Vector3 p0 = center + right * (Mathf.Cos(a0) * radius.x) + up * (Mathf.Sin(a0) * radius.y);
+                Vector3 p1 = center + right * (Mathf.Cos(a1) * radius.x) + up * (Mathf.Sin(a1) * radius.y);
+                int i0 = V(p0, normal, Vector3.zero, color, new Vector2(0.5f, 0.5f));
+                int i1 = V(p1, normal, Vector3.zero, color, new Vector2(0.5f, 0.5f));
+                // normal 쪽에서 보면 right가 왼쪽에 보이므로 p0→p1은 시계 방향 (Unity: 시계 = 앞면)
+                tris.Add(c); tris.Add(i0); tris.Add(i1);
+            }
+        }
 
         /// <summary>바닥에 붙는 원판 (가짜 그림자·매트용). UV는 0~1 정사각.</summary>
         public void Disc(Vector3 center, float radius, int segments, Color color)

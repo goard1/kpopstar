@@ -9,38 +9,46 @@ namespace Munbanggu.Visual
     /// </summary>
     public static class ShopDecor
     {
-        // ───────────── 팔레트 ─────────────
-        public static Color FloorA = new Color(0.96f, 0.90f, 0.77f);
-        public static Color FloorB = new Color(0.80f, 0.50f, 0.42f);
-        public static Color WallUpper = new Color(0.98f, 0.93f, 0.81f);
-        public static readonly Color WallTop = new Color(0.50f, 0.34f, 0.27f);
-        public static Color Wainscot = new Color(0.56f, 0.78f, 0.70f);
-        public static Color WainscotLine = new Color(0.46f, 0.67f, 0.60f);
-        public static readonly Color WoodDark = new Color(0.47f, 0.30f, 0.21f);
-        public static readonly Color Wood = new Color(0.70f, 0.48f, 0.31f);
-        public static readonly Color WoodLight = new Color(0.86f, 0.67f, 0.45f);
-        public static readonly Color Paper = new Color(0.99f, 0.97f, 0.91f);
-        public static readonly Color Red = new Color(0.89f, 0.27f, 0.24f);
-        public static readonly Color Blue = new Color(0.20f, 0.40f, 0.76f);
-        public static readonly Color Yellow = new Color(0.99f, 0.82f, 0.28f);
-        public static readonly Color Green = new Color(0.36f, 0.68f, 0.40f);
-        public static readonly Color Pink = new Color(0.97f, 0.58f, 0.66f);
-        public static readonly Color Sky = new Color(0.62f, 0.84f, 0.95f);
-        public static readonly Color Metal = new Color(0.78f, 0.80f, 0.83f);
-        public static readonly Color Ink = new Color(0.22f, 0.17f, 0.16f);
-        public static readonly Color PlinthSide = new Color(0.52f, 0.38f, 0.30f);
-        public static readonly Color PlinthLip = new Color(0.66f, 0.50f, 0.38f);
-        public static readonly Color Pave = new Color(0.80f, 0.76f, 0.70f);
-        public static readonly Color PaveB = new Color(0.72f, 0.67f, 0.62f);
+        // ───────────── 팔레트 (아주 귀엽게: 따뜻한 파스텔) ─────────────
+        public static Color FloorA = new Color(1.00f, 0.95f, 0.88f);
+        public static Color FloorB = new Color(1.00f, 0.78f, 0.78f);
+        public static Color WallUpper = new Color(1.00f, 0.95f, 0.90f);
+        public static readonly Color WallTop = new Color(0.86f, 0.62f, 0.60f);
+        public static Color Wainscot = new Color(0.68f, 0.90f, 0.80f);
+        public static Color WainscotLine = new Color(0.58f, 0.82f, 0.72f);
+        public static readonly Color WoodDark = new Color(0.78f, 0.58f, 0.46f);
+        public static readonly Color Wood = new Color(0.93f, 0.76f, 0.58f);
+        public static readonly Color WoodLight = new Color(1.00f, 0.88f, 0.72f);
+        public static readonly Color Paper = new Color(1.00f, 0.98f, 0.94f);
+        public static readonly Color Red = new Color(1.00f, 0.48f, 0.54f);
+        public static readonly Color Blue = new Color(0.48f, 0.66f, 0.98f);
+        public static readonly Color Yellow = new Color(1.00f, 0.86f, 0.42f);
+        public static readonly Color Green = new Color(0.56f, 0.86f, 0.62f);
+        public static readonly Color Pink = new Color(1.00f, 0.70f, 0.80f);
+        public static readonly Color Sky = new Color(0.70f, 0.88f, 1.00f);
+        public static readonly Color Lavender = new Color(0.80f, 0.70f, 1.00f);
+        public static readonly Color Metal = new Color(0.84f, 0.86f, 0.90f);
+        public static readonly Color Ink = new Color(0.30f, 0.20f, 0.22f);
+        public static readonly Color PlinthSide = new Color(0.86f, 0.62f, 0.62f);
+        public static readonly Color PlinthLip = new Color(0.96f, 0.78f, 0.76f);
+        public static readonly Color Pave = new Color(0.94f, 0.90f, 0.88f);
+        public static readonly Color PaveB = new Color(0.88f, 0.84f, 0.86f);
+
+        /// <summary>진열대 몸통 파스텔 (진열대 번호마다 돌아가며).</summary>
+        public static readonly Color[] ShelfPastels =
+        {
+            new Color(0.70f, 0.90f, 0.82f), new Color(1.00f, 0.76f, 0.82f), new Color(1.00f, 0.88f, 0.60f),
+            new Color(0.70f, 0.82f, 1.00f), new Color(0.84f, 0.76f, 1.00f), new Color(1.00f, 0.80f, 0.66f),
+        };
 
         static readonly Color[] Candy =
         {
-            new Color(0.95f, 0.40f, 0.45f), new Color(0.99f, 0.80f, 0.30f), new Color(0.45f, 0.75f, 0.95f),
-            new Color(0.55f, 0.85f, 0.50f), new Color(0.80f, 0.55f, 0.90f), new Color(0.98f, 0.60f, 0.30f),
+            new Color(1.00f, 0.52f, 0.58f), new Color(1.00f, 0.84f, 0.40f), new Color(0.52f, 0.78f, 1.00f),
+            new Color(0.58f, 0.88f, 0.60f), new Color(0.82f, 0.64f, 1.00f), new Color(1.00f, 0.68f, 0.45f),
         };
 
         /// <summary>차양 줄무늬 색 (동네마다 다름).</summary>
-        public static Color AwningColor = new Color(0.89f, 0.27f, 0.24f);
+        public static Color AwningColor = new Color(1.00f, 0.55f, 0.62f);
 
         /// <summary>동네(상권) 색으로 바꾼다. 바꾼 뒤 ShopBuilder.RebuildStatic으로 다시 그려야 보인다.</summary>
         public static void ApplyPalette(Munbanggu.Core.DistrictPalette p)
@@ -68,6 +76,7 @@ namespace Munbanggu.Visual
             Owner(kit, blob);
             Door(kit, glass);
             Outside(kit, blob);
+            CuteDecor(kit, blob);
         }
 
         // ───────────── 바닥·받침 ─────────────
@@ -643,39 +652,202 @@ namespace Munbanggu.Visual
         // ───────────── 매대 (ShelfSlot 자리) ─────────────
 
         /// <summary>나무 계단식 매대. 슬롯 로컬 좌표(앞=+Z)로 쌓는다. 상품 윗면 높이: 앞 0.68, 가운데 0.80, 뒤 0.92.</summary>
+        // ───────────── 귀여운 소품 (깃발 줄·전구·구름 스티커·러그·풍선·웃는 화분) ─────────────
+
+        static void CuteDecor(MeshKit k, MeshKit blob)
+        {
+            // 삼각 깃발 줄: 뒷벽(+Z)과 오른벽(+X) 위쪽에 축 늘어지게
+            Bunting(k, new Vector3(-3.9f, 2.42f, 3.42f), new Vector3(3.42f, 2.42f, 3.42f), 0);
+            Bunting(k, new Vector3(3.42f, 2.42f, 3.42f), new Vector3(3.42f, 2.42f, -3.4f), 3);
+
+            // 벽지 물방울 무늬 (위쪽 벽, 동네 색에 맞춰)
+            Color dot = Color.Lerp(WallUpper, Pink, 0.4f);
+            for (int row = 0; row < 4; row++)
+                for (int col = 0; col < 20; col++)
+                {
+                    float u = -3.8f + col * 0.4f + (row % 2) * 0.2f, v = 1.3f + row * 0.36f;
+                    if (u > 3.85f) continue;
+                    k.DiscFacing(new Vector3(u, v, 3.995f), new Vector2(0.045f, 0.045f), Vector3.back, 10, dot);
+                    k.DiscFacing(new Vector3(3.995f, v, -u), new Vector2(0.045f, 0.045f), Vector3.left, 10, dot);
+                }
+
+            // 오른벽 꼬마 전구 (창문 위)
+            for (int i = 0; i < 14; i++)
+            {
+                float z = 3.5f - i * 0.5f;
+                float y = 2.28f - Mathf.Sin(i * 0.9f) * 0.04f;
+                Color c = i % 3 == 0 ? Yellow : i % 3 == 1 ? Pink : Sky;
+                k.Sphere(new Vector3(3.84f, y, z), new Vector3(0.035f, 0.05f, 0.035f), 8, 4, c);
+            }
+
+            // 벽 스티커: 구름·하트·별
+            Cloud(k, new Vector3(3.9f, 1.25f, -3.75f), Vector3.left, 0.9f);
+            HeartSticker(k, new Vector3(3.9f, 1.7f, 2.65f), Vector3.left, 0.09f, Pink);
+            StarSticker(k, new Vector3(3.9f, 1.95f, 2.3f), Vector3.left, 0.08f, Yellow);
+            Cloud(k, new Vector3(3.4f, 2.05f, 3.98f), Vector3.back, 0.8f);
+            HeartSticker(k, new Vector3(-3.75f, 2.15f, 3.98f), Vector3.back, 0.1f, Red);
+
+            // 가운데 동그란 러그 (분홍 · 크림 · 민트 겹)
+            var rug = new Vector3(0.7f, 0.0035f, -0.6f);
+            k.Disc(rug, 1.35f, 28, new Color(1.0f, 0.74f, 0.78f));
+            k.Disc(rug + new Vector3(0f, 0.0008f, 0f), 1.12f, 28, new Color(1.0f, 0.96f, 0.9f));
+            k.Disc(rug + new Vector3(0f, 0.0016f, 0f), 0.9f, 28, new Color(0.72f, 0.92f, 0.84f));
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i * Mathf.PI / 4f;
+                k.Disc(rug + new Vector3(Mathf.Cos(a) * 1.235f, 0.0012f, Mathf.Sin(a) * 1.235f), 0.06f, 10, Paper);
+            }
+
+            // 문 옆 풍선 다발
+            var weight = new Vector3(3.55f, 0f, -3.62f);
+            k.Box(weight + new Vector3(0f, 0.06f, 0f), new Vector3(0.14f, 0.12f, 0.14f), Pink, MeshKit.Shade(Pink, 0.85f));
+            Color[] bal = { Red, Sky, Yellow, Lavender };
+            Vector3[] off = { new Vector3(-0.12f, 2.0f, 0.05f), new Vector3(0.1f, 2.15f, -0.05f), new Vector3(0.02f, 1.85f, 0.14f), new Vector3(-0.02f, 2.3f, -0.1f) };
+            for (int i = 0; i < bal.Length; i++)
+            {
+                var b = weight + off[i];
+                Vector3 knot = weight + new Vector3(0f, 0.12f, 0f);
+                Vector3 mid = (knot + b) * 0.5f;
+                Vector3 dir = b - knot;
+                k.Push(mid, Quaternion.FromToRotation(Vector3.up, dir));
+                k.Cylinder(Vector3.zero, 0.005f, dir.magnitude, 4, new Color(0.9f, 0.9f, 0.92f));
+                k.Pop();
+                k.Sphere(b, new Vector3(0.15f, 0.18f, 0.15f), 10, 6, bal[i]);
+                k.Sphere(b + new Vector3(-0.05f, 0.07f, -0.08f), Vector3.one * 0.03f, 6, 3, new Color(1f, 1f, 1f));
+            }
+            Shadow(blob, weight, new Vector2(0.5f, 0.5f), 0f);
+
+            // 웃는 화분
+            SmilePot(k, blob, new Vector3(-3.65f, 0f, -3.6f), Green);
+            SmilePot(k, blob, new Vector3(3.5f, 0f, 2.55f), new Color(0.55f, 0.82f, 0.62f));
+        }
+
+        static void Bunting(MeshKit k, Vector3 a, Vector3 b, int phase)
+        {
+            float len = Vector3.Distance(a, b);
+            int flags = Mathf.Max(2, Mathf.RoundToInt(len / 0.42f));
+            Vector3 side = (b - a).normalized;
+            Color[] cs = { Red, Yellow, Sky, Green, Pink, Lavender };
+            Vector3 prev = a;
+            for (int i = 0; i <= flags; i++)
+            {
+                float t = i / (float)flags;
+                Vector3 p = a + (b - a) * t + Vector3.down * Mathf.Abs(Mathf.Sin(t * Mathf.PI * 3f)) * 0.1f; // 세 번 출렁
+                if (i > 0)
+                {
+                    Vector3 mid = (prev + p) * 0.5f, d = p - prev;
+                    k.Push(mid, Quaternion.FromToRotation(Vector3.up, d));
+                    k.Cylinder(Vector3.zero, 0.006f, d.magnitude, 4, Paper);
+                    k.Pop();
+                    Vector3 w = side * 0.15f;
+                    k.Triangle(mid - w, mid + w, mid + Vector3.down * 0.24f, cs[(i + phase) % cs.Length]);
+                }
+                prev = p;
+            }
+        }
+
+        static void Cloud(MeshKit k, Vector3 p, Vector3 facing, float s)
+        {
+            Vector3 right = Vector3.Cross(Vector3.up, -facing).normalized;
+            var white = new Color(1f, 1f, 1f);
+            k.DiscFacing(p, new Vector2(0.22f * s, 0.12f * s), facing, 16, white);
+            k.DiscFacing(p + right * 0.13f * s + Vector3.up * 0.06f * s + facing * 0.001f, new Vector2(0.12f * s, 0.11f * s), facing, 14, white);
+            k.DiscFacing(p - right * 0.1f * s + Vector3.up * 0.08f * s + facing * 0.001f, new Vector2(0.1f * s, 0.1f * s), facing, 14, white);
+            k.DiscFacing(p - right * 0.05f * s + facing * 0.002f, new Vector2(0.015f * s, 0.022f * s), facing, 8, Ink);
+            k.DiscFacing(p + right * 0.05f * s + facing * 0.002f, new Vector2(0.015f * s, 0.022f * s), facing, 8, Ink);
+            k.DiscFacing(p + Vector3.down * 0.035f * s + facing * 0.002f, new Vector2(0.012f * s, 0.007f * s), facing, 8, Red);
+        }
+
+        static void HeartSticker(MeshKit k, Vector3 p, Vector3 facing, float s, Color c)
+        {
+            Vector3 right = Vector3.Cross(Vector3.up, -facing).normalized;
+            k.DiscFacing(p + right * s * 0.45f + Vector3.up * s * 0.2f, new Vector2(s * 0.55f, s * 0.55f), facing, 12, c);
+            k.DiscFacing(p - right * s * 0.45f + Vector3.up * s * 0.2f, new Vector2(s * 0.55f, s * 0.55f), facing, 12, c);
+            k.Triangle(p - right * s * 0.98f + Vector3.up * s * 0.12f, p + right * s * 0.98f + Vector3.up * s * 0.12f, p + Vector3.down * s * 0.85f, c);
+        }
+
+        static void StarSticker(MeshKit k, Vector3 p, Vector3 facing, float s, Color c)
+        {
+            Vector3 right = Vector3.Cross(Vector3.up, -facing).normalized;
+            for (int i = 0; i < 5; i++)
+            {
+                float a0 = Mathf.PI * 0.5f + i * Mathf.PI * 2f / 5f;
+                float a1 = a0 + Mathf.PI * 2f / 10f, a2 = a0 - Mathf.PI * 2f / 10f;
+                Vector3 tip = p + (right * Mathf.Cos(a0) + Vector3.up * Mathf.Sin(a0)) * s;
+                Vector3 l = p + (right * Mathf.Cos(a1) + Vector3.up * Mathf.Sin(a1)) * s * 0.42f;
+                Vector3 r = p + (right * Mathf.Cos(a2) + Vector3.up * Mathf.Sin(a2)) * s * 0.42f;
+                k.Triangle(tip, l, r, c);
+                k.Triangle(p, l, r, c);
+            }
+        }
+
+        static void SmilePot(MeshKit k, MeshKit blob, Vector3 p, Color leaf)
+        {
+            var pot = new Color(1.0f, 0.7f, 0.6f);
+            k.Frustum(p + new Vector3(0f, 0.16f, 0f), 0.14f, 0.18f, 0.32f, 12, pot, MeshKit.Shade(pot, 0.8f));
+            // 화분 얼굴 (카메라 쪽을 봄)
+            var n = new Vector3(-0.7f, 0f, -0.7f).normalized;
+            var f = p + new Vector3(0f, 0.17f, 0f) + n * 0.165f;
+            Vector3 right = Vector3.Cross(Vector3.up, n).normalized;
+            k.DiscFacing(f + right * 0.05f, new Vector2(0.016f, 0.022f), n, 8, Ink);
+            k.DiscFacing(f - right * 0.05f, new Vector2(0.016f, 0.022f), n, 8, Ink);
+            k.DiscFacing(f + Vector3.down * 0.045f, new Vector2(0.025f, 0.012f), n, 8, Red);
+            k.DiscFacing(f + right * 0.09f + Vector3.down * 0.03f, new Vector2(0.022f, 0.012f), n, 8, Pink);
+            k.DiscFacing(f - right * 0.09f + Vector3.down * 0.03f, new Vector2(0.022f, 0.012f), n, 8, Pink);
+            // 잎 (동글 세 덩이 + 꽃 하나)
+            k.Sphere(p + new Vector3(0f, 0.42f, 0f), new Vector3(0.17f, 0.15f, 0.17f), 10, 5, leaf);
+            k.Sphere(p + new Vector3(-0.1f, 0.52f, 0.05f), Vector3.one * 0.1f, 8, 4, MeshKit.Shade(leaf, 1.1f));
+            k.Sphere(p + new Vector3(0.09f, 0.55f, -0.04f), Vector3.one * 0.09f, 8, 4, MeshKit.Shade(leaf, 0.95f));
+            k.Sphere(p + new Vector3(0.02f, 0.64f, 0.02f), Vector3.one * 0.05f, 8, 4, Pink);
+            k.Sphere(p + new Vector3(0.02f, 0.66f, 0.02f), Vector3.one * 0.022f, 6, 3, Yellow);
+            Shadow(blob, p, new Vector2(0.5f, 0.5f), 0f);
+        }
+
         public static void ShelfCabinet(MeshKit k, MeshKit blob, Vector3 pos, float yaw, int index)
         {
             k.Push(pos, Quaternion.Euler(0f, yaw, 0f));
-            // 몸통 (앞쪽은 재고 상자가 보이는 열린 칸)
-            k.Box(new Vector3(0f, 0.36f, -0.075f), new Vector3(1.1f, 0.52f, 0.55f), WoodLight, Wood);
-            k.Box(new Vector3(0f, 0.05f, 0.0f), new Vector3(1.12f, 0.1f, 0.72f), WoodDark, WoodDark);
-            k.Box(new Vector3(-0.53f, 0.36f, 0.275f), new Vector3(0.04f, 0.52f, 0.15f), Wood, Wood);
-            k.Box(new Vector3(0.53f, 0.36f, 0.275f), new Vector3(0.04f, 0.52f, 0.15f), Wood, Wood);
-            k.FlatBox(new Vector3(0f, 0.36f, 0.203f), new Vector3(1.02f, 0.5f, 0.004f), MeshKit.Shade(Wood, 0.62f));
-            Color box = new Color(0.82f, 0.64f, 0.44f);
+            // 파스텔 몸통 (진열대마다 색이 다름) + 크림색 계단
+            Color body = ShelfPastels[((index % ShelfPastels.Length) + ShelfPastels.Length) % ShelfPastels.Length];
+            Color bodyDark = MeshKit.Shade(body, 0.86f);
+            Color step = new Color(1.00f, 0.95f, 0.86f);
+            k.Box(new Vector3(0f, 0.36f, -0.075f), new Vector3(1.1f, 0.52f, 0.55f), MeshKit.Shade(body, 1.05f), body);
+            k.Box(new Vector3(0f, 0.05f, 0.0f), new Vector3(1.12f, 0.1f, 0.72f), bodyDark, bodyDark);
+            // 동글 발 4개
+            foreach (float sx in new[] { -0.48f, 0.48f })
+                foreach (float sz in new[] { -0.28f, 0.28f })
+                    k.Sphere(new Vector3(sx, 0.02f, sz), new Vector3(0.06f, 0.035f, 0.06f), 8, 3, bodyDark);
+            k.Box(new Vector3(-0.53f, 0.36f, 0.275f), new Vector3(0.04f, 0.52f, 0.15f), body, body);
+            k.Box(new Vector3(0.53f, 0.36f, 0.275f), new Vector3(0.04f, 0.52f, 0.15f), body, body);
+            k.FlatBox(new Vector3(0f, 0.36f, 0.203f), new Vector3(1.02f, 0.5f, 0.004f), MeshKit.Shade(body, 0.7f));
+            Color box = new Color(0.98f, 0.82f, 0.64f);
             k.Box(new Vector3(-0.24f, 0.21f, 0.27f), new Vector3(0.42f, 0.22f, 0.12f), MeshKit.Shade(box, 1.05f), box);
             k.Box(new Vector3(0.24f, 0.19f, 0.27f), new Vector3(0.4f, 0.18f, 0.12f), MeshKit.Shade(box, 1.05f), box);
+            // 상자에 하트 스티커
             k.FlatBox(new Vector3(-0.24f, 0.22f, 0.332f), new Vector3(0.16f, 0.08f, 0.004f), Paper);
-            k.Box(new Vector3(0f, 0.59f, 0.33f), new Vector3(1.1f, 0.06f, 0.04f), Wood, Wood);
-            // 계단 3단
-            k.Box(new Vector3(0f, 0.65f, 0f), new Vector3(1.14f, 0.06f, 0.74f), WoodLight, Wood);
-            k.Box(new Vector3(0f, 0.74f, -0.125f), new Vector3(1.1f, 0.12f, 0.45f), WoodLight, Wood);
-            k.Box(new Vector3(0f, 0.86f, -0.225f), new Vector3(1.1f, 0.12f, 0.25f), WoodLight, Wood);
-            // 단마다 앞 가격 레일 (크림색)
-            k.FlatBox(new Vector3(0f, 0.68f, 0.371f), new Vector3(1.14f, 0.04f, 0.006f), Paper);
-            k.FlatBox(new Vector3(0f, 0.785f, 0.101f), new Vector3(1.1f, 0.03f, 0.006f), Paper);
-            k.FlatBox(new Vector3(0f, 0.905f, -0.099f), new Vector3(1.1f, 0.03f, 0.006f), Paper);
+            k.DiscFacing(new Vector3(0.24f, 0.2f, 0.333f), new Vector2(0.035f, 0.035f), Vector3.forward, 10, Red);
+            k.Box(new Vector3(0f, 0.59f, 0.33f), new Vector3(1.1f, 0.06f, 0.04f), body, body);
+            // 계단 3단 (크림)
+            k.Box(new Vector3(0f, 0.65f, 0f), new Vector3(1.14f, 0.06f, 0.74f), step, MeshKit.Shade(step, 0.92f));
+            k.Box(new Vector3(0f, 0.74f, -0.125f), new Vector3(1.1f, 0.12f, 0.45f), step, MeshKit.Shade(step, 0.92f));
+            k.Box(new Vector3(0f, 0.86f, -0.225f), new Vector3(1.1f, 0.12f, 0.25f), step, MeshKit.Shade(step, 0.92f));
+            // 단마다 앞 가격 레일 (몸통 색 띠)
+            k.FlatBox(new Vector3(0f, 0.68f, 0.371f), new Vector3(1.14f, 0.04f, 0.006f), body);
+            k.FlatBox(new Vector3(0f, 0.785f, 0.101f), new Vector3(1.1f, 0.03f, 0.006f), body);
+            k.FlatBox(new Vector3(0f, 0.905f, -0.099f), new Vector3(1.1f, 0.03f, 0.006f), body);
             // 칸막이 (열 사이)
             for (int i = 1; i < 4; i++)
             {
                 float x = -0.52f + i * 0.26f;
                 k.Box(new Vector3(x, 0.71f, 0.22f), new Vector3(0.012f, 0.06f, 0.24f), Paper, Paper);
             }
-            // 뒤 머리판 (색 띠)
-            Color band = Candy[index % Candy.Length];
-            k.Box(new Vector3(0f, 1.06f, -0.33f), new Vector3(1.12f, 0.28f, 0.04f), WoodLight, Wood);
-            k.FlatBox(new Vector3(0f, 1.07f, -0.308f), new Vector3(1.0f, 0.16f, 0.004f), band);
-            k.FlatBox(new Vector3(0f, 1.07f, -0.305f), new Vector3(0.5f, 0.06f, 0.004f), Paper);
+            // 뒤 머리판: 구름처럼 동글동글한 윗선 + 물방울 무늬
+            Color band = Candy[((index % Candy.Length) + Candy.Length) % Candy.Length];
+            k.Box(new Vector3(0f, 1.05f, -0.33f), new Vector3(1.12f, 0.26f, 0.05f), MeshKit.Shade(body, 1.05f), body);
+            for (int i = 0; i < 6; i++)
+                k.Sphere(new Vector3(-0.47f + i * 0.188f, 1.18f, -0.33f), new Vector3(0.1f, 0.07f, 0.03f), 10, 4, body);
+            k.FlatBox(new Vector3(0f, 1.05f, -0.304f), new Vector3(0.98f, 0.14f, 0.004f), band);
+            for (int i = 0; i < 5; i++)
+                k.DiscFacing(new Vector3(-0.4f + i * 0.2f, 1.05f + (i % 2 == 0 ? 0.025f : -0.025f), -0.3f), new Vector2(0.022f, 0.022f), Vector3.forward, 8, Paper);
             k.Pop();
 
             // 그림자

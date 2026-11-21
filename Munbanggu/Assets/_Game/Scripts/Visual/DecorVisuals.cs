@@ -16,7 +16,7 @@ namespace Munbanggu.Visual
         static readonly Color Ink = new Color(0.2f, 0.18f, 0.22f);
 
         /// <summary>장식이 놓이는 자리 (진열대 로컬: 뒤 머리판 위).</summary>
-        public static readonly Vector3 LocalSpot = new Vector3(0f, 1.2f, -0.31f);
+        public static readonly Vector3 LocalSpot = new Vector3(0f, 1.24f, -0.31f);
 
         public static GameObject Rebuild(ShopLayout layout, MaterialCache mats, FacilityState state, GameObject previous)
         {
