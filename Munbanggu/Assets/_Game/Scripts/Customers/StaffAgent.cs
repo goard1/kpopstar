@@ -38,14 +38,17 @@ namespace Munbanggu.Customers
         /// <summary>맡은 일·순번별 서 있는 자리 (계산대 뒤 / 가게 가운데 뒤 / 문 안쪽 / 계산대 옆).</summary>
         public static (Vector3 pos, float yaw) Post(StaffJob job, int order)
         {
-            int i = Mathf.Clamp(order, 0, 1);
-            return job switch
+            // 같은 일을 맡은 직원이 3명 이상이면(가게 증축 후) 세 번째 자리부터 조금씩 옆으로
+            int i = Mathf.Clamp(order, 0, 2);
+            var (pos, yaw) = job switch
             {
-                StaffJob.Cashier => i == 0 ? (new Vector3(-3.62f, 0f, -0.45f), 110f) : (new Vector3(-3.62f, 0f, -2.05f), 70f),
-                StaffJob.Stocker => i == 0 ? (new Vector3(0.6f, 0f, 1.7f), 200f) : (new Vector3(-0.8f, 0f, 1.7f), 160f),
-                StaffJob.Guard => i == 0 ? (new Vector3(2.45f, 0f, -3.15f), 230f) : (new Vector3(0.1f, 0f, -3.15f), 160f),
-                _ => i == 0 ? (new Vector3(-2.75f, 0f, 0.45f), 120f) : (new Vector3(-2.75f, 0f, 1.05f), 120f),
+                StaffJob.Cashier => i == 0 ? (new Vector3(-3.62f, 0f, -0.45f), 110f) : i == 1 ? (new Vector3(-3.62f, 0f, -2.05f), 70f) : (new Vector3(-3.62f, 0f, -1.25f), 90f),
+                StaffJob.Stocker => i == 0 ? (new Vector3(0.6f, 0f, 1.7f), 200f) : i == 1 ? (new Vector3(-0.8f, 0f, 1.7f), 160f) : (new Vector3(2.0f, 0f, 0.9f), 230f),
+                StaffJob.Guard => i == 0 ? (new Vector3(2.45f, 0f, -3.15f), 230f) : i == 1 ? (new Vector3(0.1f, 0f, -3.15f), 160f) : (new Vector3(2.2f, 0f, -1.6f), 250f),
+                _ => i == 0 ? (new Vector3(-2.75f, 0f, 0.45f), 120f) : i == 1 ? (new Vector3(-2.75f, 0f, 1.05f), 120f) : (new Vector3(-2.75f, 0f, 1.65f), 120f),
             };
+            if (order > 2) pos += new Vector3(0.4f * (order - 2), 0f, 0f);
+            return (pos, yaw);
         }
 
         public static StaffAgent Create(Transform parent, MaterialCache mats, HUD hud, StaffMember m, int order)
@@ -82,29 +85,36 @@ namespace Munbanggu.Customers
 
         public bool Busy => busy;
 
-        /// <summary>point까지 걸어가서 arrive()를 부르고 제자리로 돌아온다.</summary>
+        /// <summary>point까지 걸어가서 arrive()를 부르고 제자리로 돌아온다 (옆칸이면 경유점을 지나).</summary>
         public void Errand(Vector3 point, Action arrive)
         {
             busy = true;
             returning = false;
             errand = point;
             onArrive = arrive;
+            path.Clear();
+            Munbanggu.Shop.ShopLayout.AppendPath(path, transform.position, point);
         }
+
+        readonly System.Collections.Generic.List<Vector3> path = new System.Collections.Generic.List<Vector3>();
 
         void Update()
         {
             moving = false;
             if (busy)
             {
-                Vector3 target = returning ? home : errand;
-                if (MoveTo(target))
+                if (path.Count == 0) Munbanggu.Shop.ShopLayout.AppendPath(path, transform.position, returning ? home : errand);
+                if (MoveTo(path[0]))
                 {
-                    if (!returning)
+                    path.RemoveAt(0);
+                    if (path.Count > 0) { /* 경유점 하나 지남 */ }
+                    else if (!returning)
                     {
                         var cb = onArrive;
                         onArrive = null;
                         cb?.Invoke();
                         returning = true;
+                        Munbanggu.Shop.ShopLayout.AppendPath(path, errand, home);
                     }
                     else
                     {

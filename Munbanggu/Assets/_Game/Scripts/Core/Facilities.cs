@@ -100,12 +100,9 @@ namespace Munbanggu.Core
         public const float RefundRate = 0.5f;
 
         /// <summary>
-        /// 이웃한 진열대 (Layout.Slots 인덱스): 뒷벽 0~4, 뒷벽-오른벽 모서리 4-5, 오른벽 5~7,
-        /// 창가 진열대 9 ↔ 7, 왼쪽 벽 진열대 10 ↔ 0. (8은 가게 앞 뽑기판이라 제외)
+        /// 이 거리(m) 안의 두 진열대는 이웃 (세트 콤보). 벽 따라 1.3m 간격, 모서리 4-5는 1.8m,
+        /// 창가↔7번 1.85m, 왼쪽 가장자리↔0번 2.1m, 옆칸 뒷벽↔0번 1.75m. 방 건너편끼리는 2.7m 이상이라 안 걸림.
         /// </summary>
-        public static readonly (int a, int b)[] Neighbors =
-        {
-            (0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 9), (0, 10),
-        };
+        public const float NeighborDistance = 2.25f;
     }
 }

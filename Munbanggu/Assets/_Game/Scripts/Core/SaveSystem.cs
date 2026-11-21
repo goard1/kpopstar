@@ -40,6 +40,9 @@ namespace Munbanggu.Core
         public StaffState staff = new StaffState();
         // ── 시설(장식)·콤보 ──
         public FacilityState facilities = new FacilityState();
+        // ── 가게 증축 ── (예전 세이브엔 없음 → 0단계, 붙은 진열대 순서는 빈 목록 = 예전처럼)
+        public int expansion;
+        public List<string> slotGroups = new List<string>();
     }
 
     /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>

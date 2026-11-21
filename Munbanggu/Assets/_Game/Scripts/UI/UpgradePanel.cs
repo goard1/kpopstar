@@ -44,6 +44,9 @@ namespace Munbanggu.UI
 
         System.Action onDecorate;
         Text comboText;
+        Text expTitle, expBody, expBuyLabel;
+        Button expBuy;
+        Image expBuyBg;
 
         public static UpgradePanel Build(GameManager gm, GameObject modal, RectTransform card, UIJuice juice, System.Action onDecorate = null)
         {
@@ -107,6 +110,27 @@ namespace Munbanggu.UI
             scroll.movementType = ScrollRect.MovementType.Elastic;
             scroll.decelerationRate = 0.12f;
 
+            // 가게 증축 (단계별: 옆칸 → 평상 → 2층 만화방)
+            {
+                var header = UIKit.Label("Header", content, "가게 증축", 32, UIKit.Accent, TextAnchor.LowerLeft);
+                UIKit.Layout(header, -1, 56);
+                var row = UIKit.CardPanel("Expansion", content, UIKit.Card, 24, true, 6);
+                UIKit.Layout(row, -1, 300);
+                expTitle = UIKit.Label("Name", row.transform, "", 34, UIKit.Ink, TextAnchor.UpperLeft);
+                UIKit.Stretch(expTitle.rectTransform, 28, 230, 250, 16);
+                expTitle.supportRichText = true;
+                expBody = UIKit.Label("Body", row.transform, "", 24, UIKit.Muted, TextAnchor.UpperLeft);
+                UIKit.Stretch(expBody.rectTransform, 28, 16, 250, 72);
+                expBody.supportRichText = true;
+                expBuy = UIKit.Button("Build", row.transform, "", 30, UIKit.Red, Color.white, out expBuyLabel);
+                var ert = (RectTransform)expBuy.transform;
+                ert.anchorMin = new Vector2(1, 0); ert.anchorMax = new Vector2(1, 1);
+                ert.pivot = new Vector2(1, 0.5f);
+                ert.offsetMin = new Vector2(-226, 70); ert.offsetMax = new Vector2(-16, -70);
+                expBuyBg = (Image)expBuy.targetGraphic;
+                expBuy.onClick.AddListener(() => { if (gm.BuyExpansion()) Refresh(); });
+            }
+
             // 진열대 장식 & 콤보 (배치 모드로 들어가기)
             {
                 var header = UIKit.Label("Header", content, "진열대 장식 & 콤보", 32, UIKit.Accent, TextAnchor.LowerLeft);
@@ -163,6 +187,31 @@ namespace Munbanggu.UI
             return new Row { def = def, level = level, effect = effect, buy = buy, buyLabel = buyLabel, buyBg = (Image)buy.targetGraphic };
         }
 
+        void RefreshExpansion()
+        {
+            int lv = gm.Expansion;
+            var next = ExpansionTable.Next(lv);
+            string dots = new string('●', lv) + new string('○', ExpansionTable.Max - lv);
+            string red = UIKit.Hex(UIKit.Red);
+            if (next == null)
+            {
+                expTitle.text = $"{ExpansionTable.Name(lv)}  <color={red}>{dots}</color>";
+                expBody.text = "가게를 끝까지 넓혔어요!\n다음엔 다른 동네로 가게를 옮길 수 있게 될 거예요.";
+                expBuyLabel.text = "다 지음";
+                expBuy.interactable = false;
+                expBuyBg.color = UIKit.Muted;
+                return;
+            }
+            expTitle.text = $"다음: {next.name}  <color={red}>{dots}</color>";
+            string blocker = gm.ExpansionBlocker();
+            string cond = $"조건: {next.minDay}일차~" + (next.minReputation > 0 ? $" · 평판 {next.minReputation}+" : "");
+            expBody.text = "· " + string.Join("\n· ", next.effects) + "\n"
+                + (blocker != null ? $"<color={red}>{blocker}</color>" : cond);
+            expBuyLabel.text = blocker != null ? "아직 못 지어요" : UIKit.Won(next.cost);
+            expBuy.interactable = blocker == null && gm.Money >= next.cost && gm.Phase == DayPhase.Morning;
+            expBuyBg.color = blocker != null ? UIKit.Muted : UIKit.Red;
+        }
+
         /// <summary>돈·단계·버튼 상태 갱신 (열 때, 살 때, 돈이 바뀔 때).</summary>
         public void Refresh()
         {
@@ -174,6 +223,7 @@ namespace Munbanggu.UI
                     + $"발견한 콤보 {found.Count}/{GameManager.TotalComboCount}"
                     + (found.Count > 0 ? ": " + string.Join(", ", found) : "");
             }
+            if (expTitle != null) RefreshExpansion();
             var up = gm.Upgrades;
             foreach (var r in rows)
             {

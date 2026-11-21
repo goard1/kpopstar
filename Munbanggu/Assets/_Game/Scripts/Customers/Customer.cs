@@ -60,6 +60,7 @@ namespace Munbanggu.Customers
         float doorX;
         float speedMul = 1f;
         bool guardChecked;
+        int exitDoorIdx;   // 나가는 길에서 "문 안쪽" 경유점 순서 (앞에 옆칸 경유점이 붙으면 늘어남)
 
         public CustomerKind Kind { get; private set; }
         /// <summary>상담 손님의 고민 (상담 손님이 아니면 null).</summary>
@@ -139,7 +140,7 @@ namespace Munbanggu.Customers
         void PickTarget()
         {
             target = gm.FindSlotWith(wanted);
-            if (target != null) { state = State.ToShelf; return; }
+            if (target != null) { state = State.ToShelf; Detour(target.StandPoint); return; }
 
             // 매대에 없다 → 바로 나가지 않고 가게 안에서 두리번거린다.
             // 플레이어가 무엇을 찾는지 볼 수 있고, 그 사이 진열해 주면 산다.
@@ -160,6 +161,7 @@ namespace Munbanggu.Customers
             {
                 target = found;
                 state = State.ToShelf;
+                Detour(target.StandPoint);
                 bubble.Flash("앗, 있다!", UIKit.BubbleNormal, 1f);
                 return;
             }
@@ -189,6 +191,7 @@ namespace Munbanggu.Customers
                 {
                     target = alt;
                     state = State.ToShelf;
+                    Detour(target.StandPoint);
                     bubble.SetIcon(ProductIcons.Get(alt.Product));
                     bubble.Flash($"{wanted.displayName} 없네… 이거라도 살래", UIKit.BubbleNormal, 1.8f);
                     return;
@@ -207,7 +210,7 @@ namespace Munbanggu.Customers
             {
                 if (MoveTo(route[routeIdx])) routeIdx++;
                 // 경비 직원: 몰래 나가던 아이가 문 안쪽에 닿으면 잡을 기회
-                if (state == State.Sneaking && !guardChecked && routeIdx >= 1)
+                if (state == State.Sneaking && !guardChecked && routeIdx >= exitDoorIdx + 1)
                 {
                     guardChecked = true;
                     var guard = gm.TryGuardCatch();
@@ -287,6 +290,7 @@ namespace Munbanggu.Customers
                 state = State.Queued;
                 patience = maxPatience;
                 gm.Layout.Queue.Join(this);
+                Detour(ShopBuilder.QueueSpots[0]);
                 bubble.Hide();
                 return;
             }
@@ -582,14 +586,32 @@ namespace Munbanggu.Customers
             Vector3 exit = gm.Layout.ExitPoint;
             exit.x = doorX;
             // 이미 가게 밖(뽑기판 앞 등)이면 문을 거치지 않고 바로 길로
+            exitDoorIdx = 0;
             if (transform.position.z < ShopLayout.DoorZ - 0.05f) return new[] { exit };
-            return new[]
-            {
-                new Vector3(doorX, 0f, ShopLayout.DoorInsideZ),
-                new Vector3(doorX, 0f, ShopLayout.DoorZ),
-                new Vector3(doorX, 0f, ShopLayout.DoorOutsideZ),
-                exit,
-            };
+            var path = new System.Collections.Generic.List<Vector3>();
+            var inside = new Vector3(doorX, 0f, ShopLayout.DoorInsideZ);
+            ShopLayout.AppendPath(path, transform.position, inside); // 옆칸에 있으면 경유점부터
+            exitDoorIdx = path.Count - 1;
+            path.Add(new Vector3(doorX, 0f, ShopLayout.DoorZ));
+            path.Add(new Vector3(doorX, 0f, ShopLayout.DoorOutsideZ));
+            path.Add(exit);
+            return path.ToArray();
+        }
+
+        /// <summary>
+        /// 옆칸(증축) ↔ 본 가게를 오갈 때 경유점을 route 끝에 붙인다 (dest 자체는 상태 로직이 걸어감).
+        /// route가 남아 있으면(문을 막 지나는 중 등) 그 끝에서부터 계산.
+        /// </summary>
+        void Detour(Vector3 dest)
+        {
+            Vector3 from = routeIdx < route.Length ? route[route.Length - 1] : transform.position;
+            if (ShopLayout.InAnnex(from) == ShopLayout.InAnnex(dest)) return;
+            var list = new System.Collections.Generic.List<Vector3>();
+            for (int i = routeIdx; i < route.Length; i++) list.Add(route[i]);
+            ShopLayout.AppendPath(list, from, dest);
+            list.RemoveAt(list.Count - 1);
+            route = list.ToArray();
+            routeIdx = 0;
         }
 
         // ───────────── 이동·연출 ─────────────

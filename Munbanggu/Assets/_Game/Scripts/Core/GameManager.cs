@@ -43,6 +43,8 @@ namespace Munbanggu.Core
         public int counselPerfect, counselOk, counselWrong, counselNone;
         public int reputationDelta;
         public int salary;         // 직원 월급 (정산 때 빠짐)
+        public int upkeep;         // 가게 관리비 (증축 단계, 정산 때 빠짐)
+        public int comic;          // 2층 만화방 수입 (정산 때 들어옴, revenue에 포함)
         public int Profit => revenue - cost;
     }
 
@@ -188,6 +190,8 @@ namespace Munbanggu.Core
             if (Stats.arcade > 0) lines.Add(SettlementLine.Money("그중 오락기 수입", Stats.arcade));
             if (Stats.invested > 0) lines.Add(SettlementLine.Money("오늘 가게에 투자", Stats.invested, true));
             if (Stats.salary > 0) lines.Add(SettlementLine.Money($"직원 월급 ({Staff.members.Count}명)", Stats.salary, true));
+            if (Stats.upkeep > 0) lines.Add(SettlementLine.Money($"가게 관리비 ({ExpansionTable.Name(Expansion)})", Stats.upkeep, true));
+            if (Stats.comic > 0) lines.Add(SettlementLine.Money("그중 2층 만화방 수입", Stats.comic));
             if (Stats.pulls > 0) lines.Add(SettlementLine.Count("번호 뽑기", Stats.pulls, "판"));
             if (Stats.jackpots > 0) lines.Add(SettlementLine.Count("1등 당첨!", Stats.jackpots, "번"));
             var board = Layout.Board;
@@ -384,6 +388,11 @@ namespace Munbanggu.Core
             // 직원 월급
             int salary = DailySalaryTotal();
             if (salary > 0) { Money -= salary; Stats.salary = salary; }
+            // 가게 관리비 (증축할수록) · 2층 만화방 수입
+            int upkeep = ExpansionTable.Upkeep(Expansion);
+            if (upkeep > 0) { Money -= upkeep; Stats.upkeep = upkeep; }
+            int comic = ExpansionTable.ComicIncome(Expansion, Stats.visitors);
+            if (comic > 0) { Money += comic; Stats.revenue += comic; Stats.comic = comic; }
             Save();
             GameEvents.RaisePhaseChanged(Phase);
             Notify();
@@ -422,7 +431,7 @@ namespace Munbanggu.Core
 
         void SpawnTick()
         {
-            if (customers.Count >= maxCustomersInShop) return;
+            if (customers.Count >= maxCustomersInShop + 2 * Expansion) return; // 넓은 가게엔 더 많이
 
             // 단골은 정해진 시각에 (가게가 꽉 차 있으면 자리가 날 때) 들어온다
             var regular = regulars.TakeDue(OpenProgress);
@@ -449,7 +458,7 @@ namespace Munbanggu.Core
             }
 
             float rate = IsRush ? rushSpawnPerSec : baseSpawnPerSec;
-            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign)) * ReputationSpawnMultiplier * (1f + DecorAppeal);
+            rate *= Mathf.Min(maxSpawnGrowth, 1f + (Day - 1) * dailySpawnGrowth) * UpgradeTable.SpawnMultiplier(Upgrades.Level(UpgradeTable.Sign)) * ReputationSpawnMultiplier * (1f + DecorAppeal) * ExpansionTable.SpawnMultiplier(Expansion);
             spawnAcc += rate * Time.deltaTime;
             if (spawnAcc < 1f) return;
             spawnAcc -= 1f;
@@ -591,7 +600,7 @@ namespace Munbanggu.Core
         public float OpenDuration => openDuration + UpgradeTable.ExtraOpenSeconds(Upgrades.Level(UpgradeTable.Hours));
 
         /// <summary>계산 줄 인내심 (선풍기·의자 반영).</summary>
-        public float QueuePatience => queuePatience * UpgradeTable.PatienceMultiplier(Upgrades.Level(UpgradeTable.Fan));
+        public float QueuePatience => queuePatience * UpgradeTable.PatienceMultiplier(Upgrades.Level(UpgradeTable.Fan)) * ExpansionTable.PatienceMultiplier(Expansion);
 
         /// <summary>몰래 나가는 아이 속도 배율 (방범 거울 반영).</summary>
         public float SneakSpeed => UpgradeTable.SneakSpeedMultiplier(Upgrades.Level(UpgradeTable.Mirror));
@@ -652,6 +661,21 @@ namespace Munbanggu.Core
             Notify();
         }
 
+        /// <summary>스크린샷 도구용: 증축 단계를 바로 올리고 새 진열대를 채운다.</summary>
+        public void DebugExpansion(int level)
+        {
+            Expansion = Mathf.Clamp(level, 0, ExpansionTable.Max);
+            ApplyUpgrades();
+            foreach (var s in Layout.Slots)
+                if (!s.IsBoard && s.Product == null && Catalog.products.Count > 0)
+                {
+                    var p = Catalog.products[(s.Index * 7 + 3) % Catalog.products.Count];
+                    if (!IsBoardProduct(p)) s.Load(p, s.Capacity);
+                }
+            RebuildDecor();
+            Notify();
+        }
+
         /// <summary>스크린샷 도구용: 다음 날 아침으로 (돈 넉넉히).</summary>
         public void DebugMorningForCapture()
         {
@@ -661,18 +685,89 @@ namespace Munbanggu.Core
         }
 #endif
 
-        /// <summary>업그레이드 단계를 가게에 반영 (매대 칸 수, 추가 진열대, 장식). 여러 번 불러도 됨.</summary>
+        /// <summary>업그레이드·증축 단계를 가게에 반영 (매대 칸 수, 추가 진열대, 장식, 옆칸). 여러 번 불러도 됨.</summary>
         void ApplyUpgrades()
         {
             int cap = UpgradeTable.ShelfCapacity(Upgrades.Level(UpgradeTable.ShelfSize));
-            if (Upgrades.Level(UpgradeTable.Island) > 0 && !Layout.ExtraShelves)
-            {
-                ShopBuilder.AddExtraShelves(Layout, Materials, cap);
-                if (Hud != null) Hud.RebuildSlotLabels();
-            }
+            bool added = false;
+            if (Upgrades.Level(UpgradeTable.Island) > 0) added |= ShopBuilder.AddShelfGroup(Layout, Materials, cap, ShopBuilder.GroupExtra);
+            if (Expansion >= 1) added |= ShopBuilder.AddShelfGroup(Layout, Materials, cap, ShopBuilder.GroupAnnex);
+            if (Expansion >= 2) added |= ShopBuilder.AddShelfGroup(Layout, Materials, cap, ShopBuilder.GroupAnnexSide);
+            if (added && Hud != null) Hud.RebuildSlotLabels();
             foreach (var s in Layout.Slots)
                 if (!s.IsBoard) s.SetCapacity(cap);
             upgradeDecor = Visual.UpgradeVisuals.Rebuild(Layout.Root, Materials, Upgrades, upgradeDecor);
+            expansionDecor = Visual.ExpansionVisuals.Rebuild(Layout.Root, Materials, Expansion, expansionDecor);
+            Staff.maxStaff = ExpansionTable.MaxStaff(Expansion);
+            UpdateCameraFocus();
+        }
+
+        // ───────────── 가게 증축 (docs/06 3단계) ─────────────
+
+        /// <summary>증축 단계 (0 = 처음 가게, 최대 ExpansionTable.Max).</summary>
+        public int Expansion { get; private set; }
+        GameObject expansionDecor;
+
+        /// <summary>지금 다음 단계를 지을 수 없는 이유 (지을 수 있으면 null). 돈은 따로 본다.</summary>
+        public string ExpansionBlocker()
+        {
+            var next = ExpansionTable.Next(Expansion);
+            if (next == null) return "다 지었어요";
+            if (Day < next.minDay) return $"{next.minDay}일차부터 지을 수 있어요";
+            if (Reputation < next.minReputation) return $"동네 평판 {next.minReputation} 이상 필요 (지금 {Reputation})";
+            return null;
+        }
+
+        public bool BuyExpansion()
+        {
+            var next = ExpansionTable.Next(Expansion);
+            if (next == null || !MorningOnly("가게 증축")) return false;
+            string blocker = ExpansionBlocker();
+            if (blocker != null) { Fail(blocker); return false; }
+            if (Money < next.cost) { Fail("돈이 부족해요"); return false; }
+            Money -= next.cost;
+            Stats.invested += next.cost;
+            Expansion++;
+            ApplyUpgrades();
+            RebuildDecor();
+            Hud.Toast($"가게 증축: {next.name} 완료!");
+            GameEvents.RaiseRushStarted();
+            Dialogue.Show("할머니", next.celebrate, UIKit.Accent);
+            Save();
+            Notify();
+            return true;
+        }
+
+#if UNITY_EDITOR || MUNBANGGU_CHEATS
+        /// <summary>폰 테스트 빌드 전용 (설정 창 "테스트용" 버튼): 0 돈 +3만, 1 평판 +10, 2 날짜 +3일.</summary>
+        public void Cheat(int kind)
+        {
+            switch (kind)
+            {
+                case 0: Money += 30000; Hud.Toast("테스트: 돈 +30,000"); break;
+                case 1: Reputation = Mathf.Min(100, Reputation + 10); Hud.Toast($"테스트: 평판 {Reputation}"); break;
+                default: Day += 3; Hud.Toast($"테스트: {Day}일차로"); break;
+            }
+            Save();
+            Notify();
+        }
+#endif
+
+        /// <summary>증축 단계에 맞춰 카메라 기본 범위를 넓힌다 (옆칸·2층이 화면에 들어오게).</summary>
+        void UpdateCameraFocus()
+        {
+            if (Layout.Camera == null) return;
+            var sc = Layout.Camera.GetComponent<ShopCamera>();
+            if (sc == null) return;
+            var b = new Bounds(new Vector3(-0.3f, 1.5f, -0.3f), new Vector3(8.2f, 3.8f, 8.6f));
+            if (Expansion >= 1)
+            {
+                b.Encapsulate(Layout.Root.TransformPoint(new Vector3(Visual.ExpansionVisuals.AnnexX0 - 0.6f, -0.4f, 3.8f)));
+                b.Encapsulate(Layout.Root.TransformPoint(new Vector3(Visual.ExpansionVisuals.AnnexX0 - 0.6f, -0.4f, -4.6f)));
+            }
+            if (Expansion >= 3) b.Encapsulate(Layout.Root.TransformPoint(new Vector3(-5.3f, 5.2f, 3.3f)));
+            sc.focus = b;
+            sc.Fit();
         }
 
 
@@ -749,7 +844,7 @@ namespace Munbanggu.Core
                     $"{def.name} 덕분에 {Josa.I(p.displayName)} 더 잘 팔려요!");
             }
 
-            foreach (var (a, b) in FacilityTable.Neighbors)
+            foreach (var (a, b) in NeighborPairs())
             {
                 if (a >= slots.Count || b >= slots.Count) continue;
                 var pa = slots[a].Product;
@@ -763,6 +858,26 @@ namespace Munbanggu.Core
                     slotCombo[a] = set.name;
                     slotCombo[b] = set.name;
                     Discover(set.id, set.name, set.flavor);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 이웃한 진열대 쌍: 뽑기판을 뺀 진열대끼리 FacilityTable.NeighborDistance 안에 있으면 이웃.
+        /// (뒷벽 줄·모서리·창가·왼쪽 가장자리·옆칸까지 자리만 보고 정하므로 진열대가 늘어도 그대로 맞음)
+        /// </summary>
+        public IEnumerable<(int a, int b)> NeighborPairs()
+        {
+            var slots = Layout.Slots;
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (slots[i].IsBoard) continue;
+                for (int j = i + 1; j < slots.Count; j++)
+                {
+                    if (slots[j].IsBoard) continue;
+                    Vector3 d = slots[i].transform.localPosition - slots[j].transform.localPosition;
+                    d.y = 0f;
+                    if (d.magnitude <= FacilityTable.NeighborDistance) yield return (i, j);
                 }
             }
         }
@@ -1337,6 +1452,11 @@ namespace Munbanggu.Core
                         Staff.members.Add(new StaffMember { name = "알바생", seed = 424242, level = u.level * 2, speed = 3 + u.level * 2, kindness = 3, sharp = 2, job = StaffJob.Cashier });
             Upgrades.Load(data.upgrades);
             Facilities = data.facilities ?? new FacilityState();
+            Expansion = Mathf.Clamp(data.expansion, 0, ExpansionTable.Max);
+            // 나중에 붙은 진열대는 저장 때 붙어 있던 순서 그대로 (진열 인덱스가 어긋나지 않게)
+            if (data.slotGroups != null)
+                foreach (var g in data.slotGroups)
+                    ShopBuilder.AddShelfGroup(Layout, Materials, UpgradeTable.ShelfCapacity(Upgrades.Level(UpgradeTable.ShelfSize)), g);
             ApplyUpgrades();
             foreach (var e in data.backroom) AddStock(Catalog.Find(e.productId), e.count);
             for (int i = 0; i < Layout.Slots.Count && i < data.shelves.Count; i++)
@@ -1365,7 +1485,8 @@ namespace Munbanggu.Core
                 day = Day, money = Money, trend = trends.State, regulars = regulars.Save(),
                 credits = ledger.Save(), seenEvents = new List<string>(seenEvents),
                 upgrades = Upgrades.Save(), staff = Staff, facilities = Facilities,
-                reputation = Mathf.Max(1, Reputation), knownTraits = new List<string>(knownTraits)
+                reputation = Mathf.Max(1, Reputation), knownTraits = new List<string>(knownTraits),
+                expansion = Expansion, slotGroups = new List<string>(Layout.Groups)
             };
             foreach (var kv in stock)
                 if (kv.Value > 0) data.backroom.Add(new StockEntry { productId = kv.Key.id, count = kv.Value });

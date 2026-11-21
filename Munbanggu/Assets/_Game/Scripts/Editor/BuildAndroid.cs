@@ -32,7 +32,9 @@ namespace Munbanggu.EditorTools
                     scenes = new[] { ScenePath },
                     locationPathName = outPath,
                     target = BuildTarget.Android,
-                    options = BuildOptions.None
+                    options = BuildOptions.None,
+                    // 폰 테스트용: 설정 창에 "돈 +3만 / 평판 +10 / 날짜 +3일" 버튼 (스토어 빌드엔 넣지 않음)
+                    extraScriptingDefines = new[] { "MUNBANGGU_CHEATS" },
                 };
                 var report = BuildPipeline.BuildPlayer(options);
                 var s = report.summary;

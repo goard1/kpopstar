@@ -76,6 +76,27 @@ namespace Munbanggu.UI
                 Refresh();
             });
 
+#if UNITY_EDITOR || MUNBANGGU_CHEATS
+            // 폰 테스트 빌드 전용: 증축·직원 등 뒤쪽 단계를 빨리 확인하려고
+            var cheatLabel = UIKit.Label("Cheat Label", card, "테스트용", 28, UIKit.Muted, TextAnchor.MiddleLeft);
+            UIKit.Top(cheatLabel.rectTransform, 40, 744, 54);
+            string[] names = { "돈 +3만", "평판 +10", "날짜 +3일" };
+            for (int i = 0; i < names.Length; i++)
+            {
+                int kind = i;
+                var b = UIKit.Button("Cheat " + i, card, names[i], 30, UIKit.Blue, Color.white, out _);
+                var brt = (RectTransform)b.transform;
+                brt.anchorMin = new Vector2(i / 3f, 1); brt.anchorMax = new Vector2((i + 1) / 3f, 1);
+                brt.pivot = new Vector2(0.5f, 1);
+                brt.offsetMin = new Vector2(i == 0 ? 54 : 8, -880); brt.offsetMax = new Vector2(i == 2 ? -54 : -8, -790);
+                b.onClick.AddListener(() =>
+                {
+                    var gm = UnityEngine.Object.FindAnyObjectByType<Munbanggu.Core.GameManager>();
+                    if (gm != null) gm.Cheat(kind);
+                });
+            }
+#endif
+
             var close = UIKit.Button("Close", card, "닫기", 46, UIKit.Red, Color.white, out _);
             UIKit.Bottom((RectTransform)close.transform, 100, 40, 54);
             close.onClick.AddListener(Close);

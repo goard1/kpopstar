@@ -39,7 +39,7 @@ namespace Munbanggu.Visual
             new Color(0.55f, 0.85f, 0.50f), new Color(0.80f, 0.55f, 0.90f), new Color(0.98f, 0.60f, 0.30f),
         };
 
-        const float WallH = 3.0f;
+        public const float WallH = 3.0f;
 
         /// <summary>장식 전부 쌓기. kit = 불투명 버텍스 컬러, glass = 유리(곱하기), blob = 가짜 그림자.</summary>
         public static void Build(MeshKit kit, MeshKit glass, MeshKit blob)
@@ -105,7 +105,7 @@ namespace Munbanggu.Visual
             PushWallX(k); WallTrim(k, -4f, 4f); k.Pop();
         }
 
-        static void WallTrim(MeshKit k, float x0, float x1)
+        public static void WallTrim(MeshKit k, float x0, float x1)
         {
             float w = x1 - x0, cx = (x0 + x1) * 0.5f;
             k.Box(new Vector3(cx, 0.5f, -0.015f), new Vector3(w, 1.0f, 0.03f), Wainscot);
@@ -213,7 +213,7 @@ namespace Munbanggu.Visual
             PushWallX(k); Awning(k, -3.45f, 4.0f, 1); k.Pop();
         }
 
-        static void Awning(MeshKit k, float x0, float x1, int phase)
+        public static void Awning(MeshKit k, float x0, float x1, int phase)
         {
             const float stripe = 0.32f, depth = 0.62f, slope = 30f;
             const float topY = 2.92f;
@@ -424,7 +424,7 @@ namespace Munbanggu.Visual
             Shadow(blob, new Vector3(-3.7f, 0f, 3.25f), new Vector2(0.9f, 1.2f), 0f);
         }
 
-        static void Crate(MeshKit k, Vector3 basePos, Vector3 size, float yaw)
+        public static void Crate(MeshKit k, Vector3 basePos, Vector3 size, float yaw)
         {
             Color card = new Color(0.82f, 0.64f, 0.44f);
             k.Push(basePos, Quaternion.Euler(0f, yaw, 0f));
@@ -673,7 +673,7 @@ namespace Munbanggu.Visual
             blob.Pop();
         }
 
-        static void Shadow(MeshKit blob, Vector3 pos, Vector2 size, float yaw)
+        public static void Shadow(MeshKit blob, Vector3 pos, Vector2 size, float yaw)
         {
             blob.Push(pos, Quaternion.Euler(0f, yaw, 0f));
             blob.FloorQuad(new Vector3(0f, 0.004f, 0f), size, Color.white);

@@ -23,8 +23,25 @@ namespace Munbanggu.Shop
         public ShelfSlot Board;
         /// <summary>가게 오브젝트들의 부모 (업그레이드로 나중에 붙는 것들도 여기에).</summary>
         public Transform Root;
-        /// <summary>진열대 추가 업그레이드로 2칸이 붙었는지.</summary>
-        public bool ExtraShelves;
+        /// <summary>나중에 붙은 진열대 묶음 (붙은 순서 = Slots 인덱스 순서). 저장해 두고 불러올 때 같은 순서로 다시 붙인다.</summary>
+        public readonly List<string> Groups = new List<string>();
+        public bool HasGroup(string id) => Groups.Contains(id);
+
+        // ── 옆칸(증축) 동선 ──
+        /// <summary>이보다 왼쪽(-X)이면 옆칸. 옆칸 ↔ 본 가게 사이는 경유점 두 개를 지나 다닌다 (왼쪽 진열대·재고 상자를 피해서).</summary>
+        public const float AnnexEdgeX = -3.95f;
+        public static readonly Vector3 HubMain = new Vector3(-1.0f, 0f, 2.2f);
+        public static readonly Vector3 HubAnnex = new Vector3(-4.05f, 0f, 2.25f);
+        public static bool InAnnex(Vector3 p) => p.x < AnnexEdgeX && p.z > -4.0f;
+
+        /// <summary>from → to로 갈 때 필요한 경유점(옆칸 ↔ 본 가게)과 to를 path 뒤에 붙인다.</summary>
+        public static void AppendPath(List<Vector3> path, Vector3 from, Vector3 to)
+        {
+            bool a = InAnnex(from), b = InAnnex(to);
+            if (a && !b) { path.Add(HubAnnex); path.Add(HubMain); }
+            else if (!a && b) { path.Add(HubMain); path.Add(HubAnnex); }
+            path.Add(to);
+        }
     }
 
     /// <summary>
@@ -133,22 +150,34 @@ namespace Munbanggu.Shop
             (new Vector3(-3.35f, 0f, 1.3f), 90f),   // 왼쪽 가장자리, 가게 안(+X)을 봄
         };
 
-        /// <summary>추가 진열대를 만들어 Slots 뒤에 붙인다 (이미 있으면 건너뜀). 매대 칸 수도 맞춘다.</summary>
-        public static void AddExtraShelves(ShopLayout layout, MaterialCache mats, int capacity)
+        public const string GroupExtra = "extra", GroupAnnex = "annex", GroupAnnexSide = "annexSide";
+
+        /// <summary>증축 1단계(옆칸): 옆칸 뒷벽 2칸. 2단계: 옆칸 왼쪽 가장자리 1칸.</summary>
+        static (Vector3 pos, float yaw)[] GroupSpots(string group) => group switch
         {
-            if (layout.ExtraShelves) return;
-            layout.ExtraShelves = true;
+            GroupExtra => ExtraShelfSpots,
+            GroupAnnex => new[] { (new Vector3(-4.65f, 0f, 3.35f), 180f), (new Vector3(-5.9f, 0f, 3.35f), 180f) },
+            GroupAnnexSide => new[] { (new Vector3(-6.05f, 0f, 1.2f), 90f) },
+            _ => System.Array.Empty<(Vector3, float)>(),
+        };
+
+        /// <summary>진열대 묶음을 만들어 Slots 뒤에 붙인다 (이미 있으면 건너뜀). 매대 칸 수도 맞춘다.</summary>
+        public static bool AddShelfGroup(ShopLayout layout, MaterialCache mats, int capacity, string group)
+        {
+            if (layout.HasGroup(group)) return false;
+            layout.Groups.Add(group);
             var kit = new MeshKit();
             var blob = new MeshKit();
             int index = layout.Slots.Count;
-            foreach (var (pos, yaw) in ExtraShelfSpots)
+            foreach (var (pos, yaw) in GroupSpots(group))
             {
                 var slot = CreateSlot(layout.Root, index++, pos, yaw, mats, kit, blob);
                 slot.SetCapacity(capacity);
                 layout.Slots.Add(slot);
             }
-            kit.Build("Extra Shelves", layout.Root, mats.VertexColor);
-            if (mats.Blob != null) blob.Build("Extra Shadows", layout.Root, mats.Blob);
+            kit.Build($"Shelves {group}", layout.Root, mats.VertexColor);
+            if (mats.Blob != null) blob.Build($"Shadows {group}", layout.Root, mats.Blob);
+            return true;
         }
 
         static ShelfSlot CreateBoard(Transform parent, int index, Vector3 pos, float yaw, MaterialCache mats)

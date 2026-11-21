@@ -170,6 +170,18 @@ namespace Munbanggu.EditorTools
                 hud.OpenUpgrades();
                 Shot(hud, cam, rt, outDir, "14_upgrades_combos");
 
+                // 9) 가게 증축: 옆칸 → 평상 → 2층 만화방
+                hud.CloseModals();
+                gm.DebugExpansion(1);
+                Shot(hud, cam, rt, outDir, "15_expand1_annex");
+                gm.DebugExpansion(3);
+                Shot(hud, cam, rt, outDir, "16_expand3_comic");
+                hud.EnterDecorMode();
+                Shot(hud, cam, rt, outDir, "17_expand3_decor_mode");
+                hud.CloseModals();
+                hud.OpenUpgrades();
+                Shot(hud, cam, rt, outDir, "18_expansion_card");
+
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
             }
             finally
