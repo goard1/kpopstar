@@ -292,6 +292,11 @@ namespace Munbanggu.EditorTools
                     cam.orthographicSize = 1.1f; cam.transform.position = catW - cam.transform.forward * 30f;
 
                     Shot(hud, cam, rt, outDir, "38_cat_zoom");
+                    // 본 간판 (한국어 「문방구」 / 대만판 「柑仔店」)
+                    var signW = gm.Layout.Root.TransformPoint(new Vector3(-0.4f, 3.48f, 3.96f));
+                    cam.orthographicSize = 1.8f; cam.transform.position = signW - cam.transform.forward * 30f;
+                    hud.CloseModals();
+                    Shot(hud, cam, rt, outDir, "39_sign_zoom");
                     cam.orthographicSize = prevSize; cam.transform.position = prevPos; sc.Fit();
                 }
 

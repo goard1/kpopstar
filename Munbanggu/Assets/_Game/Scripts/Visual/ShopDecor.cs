@@ -182,14 +182,27 @@ namespace Munbanggu.Visual
             var go = new GameObject("SignText");
             go.transform.SetParent(root, false);
             go.transform.localPosition = new Vector3(-0.4f, 3.02f + 0.46f, 3.955f);
+            // 한국어판 블록 글자처럼 두툼하게: 진한 그림자 글자를 여러 겹 뒤에 깔고 앞에 흰 글자
+            var shade = new Color(0.30f, 0.36f, 0.52f);
+            for (int i = 3; i >= 1; i--)
+                MakeSignLayer(go.transform, font, new Vector3(0.012f * i, -0.016f * i, 0.004f * i), shade);
+            MakeSignLayer(go.transform, font, Vector3.zero, Paper);
+        }
+
+        static void MakeSignLayer(Transform parent, Font font, Vector3 offset, Color color)
+        {
+            var go = new GameObject("Layer");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = offset;
             var tm = go.AddComponent<TextMesh>();
             tm.font = font;
             tm.text = "柑仔店";
             tm.fontSize = 96;
-            tm.characterSize = 0.062f;
+            tm.fontStyle = FontStyle.Bold;
+            tm.characterSize = 0.064f;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
-            tm.color = Paper;
+            tm.color = color;
             var mr = go.GetComponent<MeshRenderer>();
             if (font != null) mr.sharedMaterial = font.material;
         }
