@@ -115,7 +115,7 @@ namespace Munbanggu.UI
             var name = UIKit.Label("Name", card.transform, data != null && !string.IsNullOrEmpty(data.heroName) ? $"슬롯 {slot} · {data.heroName}" : $"슬롯 {slot}", 40, UIKit.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
             UIKit.Place(name.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(170, -30), new Vector2(420, 56));
             string info = data == null ? "비어 있음"
-                : $"{data.day}일차 · {ExpansionTable.District(data.district).name}\n{UIKit.Won(data.money)} · 평판 {Mathf.Max(1, data.reputation)}";
+                : $"{data.day}일차 · {ExpansionTable.District(data.district).name}\n{UIKit.Won(data.money)} · 평판 {(data.reputation > 0 ? data.reputation : 50)}";
             var infoLbl = UIKit.Label("Info", card.transform, info, 28, UIKit.Muted, TextAnchor.UpperLeft);
             UIKit.Place(infoLbl.rectTransform, new Vector2(0, 1), new Vector2(0, 1), new Vector2(170, -92), new Vector2(460, 120));
 
