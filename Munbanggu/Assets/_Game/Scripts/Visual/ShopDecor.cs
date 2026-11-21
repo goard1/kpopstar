@@ -149,13 +149,16 @@ namespace Munbanggu.Visual
             k.FlatBox(new Vector3(cx, y0 + h - 0.07f, 3.995f), new Vector3(w, 0.05f, 0.012f), Yellow);
             k.FlatBox(new Vector3(cx, y0 + 0.07f, 3.995f), new Vector3(w, 0.05f, 0.012f), Yellow);
 
-            // 문 방 구 (블록 글자)
-            const float g = 0.62f, gap = 0.78f;
-            float gx = cx - gap - g * 0.5f, gy = cy - g * 0.5f;
-            Glyph(k, Mun, gx, gy, g);
-            Glyph(k, Bang, gx + gap, gy, g);
-            Ring(k, gx + gap + 0.5f * g, gy + 0.17f * g, 0.17f * g, 0.085f * g);
-            Glyph(k, Gu, gx + gap * 2f, gy, g);
+            // 문 방 구 (블록 글자). 대만판은 SignText가 「柑仔店」을 쓴다
+            if (!Munbanggu.Core.L.Zh)
+            {
+                const float g = 0.62f, gap = 0.78f;
+                float gx = cx - gap - g * 0.5f, gy = cy - g * 0.5f;
+                Glyph(k, Mun, gx, gy, g);
+                Glyph(k, Bang, gx + gap, gy, g);
+                Ring(k, gx + gap + 0.5f * g, gy + 0.17f * g, 0.17f * g, 0.085f * g);
+                Glyph(k, Gu, gx + gap * 2f, gy, g);
+            }
 
             // 양옆 장식: 별 동그라미
             foreach (float sx in new[] { cx - 2.25f, cx + 2.25f })
@@ -169,6 +172,26 @@ namespace Munbanggu.Visual
             // 받침 기둥
             k.Box(new Vector3(cx - 2.3f, 3.01f, 4.1f), new Vector3(0.1f, 0.06f, 0.14f), WoodDark);
             k.Box(new Vector3(cx + 2.3f, 3.01f, 4.1f), new Vector3(0.1f, 0.06f, 0.14f), WoodDark);
+        }
+
+        /// <summary>대만판 간판 글자 「柑仔店」 (블록 글자 대신 둥근 글꼴 TextMesh). 한국어판은 아무것도 안 만든다.</summary>
+        public static void SignText(Transform root)
+        {
+            if (!Munbanggu.Core.L.Zh) return;
+            var font = Munbanggu.UI.UIKit.Font;
+            var go = new GameObject("SignText");
+            go.transform.SetParent(root, false);
+            go.transform.localPosition = new Vector3(-0.4f, 3.02f + 0.46f, 3.955f);
+            var tm = go.AddComponent<TextMesh>();
+            tm.font = font;
+            tm.text = "柑仔店";
+            tm.fontSize = 96;
+            tm.characterSize = 0.062f;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.alignment = TextAlignment.Center;
+            tm.color = Paper;
+            var mr = go.GetComponent<MeshRenderer>();
+            if (font != null) mr.sharedMaterial = font.material;
         }
 
         // 글자 획: (x0, y0, x1, y1) 0~1

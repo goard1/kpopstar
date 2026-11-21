@@ -61,6 +61,17 @@ namespace Munbanggu.UI
             get
             {
                 if (font != null) return font;
+                if (Munbanggu.Core.L.Zh)
+                {
+                    // 대만판: jf open 粉圓 (OFL, 둥근 번체 글꼴)
+                    font = Resources.Load<Font>("Fonts/jf-openhuninn");
+                    if (font != null)
+                    {
+                        EmbeddedFont = true;
+                        try { font.fontNames = new[] { "jf-openhuninn", "Microsoft JhengHei", "Noto Sans CJK TC", "PingFang TC", "Roboto", "Arial" }; } catch { }
+                        return font;
+                    }
+                }
                 font = Resources.Load<Font>(FontResource);
                 if (font != null)
                 {
@@ -82,7 +93,10 @@ namespace Munbanggu.UI
         /// <summary>제목용 폰트 (지금은 본문과 같은 Jua).</summary>
         public static Font TitleFont => Font;
 
-        public static string Won(int value) => value.ToString("N0", CultureInfo.InvariantCulture) + "원";
+        /// <summary>언어를 바꾼 뒤 글꼴을 다시 고르게.</summary>
+        public static void ResetFont() => font = null;
+
+        public static string Won(int value) => Munbanggu.Core.L.Money(value);
 
         // ───────────── 기본 배치 ─────────────
 

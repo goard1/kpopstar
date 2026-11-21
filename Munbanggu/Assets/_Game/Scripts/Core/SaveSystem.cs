@@ -50,13 +50,45 @@ namespace Munbanggu.Core
         public TownSave town = new TownSave();
     }
 
-    /// <summary>로컬 JSON 저장. 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>
+    /// <summary>로컬 JSON 저장 (슬롯 3개: save1~3.json). 나중에 Play Games 클라우드 저장을 붙일 자리.</summary>
     public static class SaveSystem
     {
-        static string FilePath => Path.Combine(Application.persistentDataPath, "save.json");
+        public const int SlotCount = 3;
+        /// <summary>지금 쓰는 슬롯 (1~3). 타이틀 화면에서 고른다.</summary>
+        public static int Slot = 1;
+
+        static string PathOf(int slot) => Path.Combine(Application.persistentDataPath, $"save{slot}.json");
+        static string FilePath => PathOf(Slot);
+        static string LegacyPath => Path.Combine(Application.persistentDataPath, "save.json");
+
+        /// <summary>슬롯이 생기기 전의 save.json은 1번 슬롯으로 옮긴다.</summary>
+        static void MigrateLegacy()
+        {
+            try
+            {
+                if (File.Exists(LegacyPath) && !File.Exists(PathOf(1))) File.Move(LegacyPath, PathOf(1));
+            }
+            catch (Exception e) { Debug.LogWarning($"[Save] 옛 저장 옮기기 실패: {e.Message}"); }
+        }
+
+        /// <summary>슬롯 미리보기 (타이틀 화면용). 비었으면 null.</summary>
+        public static SaveData Peek(int slot)
+        {
+            MigrateLegacy();
+            try
+            {
+                string p = PathOf(slot);
+                return File.Exists(p) ? JsonUtility.FromJson<SaveData>(File.ReadAllText(p)) : null;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>추억 앨범 사진 폴더 (1번 슬롯은 예전 이름 그대로).</summary>
+        public static string AlbumDir => Path.Combine(Application.persistentDataPath, Slot == 1 ? "album" : "album" + Slot);
 
         public static SaveData Load()
         {
+            MigrateLegacy();
             try
             {
                 if (!File.Exists(FilePath)) return null;
@@ -101,9 +133,18 @@ namespace Munbanggu.Core
             }
         }
 
-        public static void Delete()
+        public static void Delete() => Delete(Slot);
+
+        public static void Delete(int slot)
         {
-            if (File.Exists(FilePath)) File.Delete(FilePath);
+            try
+            {
+                if (File.Exists(PathOf(slot))) File.Delete(PathOf(slot));
+                if (slot == 1 && File.Exists(LegacyPath)) File.Delete(LegacyPath);
+                string album = Path.Combine(Application.persistentDataPath, slot == 1 ? "album" : "album" + slot);
+                if (Directory.Exists(album)) Directory.Delete(album, true);
+            }
+            catch (Exception e) { Debug.LogWarning($"[Save] 지우기 실패: {e.Message}"); }
         }
     }
 }

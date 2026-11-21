@@ -23,7 +23,12 @@ namespace Munbanggu.Core
                 return;
             }
             Munbanggu.Audio.AudioManager.Create(transform); // 사운드: GameEvents 구독이라 게임보다 먼저 생성
-            gameObject.AddComponent<GameManager>().Init(catalog, baseMaterial);
+            // 타이틀 화면에서 슬롯·언어를 고른 뒤 게임 시작 (docs/10)
+            Munbanggu.UI.TitleScreen.Show(slot =>
+            {
+                SaveSystem.Slot = slot;
+                gameObject.AddComponent<GameManager>().Init(catalog, baseMaterial);
+            });
         }
     }
 }

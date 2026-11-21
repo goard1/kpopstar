@@ -856,9 +856,9 @@ namespace Munbanggu.UI
             // 위치: 상단 바 안, 단계 글자와 돈 띠 사이 (돈 띠 왼쪽). 속도 버튼(오른쪽 아래)과 겹치지 않음
             gearButton = SettingsPanel.BuildGearButton(overlaySafe, new Vector2(-456, -72), 88, () => settings.Toggle());
 #if UNITY_EDITOR || MUNBANGGU_CHEATS
-            var modal = Modal("Settings Modal", out var card, 1060, out var juice); // 테스트 버튼 줄만큼 더 높게
+            var modal = Modal("Settings Modal", out var card, 1180, out var juice); // 테스트 버튼 줄·타이틀 버튼만큼 더 높게
 #else
-            var modal = Modal("Settings Modal", out var card, 900, out var juice);
+            var modal = Modal("Settings Modal", out var card, 1020, out var juice);
 #endif
             settings = SettingsPanel.Build(modal, card, juice);
         }

@@ -8,7 +8,7 @@ namespace Munbanggu.UI
         public override string text
         {
             get => base.text;
-            set => base.text = Glyphs.Safe(value);
+            set => base.text = Glyphs.Safe(Munbanggu.Core.L.Tr(value)); // 대만판이면 여기서 번역
         }
     }
 }

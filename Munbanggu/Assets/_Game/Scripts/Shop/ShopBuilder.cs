@@ -82,6 +82,7 @@ namespace Munbanggu.Shop
             var glass = new MeshKit();
             var blob = new MeshKit();
             ShopDecor.Build(kit, glass, blob);
+            ShopDecor.SignText(shop);
 
             // 매대: 뒷벽 5칸(손님은 -Z를 보고 섬), 오른벽 3칸(-X)
             int index = 0;

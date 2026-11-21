@@ -101,6 +101,13 @@ namespace Munbanggu.UI
             UIKit.Bottom((RectTransform)close.transform, 100, 40, 54);
             close.onClick.AddListener(Close);
 
+            // 타이틀 화면으로 (저장하고 씬을 다시 불러온다 → Bootstrap이 타이틀부터)
+            var toTitle = UIKit.Button("To Title", card, "타이틀로", 40, UIKit.Cream, UIKit.Ink, out _);
+            UIKit.Bottom((RectTransform)toTitle.transform, 90, 156, 54);
+            toTitle.onClick.AddListener(ToTitle);
+            var note = UIKit.Label("Title Note", card, "저장하고 타이틀 화면으로 돌아가요 · 언어는 타이틀에서 바꿔요", 24, UIKit.Muted, TextAnchor.MiddleCenter);
+            UIKit.Bottom(note.rectTransform, 36, 252, 54);
+
             // 카드 밖(어두운 곳)을 탭해도 닫힘
             var dim = modal.AddComponent<Button>();
             dim.transition = Selectable.Transition.None;
@@ -181,6 +188,14 @@ namespace Munbanggu.UI
             Refresh();
             modal.SetActive(true);
             if (juice != null) juice.Punch(0.06f);
+        }
+
+        public static void ToTitle()
+        {
+            var gm = UnityEngine.Object.FindAnyObjectByType<Munbanggu.Core.GameManager>();
+            if (gm != null) gm.Save();
+            Time.timeScale = 1f;
+            UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
         }
 
         public void Close() => modal.SetActive(false);

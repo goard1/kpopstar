@@ -253,7 +253,7 @@ namespace Munbanggu.Core
             }
         }
 
-        static string PhotoPath(string id) => Path.Combine(Application.persistentDataPath, "album", id + ".jpg");
+        static string PhotoPath(string id) => Path.Combine(SaveSystem.AlbumDir, id + ".jpg");
 
         /// <summary>그 순간 화면을 작게 찍어 앨범 사진으로 저장.</summary>
         IEnumerator CapturePhoto(string id)

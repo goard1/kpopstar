@@ -300,7 +300,7 @@ namespace Munbanggu.UI
             {
                 var chart = ComicTable.Chart(gm.Day);
                 var tv = ComicTable.TVSeries(gm.Day);
-                var c = Card(tv != null ? 210 : 170);
+                var c = Card(tv != null ? 236 : 196);
                 Label(c, "이번 주 만화 순위", 28, UIKit.Accent, 26, 12, 26, 36);
                 var sb = new System.Text.StringBuilder();
                 for (int i = 0; i < 3; i++)
@@ -308,14 +308,14 @@ namespace Munbanggu.UI
                     var s = chart[i];
                     int last = ComicTable.LastWeekRank(s, gm.Day);
                     string move = last < 0 ? "" : last > i ? " ▲" : last < i ? " ▼" : " -";
-                    sb.Append($"{i + 1}위 「{s.name}」{move}   ");
-                    if (i == 1) sb.Append("\n");
+                    sb.Append($"{i + 1}위 「{s.name}」{move}");
+                    if (i < 2) sb.Append("\n");
                 }
-                Label(c, sb.ToString(), 23, UIKit.Ink, 26, 52, 26, 70);
+                Label(c, sb.ToString(), 23, UIKit.Ink, 26, 52, 26, 96);
                 if (tv != null)
-                    Label(c, $"TV 방영 중: 「{tv.name}」 → 만화방 ×1.5 · {gm.Catalog.Find(tv.linkedProduct)?.displayName} 판매 ×1.5", 22, UIKit.Red, 26, 130, 26, 60);
+                    Label(c, $"TV 방영 중: 「{tv.name}」 → 만화방 ×1.5 · {gm.Catalog.Find(tv.linkedProduct)?.displayName} 판매 ×1.5", 22, UIKit.Red, 26, 156, 26, 60);
                 else
-                    Label(c, "TV 만화는 2주마다 그 주 1위가 방영돼요", 21, UIKit.Muted, 26, 124, 26, 36);
+                    Label(c, "TV 만화는 2주마다 그 주 1위가 방영돼요", 21, UIKit.Muted, 26, 150, 26, 36);
             }
 
             // 오늘의 요청 쪽지

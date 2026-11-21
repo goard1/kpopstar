@@ -23,11 +23,27 @@ namespace Munbanggu.EditorTools
         const int Width = 1080, Height = 1920;
 
         [MenuItem("문방구/UI 스크린샷 찍기")]
-        public static void Capture()
+        public static void Capture() => CaptureTo("../Logs/ui-shots");
+
+        /// <summary>대만판(繁體中文)으로 찍기 → Logs/ui-shots-zh. 못 바꾼 문구는 Logs/loc-missing-zh.txt.</summary>
+        [MenuItem("문방구/UI 스크린샷 찍기 (中文)")]
+        public static void CaptureZh()
         {
-            string outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../Logs/ui-shots"));
+            var before = L.Current;
+            string miss = Path.GetFullPath(Path.Combine(Application.dataPath, "../Logs/loc-missing-zh.txt"));
+            if (File.Exists(miss)) File.Delete(miss);
+            L.Set(Lang.ZhTW); UIKit.ResetFont();
+            try { CaptureTo("../Logs/ui-shots-zh"); }
+            finally { L.Set(before); UIKit.ResetFont(); }
+        }
+
+        static void CaptureTo(string rel)
+        {
+            string outDir = Path.GetFullPath(Path.Combine(Application.dataPath, rel));
             Directory.CreateDirectory(outDir);
-            string savePath = Path.Combine(Application.persistentDataPath, "save.json");
+            SaveSystem.Slot = 1;
+            SaveSystem.Peek(1); // 옛 save.json이 있으면 먼저 1번 슬롯으로 옮겨 둔다
+            string savePath = Path.Combine(Application.persistentDataPath, "save1.json");
             byte[] backup = File.Exists(savePath) ? File.ReadAllBytes(savePath) : null;
             RenderTexture rt = null;
             GameObject root = null;
@@ -288,6 +304,17 @@ namespace Munbanggu.EditorTools
                 if (gm.Dialogue != null) gm.Dialogue.Clear();
                 Shot(hud, cam, rt, outDir, "33_skill_row");
                 for (int d = 1; d <= 30; d++) { var info = Munbanggu.Core.SchoolCalendar.For(d); Debug.Log($"[UIScreenshot] 달력 {d}일 {info.WeekName} {info.WeatherIcon} {info.Title}"); }
+
+                // 14) 타이틀 화면 (게임 HUD 위에 덮어 찍음 — 실제 게임에선 게임보다 먼저 뜬다)
+                {
+                    gm.Save(); // 1번 슬롯에 지금 판이 보이게
+                    var title = TitleScreen.Show(null);
+                    var tc = title.GetComponent<Canvas>();
+                    var ts = tc.GetComponent<CanvasScaler>(); if (ts != null) ts.enabled = false;
+                    tc.renderMode = RenderMode.ScreenSpaceCamera; tc.worldCamera = cam; tc.planeDistance = 0.5f; tc.scaleFactor = 1f;
+                    Shot(hud, cam, rt, outDir, "0_title");
+                    Object.DestroyImmediate(title.gameObject);
+                }
 
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
             }
