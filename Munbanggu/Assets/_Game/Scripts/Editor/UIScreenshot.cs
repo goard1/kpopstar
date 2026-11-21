@@ -310,6 +310,23 @@ namespace Munbanggu.EditorTools
                 Shot(hud, cam, rt, outDir, "33_skill_row");
                 for (int d = 1; d <= 30; d++) { var info = Munbanggu.Core.SchoolCalendar.For(d); Debug.Log($"[UIScreenshot] 달력 {d}일 {info.WeekName} {info.WeatherIcon} {info.Title}"); }
 
+                // 상품 아이콘 원본 (모양 확인용): icon_<id>.png
+                foreach (var pid in new[] { "jjondeugi", "beercandy", "ssaldaerong", "ddakji", "apollo", "ppopgi" })
+                {
+                    var pd = gm.Catalog.Find(pid);
+                    var icon = pd != null ? Munbanggu.Visual.ProductIcons.Get(pd) : null;
+                    if (icon == null || icon.texture == null) continue;
+                    var src = icon.texture;
+                    var tmp = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
+                    Graphics.Blit(src, tmp);
+                    var prevRt = RenderTexture.active; RenderTexture.active = tmp;
+                    var copy = new Texture2D(src.width, src.height, TextureFormat.RGBA32, false);
+                    copy.ReadPixels(new UnityEngine.Rect(0, 0, src.width, src.height), 0, 0); copy.Apply();
+                    RenderTexture.active = prevRt; RenderTexture.ReleaseTemporary(tmp);
+                    File.WriteAllBytes(Path.Combine(outDir, "icon_" + pid + ".png"), copy.EncodeToPNG());
+                    Object.DestroyImmediate(copy);
+                }
+
                 // 14) 타이틀 화면 (게임 HUD 위에 덮어 찍음 — 실제 게임에선 게임보다 먼저 뜬다)
                 {
                     gm.Save(); // 1번 슬롯에 지금 판이 보이게

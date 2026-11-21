@@ -149,6 +149,7 @@ namespace Munbanggu.Core
         public void Init(ProductCatalog catalog, Material baseMaterial)
         {
             Visual.ExpansionVisuals.ComicSpines = new List<Color>(); // static: 이전 슬롯 책등이 남지 않게
+            Visual.ProductVisuals.ClearCache(); Visual.ProductIcons.Clear(); // 언어에 따라 상품 모양이 달라서 (대만판)
             Catalog = Instantiate(catalog); // 복제본에 특제 상품(레시피)을 더한다 (에셋은 그대로)
             AddSpecialProducts();
             trends = new TrendSystem(trendConfig, catalog);

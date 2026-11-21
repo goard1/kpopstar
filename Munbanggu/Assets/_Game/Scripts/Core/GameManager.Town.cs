@@ -94,6 +94,8 @@ namespace Munbanggu.Core
             if (Today.weather == Weather.Rain) UnlockAlbum("rainy");
             PlanComicDay();
             if (TournamentToday != null) Hud.Toast($"오늘은 {TournamentToday.name}! 아이들이 몰려와요");
+            if (Today.kind == SchoolDay.ChildrensDay || Today.kind == SchoolDay.Chuseok || Today.kind == SchoolDay.NewYear)
+                Hud.Toast($"오늘은 {Today.Title}! 아이들이 몰려와요");
         }
 
         void TickTown()

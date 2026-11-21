@@ -54,6 +54,7 @@ namespace Munbanggu.Visual
 
         static void BuildShape(MeshKit k, string id, Color c)
         {
+            if (Munbanggu.Core.L.Zh && TaiwanShape(k, id)) return; // 대만판: 王子麵·牛奶糖·乖乖·尪仔標
             switch (id)
             {
                 case "jjondeugi": Jjondeugi(k, c); return;
@@ -108,6 +109,108 @@ namespace Munbanggu.Visual
 
         static Color L(Color c, float t) => Color.Lerp(c, Color.white, t);
         static Color D(Color c, float k) => MeshKit.Shade(c, k);
+
+        // ───────────── 대만판 모양 (docs/10) ─────────────
+
+        /// <summary>대만판에서 이름만이 아니라 모양까지 바뀌는 상품. 아니면 false.</summary>
+        static bool TaiwanShape(MeshKit k, string id)
+        {
+            switch (id)
+            {
+                case "jjondeugi": PrinceNoodle(k); return true;
+                case "beercandy": MilkCandyBox(k); return true;
+                case "ssaldaerong": KuaiKuai(k); return true;
+                case "ddakji": AngAPiau(k); return true;
+            }
+            return false;
+        }
+
+        /// <summary>베개 모양 과자 봉지 (위아래 톱니 이음새).</summary>
+        static void PillowBag(MeshKit k, Color body, Color seam, float w, float h)
+        {
+            k.Push(Vector3.zero, Quaternion.Euler(-12f, 0f, 0f));
+            k.Sphere(new Vector3(0f, h * 0.5f, 0f), new Vector3(w * 0.5f, h * 0.46f, 0.045f), 10, 6, body);
+            k.Box(new Vector3(0f, h * 0.5f, 0f), new Vector3(w * 0.92f, h * 0.78f, 0.05f), body);
+            k.Box(new Vector3(0f, h - 0.012f, 0f), new Vector3(w, 0.024f, 0.012f), seam);
+            k.Box(new Vector3(0f, 0.012f, 0f), new Vector3(w, 0.024f, 0.012f), seam);
+            for (int i = 0; i < 6; i++) // 톱니
+            {
+                float x = -w * 0.5f + w * (i + 0.5f) / 6f;
+                k.FlatBox(new Vector3(x, h + 0.002f, 0f), new Vector3(w / 12f, 0.008f, 0.012f), seam);
+            }
+            k.Pop();
+        }
+
+        // 王子麵: 흰 바탕 봉지 + 빨간 띠 + 노란 동그라미(왕자 얼굴) + 면 그림
+        static void PrinceNoodle(MeshKit k)
+        {
+            Color white = new Color(0.98f, 0.96f, 0.92f), red = new Color(0.88f, 0.18f, 0.16f);
+            PillowBag(k, white, red, 0.19f, 0.21f);
+            k.Push(Vector3.zero, Quaternion.Euler(-12f, 0f, 0f));
+            k.FlatBox(new Vector3(0f, 0.16f, 0.05f), new Vector3(0.17f, 0.045f, 0.004f), red);
+            k.FlatBox(new Vector3(0f, 0.16f, 0.053f), new Vector3(0.1f, 0.016f, 0.004f), new Color(1f, 0.85f, 0.25f));
+            k.DiscFacing(new Vector3(-0.045f, 0.085f, 0.053f), new Vector2(0.03f, 0.03f), Vector3.forward, 10, new Color(1f, 0.82f, 0.62f)); // 왕자 얼굴
+            k.FlatBox(new Vector3(-0.045f, 0.118f, 0.054f), new Vector3(0.04f, 0.012f, 0.004f), new Color(1f, 0.8f, 0.2f));     // 왕관
+            for (int i = 0; i < 3; i++) // 꼬불 면
+                k.FlatBox(new Vector3(0.04f, 0.065f + i * 0.022f, 0.053f), new Vector3(0.06f, 0.01f, 0.004f), new Color(0.95f, 0.72f, 0.35f));
+            k.Pop();
+        }
+
+        // 牛奶糖: 노란 작은 상자 + 빨간 띠, 옆에 종이로 싼 네모 사탕 두 개
+        static void MilkCandyBox(MeshKit k)
+        {
+            Color yellow = new Color(1f, 0.84f, 0.3f), red = new Color(0.86f, 0.2f, 0.18f), cream = new Color(0.98f, 0.94f, 0.82f);
+            k.Push(new Vector3(-0.025f, 0f, 0f), Quaternion.Euler(0f, -10f, 0f));
+            k.Box(new Vector3(0f, 0.085f, 0f), new Vector3(0.11f, 0.17f, 0.05f), yellow, yellow);
+            k.FlatBox(new Vector3(0f, 0.12f, 0.026f), new Vector3(0.112f, 0.035f, 0.004f), red);
+            k.FlatBox(new Vector3(0f, 0.06f, 0.026f), new Vector3(0.06f, 0.05f, 0.004f), cream);
+            k.DiscFacing(new Vector3(0f, 0.06f, 0.029f), new Vector2(0.016f, 0.016f), Vector3.forward, 8, new Color(0.55f, 0.35f, 0.2f));
+            k.Pop();
+            for (int i = 0; i < 2; i++)
+            {
+                k.Push(new Vector3(0.075f, 0.016f + i * 0.03f, 0.02f - i * 0.01f), Quaternion.Euler(0f, 20f + i * 35f, 0f));
+                k.Box(Vector3.zero, new Vector3(0.04f, 0.028f, 0.028f), cream, cream);
+                k.FlatBox(new Vector3(0f, 0f, 0.0145f), new Vector3(0.04f, 0.01f, 0.002f), red);
+                k.Pop();
+            }
+        }
+
+        // 乖乖: 초록 봉지 + 노란 동그라미 로고 + 빨간 글씨 띠
+        static void KuaiKuai(MeshKit k)
+        {
+            Color green = new Color(0.22f, 0.66f, 0.30f), yellow = new Color(1f, 0.86f, 0.22f);
+            PillowBag(k, green, new Color(0.15f, 0.5f, 0.22f), 0.18f, 0.22f);
+            k.Push(Vector3.zero, Quaternion.Euler(-12f, 0f, 0f));
+            k.DiscFacing(new Vector3(0f, 0.13f, 0.052f), new Vector2(0.05f, 0.05f), Vector3.forward, 12, yellow);
+            k.FlatBox(new Vector3(0f, 0.13f, 0.055f), new Vector3(0.07f, 0.02f, 0.004f), new Color(0.9f, 0.2f, 0.18f));
+            for (int i = 0; i < 3; i++) // 옥수수 과자 그림
+                k.DiscFacing(new Vector3(-0.04f + i * 0.04f, 0.055f, 0.052f), new Vector2(0.014f, 0.01f), Vector3.forward, 6, new Color(0.98f, 0.78f, 0.35f));
+            k.Pop();
+        }
+
+        // 尪仔標: 그림이 찍힌 동그란 두꺼운 종이 딱지 여러 장
+        static void AngAPiau(MeshKit k)
+        {
+            Color[] rims = { new Color(0.9f, 0.25f, 0.22f), new Color(0.25f, 0.5f, 0.9f), new Color(0.98f, 0.8f, 0.2f), new Color(0.3f, 0.7f, 0.4f) };
+            Color face = new Color(0.98f, 0.95f, 0.88f);
+            for (int i = 0; i < 5; i++)
+            {
+                var p = new Vector3((i % 2) * 0.02f - 0.01f, 0.008f + i * 0.016f, (i % 3) * 0.012f - 0.012f);
+                Color rim = rims[i % rims.Length];
+                k.Cylinder(p, 0.07f, 0.014f, 14, rim, face);
+                // 그림: 가운데 동그란 얼굴 + 테두리 점
+                k.Cylinder(p + new Vector3(0f, 0.0075f, 0f), 0.034f, 0.002f, 10, Color.Lerp(rim, Color.white, 0.35f));
+                k.Cylinder(p + new Vector3(0f, 0.009f, 0f), 0.016f, 0.002f, 8, rim);
+            }
+            // 맨 위 한 장은 비스듬히 세워 그림이 보이게
+            k.Push(new Vector3(0f, 0.12f, -0.02f), Quaternion.Euler(-65f, 0f, 0f));
+            k.Cylinder(Vector3.zero, 0.07f, 0.014f, 14, rims[0], face);
+            k.Cylinder(new Vector3(0f, 0.0075f, 0f), 0.04f, 0.002f, 10, new Color(1f, 0.82f, 0.62f));
+            k.Cylinder(new Vector3(-0.014f, 0.009f, 0.008f), 0.006f, 0.002f, 6, new Color(0.2f, 0.16f, 0.16f));
+            k.Cylinder(new Vector3(0.014f, 0.009f, 0.008f), 0.006f, 0.002f, 6, new Color(0.2f, 0.16f, 0.16f));
+            k.Cylinder(new Vector3(0f, 0.009f, -0.014f), 0.012f, 0.002f, 6, rims[0]);
+            k.Pop();
+        }
 
         // ───────────── 알려진 상품 ─────────────
 

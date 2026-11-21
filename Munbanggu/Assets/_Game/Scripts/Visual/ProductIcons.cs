@@ -30,6 +30,9 @@ namespace Munbanggu.Visual
 
         public static void Init(Material vertexColorMaterial) => material = vertexColorMaterial;
 
+        /// <summary>찍어 둔 아이콘 비우기 (언어가 바뀌면 대만판 모양으로 다시 찍게).</summary>
+        public static void Clear() => cache.Clear();
+
         /// <summary>상품 아이콘 (없으면 그 자리에서 찍음). 상품이 null이면 null.</summary>
         public static Sprite Get(ProductData p)
         {

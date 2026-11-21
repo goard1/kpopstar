@@ -14,6 +14,9 @@ namespace Munbanggu.Core
         SportsEve,    // 운동회 전날: 간식·밖 놀이
         PicnicEve,    // 소풍 전날: 간식 폭발
         Vacation,     // 방학: 하루 종일 손님, 학용품 썰렁, 놀이·만화방
+        ChildrensDay, // 어린이날 / 兒童節: 장난감 날개, 손님 많음
+        Chuseok,      // 추석 / 中秋節: 간식·밖 놀이 (대만은 바비큐·불꽃 막대)
+        NewYear,      // 설날 / 春節: 세뱃돈·紅包 받은 아이들 → 비싼 물건도 척척
     }
 
     /// <summary>하루의 학교 달력·날씨와 그날 장사에 주는 영향.</summary>
@@ -37,6 +40,9 @@ namespace Munbanggu.Core
             SchoolDay.SportsEve => "운동회 전날",
             SchoolDay.PicnicEve => "소풍 전날",
             SchoolDay.Vacation => "방학",
+            SchoolDay.ChildrensDay => "어린이날",
+            SchoolDay.Chuseok => "추석",
+            SchoolDay.NewYear => "설날",
             _ => "평일",
         };
 
@@ -53,6 +59,9 @@ namespace Munbanggu.Core
                     SchoolDay.SportsEve => "내일 운동회래! 오늘은 간식이랑 밖에서 갖고 놀 거 많이 찾을 거야.",
                     SchoolDay.PicnicEve => "내일 소풍이래! 과자·사탕 잔뜩 사 갈 테니 간식 넉넉히 채워 둬.",
                     SchoolDay.Vacation => "방학이야! 아침부터 애들이 놀러 와. 학용품은 덜 팔리고 놀거리가 잘 나가.",
+                    SchoolDay.ChildrensDay => "오늘은 어린이날! 선물 사러 온 아이들로 북적일 거야. 장난감을 잔뜩 채워 둬.",
+                    SchoolDay.Chuseok => "추석이라 친척 동생들 데리고 놀러 와. 과자랑 밖에서 놀 거리가 잘 팔려.",
+                    SchoolDay.NewYear => "설날이야! 세뱃돈 받은 아이들이 비싼 것도 척척 사 가. 미니카·전자 펫을 꼭 채워 둬.",
                     _ => null,
                 };
                 string w = weather == Weather.Rain
@@ -76,6 +85,9 @@ namespace Munbanggu.Core
                     SchoolDay.SportsEve => 1.2f,
                     SchoolDay.PicnicEve => 1.3f,
                     SchoolDay.Vacation => 1.15f,
+                    SchoolDay.ChildrensDay => 1.4f,
+                    SchoolDay.Chuseok => 1.1f,
+                    SchoolDay.NewYear => 1.3f,
                     _ => 1f,
                 };
                 if (weather == Weather.Rain) m *= 0.8f;
@@ -99,6 +111,9 @@ namespace Munbanggu.Core
                 case SchoolDay.SportsEve: if (snack) m *= 1.8f; if (outside) m *= 1.8f; break;
                 case SchoolDay.PicnicEve: if (snack) m *= 2.4f; break;
                 case SchoolDay.Vacation: if (school) m *= 0.5f; if (toy) m *= 1.3f; break;
+                case SchoolDay.ChildrensDay: if (toy) m *= 1.8f; if (school) m *= 0.6f; break;
+                case SchoolDay.Chuseok: if (snack) m *= 2f; if (outside) m *= 1.5f; if (school) m *= 0.6f; break;
+                case SchoolDay.NewYear: m *= p.retailPrice >= 1000 ? 2.2f : 1.2f; if (school) m *= 0.6f; break;
             }
             if (weather == Weather.Rain)
             {
@@ -119,6 +134,9 @@ namespace Munbanggu.Core
                     SchoolDay.ExamWeek => 0.5f,
                     SchoolDay.Vacation => 1.6f,
                     SchoolDay.Saturday => 1.2f,
+                    SchoolDay.ChildrensDay => 1.4f,
+                    SchoolDay.Chuseok => 1.2f,
+                    SchoolDay.NewYear => 1.3f,
                     _ => 1f,
                 };
                 if (weather == Weather.Rain) m *= 1.5f;
@@ -134,6 +152,8 @@ namespace Munbanggu.Core
     /// </summary>
     public static class SchoolCalendar
     {
+        /// <summary>4주마다 4주차 화요일에 돌아가며 오는 명절 (23일차 어린이날 → 51일차 추석 → 79일차 설날 …).</summary>
+        static readonly SchoolDay[] Festivals = { SchoolDay.ChildrensDay, SchoolDay.Chuseok, SchoolDay.NewYear };
         public static DayInfo For(int day)
         {
             day = Mathf.Max(1, day);
@@ -149,6 +169,7 @@ namespace Munbanggu.Core
             else if (day >= 8 && week == 1 && (d.weekday == 3 || d.weekday == 4)) d.kind = SchoolDay.ExamWeek;
             else if (day >= 8 && week == 2 && d.weekday == 2) d.kind = SchoolDay.SportsEve;
             else if (day >= 8 && week == 3 && d.weekday == 3) d.kind = SchoolDay.PicnicEve;
+            else if (day >= 8 && week == 3 && d.weekday == 1) d.kind = Festivals[((day - 1) / 28) % Festivals.Length];
             else d.kind = SchoolDay.Normal;
 
             // 1·2일차는 튜토리얼이라 맑게
