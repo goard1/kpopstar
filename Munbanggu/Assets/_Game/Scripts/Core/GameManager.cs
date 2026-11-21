@@ -173,6 +173,7 @@ namespace Munbanggu.Core
             Speed = Mathf.Clamp(PlayerPrefs.GetInt(SpeedPref, 1), 1, MaxSpeed);
             initialized = true;
             StartMorning();
+            StoryOnStart(); // 새 판이면 프롤로그 (docs/11)
         }
 
         void OnDestroy()
@@ -979,6 +980,7 @@ namespace Munbanggu.Core
             UnlockAlbum("first_expand");
             GameEvents.RaiseRushStarted();
             Dialogue.Show("할머니", next.celebrate, UIKit.Accent);
+            CheckStoryMilestones();
             Save();
             Notify();
             return true;
@@ -1043,6 +1045,7 @@ namespace Munbanggu.Core
             GameEvents.RaiseRushStarted();
             Dialogue.Show("할머니", $"{next.name}(으)로 이사 왔어! {next.blurb}\n옆칸 진열대 물건은 창고에 넣어 뒀어. 새 진열대부터 채워 볼까?", UIKit.Accent);
             if (refund > 0) Dialogue.Show("이삿짐", $"옆칸에 있던 장식은 팔아서 {UIKit.Won(refund)} 돌려받았어요.", UIKit.Blue);
+            CheckStoryMilestones();
             Save();
             Notify();
             return true;
@@ -1907,6 +1910,7 @@ namespace Munbanggu.Core
             var data = SaveSystem.Load();
             if (data == null)
             {
+                freshGame = true;
                 Day = 1;
                 Money = startMoney;
                 return;

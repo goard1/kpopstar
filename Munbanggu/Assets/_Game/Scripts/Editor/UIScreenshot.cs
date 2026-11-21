@@ -78,6 +78,9 @@ namespace Munbanggu.EditorTools
                     c.planeDistance = 1f + c.sortingOrder * 0.01f;
                     c.scaleFactor = 1f;
                 }
+                // 0) 새 판이라 Init에서 프롤로그 컷신이 시작됨 → 장면마다 찍고 닫기
+                CaptureStory(gm, hud, cam, rt, outDir, "story_prologue");
+                GameManager.AutoStoryOff = true;
                 var tutorial = hud.ForceTutorial();
 
                 // 1) 아침: 도매상 창
@@ -327,6 +330,14 @@ namespace Munbanggu.EditorTools
                     Object.DestroyImmediate(copy);
                 }
 
+                // 이야기 장 (docs/11): 장면마다
+                foreach (var chId in new[] { StoryTable.Expand, StoryTable.Move1, StoryTable.Move2, StoryTable.Ending })
+                {
+                    hud.CloseModals();
+                    gm.PlayStory(chId, false);
+                    CaptureStory(gm, hud, cam, rt, outDir, "story_" + chId);
+                }
+
                 // 14) 타이틀 화면 (게임 HUD 위에 덮어 찍음 — 실제 게임에선 게임보다 먼저 뜬다)
                 {
                     gm.Save(); // 1번 슬롯에 지금 판이 보이게
@@ -342,11 +353,41 @@ namespace Munbanggu.EditorTools
             }
             finally
             {
+                GameManager.AutoStoryOff = false;
                 if (root != null) Object.DestroyImmediate(root);
                 if (rt != null) { RenderTexture.active = null; Object.DestroyImmediate(rt); }
                 if (backup != null) File.WriteAllBytes(savePath, backup);
                 else if (File.Exists(savePath)) File.Delete(savePath);
             }
+        }
+
+        static void ConvertCanvases(Camera cam)
+        {
+            foreach (var c in Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                if (!c.isRootCanvas || c.renderMode == RenderMode.ScreenSpaceCamera) continue;
+                var scaler = c.GetComponent<CanvasScaler>();
+                if (scaler != null) scaler.enabled = false;
+                c.renderMode = RenderMode.ScreenSpaceCamera;
+                c.worldCamera = cam;
+                c.planeDistance = 1f + c.sortingOrder * 0.01f;
+                c.scaleFactor = 1f;
+            }
+        }
+
+        static void CaptureStory(GameManager gm, HUD hud, Camera cam, RenderTexture rt, string dir, string prefix)
+        {
+            var cs = gm.Cutscene;
+            if (cs == null) return;
+            ConvertCanvases(cam);
+            for (int i = 0; i < cs.BeatCount; i++)
+            {
+                cs.DebugShow(i);
+                Shot(hud, cam, rt, dir, $"{prefix}_{i:00}");
+            }
+            cs.DebugFinish();
+            var sc = cam.GetComponent<ShopCamera>();
+            if (sc != null) sc.Fit();
         }
 
         static void Shot(HUD hud, Camera cam, RenderTexture rt, string dir, string name)

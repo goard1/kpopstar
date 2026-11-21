@@ -310,5 +310,6 @@ namespace Munbanggu.Core
         public int districtSinceDay = 1; // 지금 동네로 온 날
         public List<string> grandmaSkills = new List<string>(); // 배운 할머니 스킬
         public DiscoverySave discovery = new DiscoverySave();   // 레시피·깜짝 손님·앨범·고양이
+        public List<string> story = new List<string>();         // 본 이야기 장 (docs/11)
     }
 }

@@ -619,6 +619,7 @@ namespace Munbanggu.Core
             Town.rival ??= new RivalState();
             Town.collection ??= new CollectionState();
             Town.grandmaSkills ??= new List<string>();
+            Town.story ??= new List<string>();
             LoadDiscovery();
             ApplyComicEffects();
             RefreshUpstairsShelf();

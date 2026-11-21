@@ -549,6 +549,21 @@ namespace Munbanggu.UI
             int have = 0;
             foreach (var p in Album.Pages) if (gm.HasAlbum(p.id)) have++;
             Note($"모은 사진 {have}/{Album.Pages.Length} · 마지막 장은 다 모으면 열려요", UIKit.Muted);
+
+            // 이야기 다시 보기 (docs/11)
+            var seen = gm.SeenChapters();
+            if (seen.Count > 0)
+            {
+                Header("이야기 다시 보기");
+                foreach (var ch in seen)
+                {
+                    var c = Card(110);
+                    Label(c, ch.title, 30, UIKit.Ink, 26, 34, 250, 44);
+                    string id = ch.id;
+                    Side(c, -1, "보기 ▶", UIKit.Accent, true, () => gm.PlayStory(id, false));
+                }
+                Header("사진");
+            }
             foreach (var page in Album.Pages)
             {
                 bool got = gm.HasAlbum(page.id);
