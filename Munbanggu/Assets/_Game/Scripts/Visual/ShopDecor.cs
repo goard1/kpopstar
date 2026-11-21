@@ -10,12 +10,12 @@ namespace Munbanggu.Visual
     public static class ShopDecor
     {
         // ───────────── 팔레트 ─────────────
-        public static readonly Color FloorA = new Color(0.96f, 0.90f, 0.77f);
-        public static readonly Color FloorB = new Color(0.80f, 0.50f, 0.42f);
-        public static readonly Color WallUpper = new Color(0.98f, 0.93f, 0.81f);
+        public static Color FloorA = new Color(0.96f, 0.90f, 0.77f);
+        public static Color FloorB = new Color(0.80f, 0.50f, 0.42f);
+        public static Color WallUpper = new Color(0.98f, 0.93f, 0.81f);
         public static readonly Color WallTop = new Color(0.50f, 0.34f, 0.27f);
-        public static readonly Color Wainscot = new Color(0.56f, 0.78f, 0.70f);
-        public static readonly Color WainscotLine = new Color(0.46f, 0.67f, 0.60f);
+        public static Color Wainscot = new Color(0.56f, 0.78f, 0.70f);
+        public static Color WainscotLine = new Color(0.46f, 0.67f, 0.60f);
         public static readonly Color WoodDark = new Color(0.47f, 0.30f, 0.21f);
         public static readonly Color Wood = new Color(0.70f, 0.48f, 0.31f);
         public static readonly Color WoodLight = new Color(0.86f, 0.67f, 0.45f);
@@ -38,6 +38,17 @@ namespace Munbanggu.Visual
             new Color(0.95f, 0.40f, 0.45f), new Color(0.99f, 0.80f, 0.30f), new Color(0.45f, 0.75f, 0.95f),
             new Color(0.55f, 0.85f, 0.50f), new Color(0.80f, 0.55f, 0.90f), new Color(0.98f, 0.60f, 0.30f),
         };
+
+        /// <summary>차양 줄무늬 색 (동네마다 다름).</summary>
+        public static Color AwningColor = new Color(0.89f, 0.27f, 0.24f);
+
+        /// <summary>동네(상권) 색으로 바꾼다. 바꾼 뒤 ShopBuilder.RebuildStatic으로 다시 그려야 보인다.</summary>
+        public static void ApplyPalette(Munbanggu.Core.DistrictPalette p)
+        {
+            if (p == null) return;
+            FloorA = p.floorA; FloorB = p.floorB; WallUpper = p.wallUpper;
+            Wainscot = p.wainscot; WainscotLine = p.wainscotLine; AwningColor = p.awning;
+        }
 
         public const float WallH = 3.0f;
 
@@ -224,7 +235,7 @@ namespace Munbanggu.Visual
             {
                 float a = x0 + i * stripe, b = Mathf.Min(x1, a + stripe);
                 float cx = (a + b) * 0.5f, w = b - a;
-                Color c = (i + phase) % 2 == 0 ? Red : Paper;
+                Color c = (i + phase) % 2 == 0 ? AwningColor : Paper;
                 k.Push(new Vector3(cx, (topY + frontY) * 0.5f, frontZ * 0.5f), Quaternion.Euler(-slope, 0f, 0f));
                 k.Box(Vector3.zero, new Vector3(w, 0.025f, depth), c, c);
                 k.Pop();

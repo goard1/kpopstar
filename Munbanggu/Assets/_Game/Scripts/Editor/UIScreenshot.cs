@@ -172,15 +172,32 @@ namespace Munbanggu.EditorTools
 
                 // 9) 가게 증축: 옆칸 → 평상 → 2층 만화방
                 hud.CloseModals();
-                gm.DebugExpansion(1);
+                gm.DebugDistrict(0, 1);
                 Shot(hud, cam, rt, outDir, "15_expand1_annex");
-                gm.DebugExpansion(3);
+                gm.DebugDistrict(0, 3);
                 Shot(hud, cam, rt, outDir, "16_expand3_comic");
                 hud.EnterDecorMode();
                 Shot(hud, cam, rt, outDir, "17_expand3_decor_mode");
                 hud.CloseModals();
                 hud.OpenUpgrades();
                 Shot(hud, cam, rt, outDir, "18_expansion_card");
+
+                // 10) 상권 이동: 아파트 단지 상가(기본·다 지음) → 번화가(다 지음)
+                hud.CloseModals();
+                for (int i = 0; i < 3; i++) { gm.Cheat(0); gm.Cheat(1); }
+                bool moved = gm.MoveDistrict();
+                Debug.Log($"[UIScreenshot] 이사 결과: {moved}, 동네 {gm.District}, 진열대 {gm.Layout.Slots.Count}칸, 장식 {gm.Facilities.decor.Count}개, 직원 정원 {gm.Staff.maxStaff}");
+                if (gm.Dialogue != null) gm.Dialogue.Clear();
+                Shot(hud, cam, rt, outDir, "19_apartment_base");
+                gm.DebugDistrict(1, 3);
+                Shot(hud, cam, rt, outDir, "20_apartment_full");
+                gm.DebugDistrict(2, 3);
+                Shot(hud, cam, rt, outDir, "21_downtown_full");
+                hud.EnterDecorMode();
+                Shot(hud, cam, rt, outDir, "22_downtown_decor_mode");
+                hud.CloseModals();
+                hud.OpenUpgrades();
+                Shot(hud, cam, rt, outDir, "23_downtown_card");
 
                 Debug.Log($"[UIScreenshot] 저장 완료: {outDir}");
             }

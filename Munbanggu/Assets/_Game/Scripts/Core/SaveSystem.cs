@@ -41,7 +41,8 @@ namespace Munbanggu.Core
         // ── 시설(장식)·콤보 ──
         public FacilityState facilities = new FacilityState();
         // ── 가게 증축 ── (예전 세이브엔 없음 → 0단계, 붙은 진열대 순서는 빈 목록 = 예전처럼)
-        public int expansion;
+        public int district;     // 상권(동네) 번호 (docs/07)
+        public int expansion;    // 그 동네에서 지은 증축 단계
         public List<string> slotGroups = new List<string>();
     }
 

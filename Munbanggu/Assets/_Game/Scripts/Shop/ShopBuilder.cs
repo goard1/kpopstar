@@ -37,11 +37,20 @@ namespace Munbanggu.Shop
         /// <summary>from → to로 갈 때 필요한 경유점(옆칸 ↔ 본 가게)과 to를 path 뒤에 붙인다.</summary>
         public static void AppendPath(List<Vector3> path, Vector3 from, Vector3 to)
         {
+            // 옆칸 안에서는 뒷벽 앞 통로(z = HubAnnex.z)를 따라 x만 옮긴 뒤 목적지로 꺾는다
+            // (옆칸이 여러 개면 칸 사이 가운데 진열대를 피하려고)
             bool a = InAnnex(from), b = InAnnex(to);
-            if (a && !b) { path.Add(HubAnnex); path.Add(HubMain); }
-            else if (!a && b) { path.Add(HubMain); path.Add(HubAnnex); }
+            float lane = HubAnnex.z;
+            if (a && !b) { path.Add(new Vector3(from.x, 0f, lane)); path.Add(HubAnnex); path.Add(HubMain); }
+            else if (!a && b) { path.Add(HubMain); path.Add(HubAnnex); path.Add(new Vector3(to.x, 0f, lane)); }
+            else if (a && b && Mathf.Abs(from.x - to.x) > 1.0f) { path.Add(new Vector3(from.x, 0f, lane)); path.Add(new Vector3(to.x, 0f, lane)); }
             path.Add(to);
         }
+
+        /// <summary>옆칸 k(1부터)가 차지하는 x 범위: 본 가게 왼쪽 끝(-4)에서 2.5m씩.</summary>
+        public const float BayWidth = 2.5f;
+        public static float BayX0(int k) => -4f - BayWidth * k;      // 왼쪽 끝
+        public static float BayX1(int k) => -4f - BayWidth * (k - 1); // 오른쪽 끝
     }
 
     /// <summary>
@@ -152,14 +161,83 @@ namespace Munbanggu.Shop
 
         public const string GroupExtra = "extra", GroupAnnex = "annex", GroupAnnexSide = "annexSide";
 
-        /// <summary>증축 1단계(옆칸): 옆칸 뒷벽 2칸. 2단계: 옆칸 왼쪽 가장자리 1칸.</summary>
-        static (Vector3 pos, float yaw)[] GroupSpots(string group) => group switch
+        /// <summary>옆칸 k의 뒷벽 진열대 묶음 이름 (1번은 예전 세이브와 같은 "annex").</summary>
+        public static string BayGroup(int k) => k == 1 ? GroupAnnex : $"bay{k}";
+        /// <summary>옆칸 k의 옆(가운데) 진열대 묶음 이름 (1번은 "annexSide").</summary>
+        public static string SideGroup(int k) => k == 1 ? GroupAnnexSide : $"side{k}";
+
+        /// <summary>
+        /// 묶음별 진열대 자리. 옆칸 k: 뒷벽 2칸(x = 옆칸 오른쪽 끝 -0.65, -1.9), 옆 진열대 1칸(옆칸 왼쪽 끝 +0.45, 가게 안을 봄).
+        /// 옆칸이 더 붙으면 앞 칸의 옆 진열대는 가운데 섬 진열대가 된다 (통로 z 2.25는 비어 있음).
+        /// </summary>
+        static (Vector3 pos, float yaw)[] GroupSpots(string group)
         {
-            GroupExtra => ExtraShelfSpots,
-            GroupAnnex => new[] { (new Vector3(-4.65f, 0f, 3.35f), 180f), (new Vector3(-5.9f, 0f, 3.35f), 180f) },
-            GroupAnnexSide => new[] { (new Vector3(-6.05f, 0f, 1.2f), 90f) },
-            _ => System.Array.Empty<(Vector3, float)>(),
-        };
+            if (group == GroupExtra) return ExtraShelfSpots;
+            int k = group == GroupAnnex ? 1 : group == GroupAnnexSide ? 1
+                : group.StartsWith("bay") || group.StartsWith("side") ? ParseIndex(group) : 0;
+            if (k <= 0) return System.Array.Empty<(Vector3, float)>();
+            float x1 = ShopLayout.BayX1(k), x0 = ShopLayout.BayX0(k);
+            if (group == GroupAnnex || group.StartsWith("bay"))
+                return new[] { (new Vector3(x1 - 0.65f, 0f, 3.35f), 180f), (new Vector3(x1 - 1.9f, 0f, 3.35f), 180f) };
+            return new[] { (new Vector3(x0 + 0.45f, 0f, 1.2f), 90f) };
+        }
+
+        static int ParseIndex(string group)
+        {
+            int i = 0;
+            while (i < group.Length && !char.IsDigit(group[i])) i++;
+            return int.TryParse(group.Substring(i), out int n) ? n : 0;
+        }
+
+        /// <summary>
+        /// 나중에 붙은 진열대 묶음을 전부 치운다 (이사할 때). 기본 진열대 8칸 + 뽑기판은 남긴다.
+        /// 치운 진열대의 물건은 부르는 쪽이 먼저 창고로 옮겨야 한다.
+        /// </summary>
+        public static void ClearGroups(ShopLayout layout)
+        {
+            int keep = layout.Board != null ? layout.Board.Index + 1 : layout.Slots.Count;
+            for (int i = layout.Slots.Count - 1; i >= keep; i--)
+            {
+                Kill(layout.Slots[i].gameObject);
+                layout.Slots.RemoveAt(i);
+            }
+            foreach (var g in layout.Groups)
+                foreach (var name in new[] { $"Shelves {g}", $"Shadows {g}" })
+                {
+                    var t = layout.Root.Find(name);
+                    if (t != null) Kill(t.gameObject);
+                }
+            layout.Groups.Clear();
+        }
+
+        /// <summary>움직이지 않는 장식(바닥·벽·간판·기본 진열대 몸통)을 지금 동네 색으로 다시 만든다.</summary>
+        public static void RebuildStatic(ShopLayout layout, MaterialCache mats)
+        {
+            foreach (var name in new[] { "Decor", "Glass", "Shadows" })
+            {
+                var t = layout.Root.Find(name);
+                if (t != null) Kill(t.gameObject);
+            }
+            var kit = new MeshKit();
+            var glass = new MeshKit();
+            var blob = new MeshKit();
+            ShopDecor.Build(kit, glass, blob);
+            int keep = layout.Board != null ? layout.Board.Index : layout.Slots.Count;
+            for (int i = 0; i < keep && i < layout.Slots.Count; i++)
+            {
+                var s = layout.Slots[i].transform;
+                ShopDecor.ShelfCabinet(kit, blob, s.localPosition, s.localEulerAngles.y, i);
+            }
+            kit.Build("Decor", layout.Root, mats.VertexColor);
+            if (mats.Glass != null) glass.Build("Glass", layout.Root, mats.Glass);
+            if (mats.Blob != null) blob.Build("Shadows", layout.Root, mats.Blob);
+        }
+
+        static void Kill(GameObject go)
+        {
+            if (Application.isPlaying) Object.Destroy(go);
+            else Object.DestroyImmediate(go);
+        }
 
         /// <summary>진열대 묶음을 만들어 Slots 뒤에 붙인다 (이미 있으면 건너뜀). 매대 칸 수도 맞춘다.</summary>
         public static bool AddShelfGroup(ShopLayout layout, MaterialCache mats, int capacity, string group)

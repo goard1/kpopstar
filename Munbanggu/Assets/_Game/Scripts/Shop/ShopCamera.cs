@@ -18,6 +18,8 @@ namespace Munbanggu.Shop
         const float BottomUiFrac = 0.225f;
 
         public const float MaxZoom = 2.2f;
+        /// <summary>최대 확대 배율. 가게가 넓어지면(증축·이사) 기본 화면이 멀어지므로 그만큼 더 확대할 수 있게 GameManager가 올린다.</summary>
+        public float maxZoom = MaxZoom;
 
         Camera cam;
         int lastW, lastH;
@@ -72,7 +74,7 @@ namespace Munbanggu.Shop
         {
             if (baseSize <= 0f) return;
             Vector2 before = ScreenToPlane(screenPos);
-            zoom = Mathf.Clamp(zoom * factor, 1f, MaxZoom);
+            zoom = Mathf.Clamp(zoom * factor, 1f, maxZoom);
             Apply();
             Vector2 after = ScreenToPlane(screenPos);
             pan += before - after;

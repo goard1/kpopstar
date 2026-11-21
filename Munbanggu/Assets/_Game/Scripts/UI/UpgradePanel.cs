@@ -44,7 +44,8 @@ namespace Munbanggu.UI
 
         System.Action onDecorate;
         Text comboText;
-        Text expTitle, expBody, expBuyLabel;
+        Text expTitle, expBody, expBuyLabel, expHeader;
+        bool moving; // 증축 카드가 지금 "이사" 안내인지
         Button expBuy;
         Image expBuyBg;
 
@@ -112,7 +113,7 @@ namespace Munbanggu.UI
 
             // 가게 증축 (단계별: 옆칸 → 평상 → 2층 만화방)
             {
-                var header = UIKit.Label("Header", content, "가게 증축", 32, UIKit.Accent, TextAnchor.LowerLeft);
+                var header = expHeader = UIKit.Label("Header", content, "가게 증축", 32, UIKit.Accent, TextAnchor.LowerLeft);
                 UIKit.Layout(header, -1, 56);
                 var row = UIKit.CardPanel("Expansion", content, UIKit.Card, 24, true, 6);
                 UIKit.Layout(row, -1, 300);
@@ -128,7 +129,7 @@ namespace Munbanggu.UI
                 ert.pivot = new Vector2(1, 0.5f);
                 ert.offsetMin = new Vector2(-226, 70); ert.offsetMax = new Vector2(-16, -70);
                 expBuyBg = (Image)expBuy.targetGraphic;
-                expBuy.onClick.AddListener(() => { if (gm.BuyExpansion()) Refresh(); });
+                expBuy.onClick.AddListener(OnExpansionButton);
             }
 
             // 진열대 장식 & 콤보 (배치 모드로 들어가기)
@@ -190,26 +191,58 @@ namespace Munbanggu.UI
         void RefreshExpansion()
         {
             int lv = gm.Expansion;
-            var next = ExpansionTable.Next(lv);
+            var district = gm.CurrentDistrict;
+            var next = ExpansionTable.Next(gm.District, lv);
             string dots = new string('●', lv) + new string('○', ExpansionTable.Max - lv);
             string red = UIKit.Hex(UIKit.Red);
+            if (expHeader != null) expHeader.text = $"가게 증축 · {district.name}";
+            moving = false;
             if (next == null)
             {
-                expTitle.text = $"{ExpansionTable.Name(lv)}  <color={red}>{dots}</color>";
-                expBody.text = "가게를 끝까지 넓혔어요!\n다음엔 다른 동네로 가게를 옮길 수 있게 될 거예요.";
-                expBuyLabel.text = "다 지음";
-                expBuy.interactable = false;
-                expBuyBg.color = UIKit.Muted;
+                // 이 동네 증축 끝 → 다음 동네로 이사 안내
+                var nd = ExpansionTable.NextDistrict(gm.District);
+                if (nd == null)
+                {
+                    expTitle.text = $"{district.name}  <color={red}>{dots}</color>";
+                    expBody.text = "가장 큰 동네에서 가게를 끝까지 넓혔어요!\n동네 최고의 문방구예요.";
+                    expBuyLabel.text = "다 지음";
+                    expBuy.interactable = false;
+                    expBuyBg.color = UIKit.Muted;
+                    return;
+                }
+                moving = true;
+                expTitle.text = $"이사: {nd.name}";
+                string mb = gm.MoveBlocker();
+                expBody.text = "· " + string.Join("\n· ", nd.traits) + "\n"
+                    + (mb != null ? $"<color={red}>{mb}</color>" : $"조건: 평판 {nd.moveMinReputation}+ · 평판은 반만 이어져요");
+                expBuyLabel.text = mb != null ? "아직 못 가요" : $"이사\n{UIKit.Won(nd.moveCost)}";
+                expBuy.interactable = mb == null && gm.Money >= nd.moveCost && gm.Phase == DayPhase.Morning;
+                expBuyBg.color = mb != null ? UIKit.Muted : UIKit.Blue;
                 return;
             }
             expTitle.text = $"다음: {next.name}  <color={red}>{dots}</color>";
             string blocker = gm.ExpansionBlocker();
-            string cond = $"조건: {next.minDay}일차~" + (next.minReputation > 0 ? $" · 평판 {next.minReputation}+" : "");
+            string cond = (next.minDay > 0 ? $"조건: {next.minDay}일차~" : "조건: 없음")
+                + (next.minReputation > 0 ? $" · 평판 {next.minReputation}+" : "");
             expBody.text = "· " + string.Join("\n· ", next.effects) + "\n"
                 + (blocker != null ? $"<color={red}>{blocker}</color>" : cond);
             expBuyLabel.text = blocker != null ? "아직 못 지어요" : UIKit.Won(next.cost);
             expBuy.interactable = blocker == null && gm.Money >= next.cost && gm.Phase == DayPhase.Morning;
             expBuyBg.color = blocker != null ? UIKit.Muted : UIKit.Red;
+        }
+
+        /// <summary>증축 버튼: 증축이면 바로, 이사면 한 번 더 물어본다.</summary>
+        void OnExpansionButton()
+        {
+            if (!moving) { if (gm.BuyExpansion()) Refresh(); return; }
+            var nd = ExpansionTable.NextDistrict(gm.District);
+            if (nd == null) return;
+            Close();
+            gm.Hud.ShowChoice($"{nd.name}(으)로 이사할까요?",
+                $"{nd.blurb}\n\n이삿값 {UIKit.Won(nd.moveCost)} · 월세 하루 {UIKit.Won(nd.baseRent)}\n"
+                + "기본 진열대·장식·직원·업그레이드는 가져가고, 옆칸 진열대 물건은 창고로 옮겨요.\n평판은 반만 이어지고, 증축은 새 동네에서 처음부터!",
+                "이사 가요!", "조금 더 있을래요",
+                yes => { if (yes) gm.MoveDistrict(); });
         }
 
         /// <summary>돈·단계·버튼 상태 갱신 (열 때, 살 때, 돈이 바뀔 때).</summary>

@@ -605,11 +605,12 @@ namespace Munbanggu.Customers
         void Detour(Vector3 dest)
         {
             Vector3 from = routeIdx < route.Length ? route[route.Length - 1] : transform.position;
-            if (ShopLayout.InAnnex(from) == ShopLayout.InAnnex(dest)) return;
             var list = new System.Collections.Generic.List<Vector3>();
             for (int i = routeIdx; i < route.Length; i++) list.Add(route[i]);
+            int before = list.Count;
             ShopLayout.AppendPath(list, from, dest);
             list.RemoveAt(list.Count - 1);
+            if (list.Count == before) return; // 경유점이 필요 없음
             route = list.ToArray();
             routeIdx = 0;
         }

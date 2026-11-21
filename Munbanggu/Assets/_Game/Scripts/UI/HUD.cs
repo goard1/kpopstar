@@ -496,6 +496,20 @@ namespace Munbanggu.UI
 
         void BuildSlotLabels()
         {
+            // 이사로 치운 매대의 이름표는 지운다 (Destroy는 프레임 끝이라 Slots에 없는 것 기준으로)
+            var gone = new List<ShelfSlot>();
+            foreach (var kv in slotLabels)
+                if (kv.Key == null || !gm.Layout.Slots.Contains(kv.Key)) gone.Add(kv.Key);
+            foreach (var s in gone)
+            {
+                var l = slotLabels[s];
+                if (l.bg != null)
+                {
+                    if (Application.isPlaying) Destroy(l.bg.gameObject);
+                    else DestroyImmediate(l.bg.gameObject);
+                }
+                slotLabels.Remove(s);
+            }
             foreach (var slot in gm.Layout.Slots)
             {
                 if (slotLabels.ContainsKey(slot)) continue; // 업그레이드로 새로 생긴 매대만 추가
